@@ -1,6 +1,5 @@
-import React, { useState } from "react";
-import { motion } from "motion/react";
-import { Eye, ShieldAlert } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { playOwlResonance } from "../audio";
 
 interface WelcomeScreenProps {
@@ -8,148 +7,242 @@ interface WelcomeScreenProps {
 }
 
 export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [eyeFlash, setEyeFlash] = useState(false);
+  const [isHooting, setIsHooting] = useState(false);
 
-  const handleOwlInteract = () => {
-    playOwlResonance();
-    setEyeFlash(true);
-    setTimeout(() => setEyeFlash(false), 1200);
+  // Setup motion values for high-performance direct DOM updates at 60fps
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // Buttery smooth physics for organic looking head-tracking
+  const springConfig = { damping: 30, stiffness: 100, mass: 0.6 };
+  const mouseX = useSpring(x, springConfig);
+  const mouseY = useSpring(y, springConfig);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const { innerWidth, innerHeight } = window;
+      // Normalize coordinate offset from center of viewport (-0.5 to 0.5)
+      const normX = (e.clientX / innerWidth) - 0.5;
+      const normY = (e.clientY / innerHeight) - 0.5;
+      x.set(normX);
+      y.set(normY);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [x, y]);
+
+  // Transform 3D perspectives on mouse coordinates
+  const rotateX = useTransform(mouseY, (val) => val * -22);
+  const rotateY = useTransform(mouseX, (val) => val * 22);
+  const translateHeadX = useTransform(mouseX, (val) => val * 10);
+  const translateHeadY = useTransform(mouseY, (val) => val * 10);
+  
+  // Make pupils shift precisely inside orbits to stare directly at cursor
+  const pupilX = useTransform(mouseX, (val) => val * 14);
+  const pupilY = useTransform(mouseY, (val) => val * 14);
+
+  const handleInteraction = () => {
+    if (isHooting) return;
+    setIsHooting(true);
+    try {
+      playOwlResonance();
+    } catch (e) {
+      console.warn("Audio context not initialized yet", e);
+    }
+    
+    // Smooth delay for the hoot sound before transitioning
+    setTimeout(() => {
+      onEnter();
+    }, 900);
   };
 
   return (
-    <div 
-      id="welcome-portal"
-      className="relative min-h-screen bg-dark-black text-white flex flex-col items-center justify-between p-8 md:p-16 overflow-hidden select-none"
+    <div
+      id="landing-portal"
+      onClick={handleInteraction}
+      className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-center select-none cursor-pointer z-50 overflow-hidden"
     >
-      {/* Background glowing owl shadow with hover & click engagement */}
-      <div 
-        className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none md:scale-100 scale-75 z-10"
+      {/* Absolute faint concentric coordinate circles to indicate spatial audio interface */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+        <div className="w-[300px] h-[300px] border border-[#D9D6CA] rounded-full animate-pulse" />
+        <div className="absolute w-[500px] h-[500px] border border-[#D9D6CA] rounded-full border-dashed" />
+        <div className="absolute w-[700px] h-[700px] border border-zinc-800 rounded-full" />
+      </div>
+
+      <motion.div
+        className="text-center flex flex-col items-center justify-center gap-12 relative z-10"
+        style={{ perspective: 1000 }}
       >
-        <div 
-          className="relative w-80 h-80 flex items-center justify-center pointer-events-auto cursor-pointer"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={handleOwlInteract}
-          title="Interact with the Sentinel"
+        {/* Dynamic Interactive SVG Sentinel Owl Head */}
+        <motion.div
+          style={{
+            rotateX: rotateX,
+            rotateY: rotateY,
+            x: translateHeadX,
+            y: translateHeadY,
+          }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.96 }}
+          animate={isHooting ? {
+            scale: [1, 1.15, 0.9],
+            filter: "drop-shadow(0 0 35px rgba(217, 214, 202, 0.6))"
+          } : {}}
+          transition={{ duration: 0.5 }}
+          className="relative w-56 h-56 flex items-center justify-center select-none cursor-pointer filter drop-shadow-[0_0_15px_rgba(217,214,202,0.06)]"
         >
-          {/* Subtle owl eyes with interactive scaling / glowing flare */}
-          <motion.div 
-            animate={{ 
-              scale: eyeFlash ? [1, 2.5, 1] : isHovered ? 1.25 : 1,
-              opacity: eyeFlash ? [0.6, 1, 0.6] : isHovered ? 0.9 : 0.5
-            }}
-            transition={{ duration: eyeFlash ? 0.8 : 0.4 }}
-            className={`absolute left-[33%] top-[45%] w-6 h-3 bg-gold-muted rounded-full blur-[2px] shadow-[0_0_15px_#C5A059]`} 
-          />
-          <motion.div 
-            animate={{ 
-              scale: eyeFlash ? [1, 2.5, 1] : isHovered ? 1.25 : 1,
-              opacity: eyeFlash ? [0.6, 1, 0.6] : isHovered ? 0.9 : 0.5
-            }}
-            transition={{ duration: eyeFlash ? 0.8 : 0.4 }}
-            className={`absolute right-[33%] top-[45%] w-6 h-3 bg-gold-muted rounded-full blur-[2px] shadow-[0_0_20px_#C5A059]`} 
-          />
-          
-          {/* Silent owl silhouette outline using SVG */}
-          <motion.svg 
-            animate={{ 
-              scale: isHovered ? 1.03 : 1,
-              opacity: isHovered ? 0.45 : 0.25 
-            }}
-            transition={{ type: "spring", stiffness: 100, damping: 20 }}
-            className="w-full h-full text-zinc-800" 
-            viewBox="0 0 100 100" 
-            fill="currentColor"
+          <svg
+            viewBox="0 0 200 200"
+            className="w-full h-full transition-all duration-300"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <path d="M50 15C38 15 32 25 32 38 C32 45 35 55 42 62 C40 68 35 72 30 75 C38 78 45 74 48 70 C49 70 50 70 50 70 C50 70 51 70 52 70 C55 74 62 78 70 75 C65 72 60 68 58 62 C65 55 68 45 68 38 C68 25 62 15 50 15 Z" />
-          </motion.svg>
+            {/* Ambient Aura behind head */}
+            <circle cx="100" cy="100" r="85" stroke="rgba(217, 214, 202, 0.03)" strokeWidth="1" />
+            <circle cx="100" cy="100" r="70" stroke="rgba(217, 214, 202, 0.05)" strokeWidth="1" strokeDasharray="4 4" />
+
+            {/* Geometric Sharp Feathers/Spikes of the Outer Mask (Hardstone Goth style) */}
+            <path d="M50 40 L40 65 L25 80 L35 110 L50 140 L70 165 L100 180 L130 165 L150 140 L165 110 L175 80 L160 65 L150 40 L125 50 L100 35 L75 50 Z" stroke="#D9D6CA" strokeWidth="1.5" strokeLinejoin="miter" strokeMiterlimit="3" />
+            
+            {/* Sleek Angry Brow/Plates overlay */}
+            <path d="M45 75 L100 95 L155 75" stroke="#D9D6CA" strokeWidth="2.5" />
+            <path d="M100 95 L100 135" stroke="rgba(217, 214, 202, 0.3)" strokeWidth="1.5" />
+
+            {/* Sharp ears */}
+            <polygon points="50,40 58,22 74,48" fill="black" stroke="#D9D6CA" strokeWidth="1.5" />
+            <polygon points="150,40 142,22 126,48" fill="black" stroke="#D9D6CA" strokeWidth="1.5" />
+
+            {/* Sleek Beak plate */}
+            <polygon points="100,105 92,128 108,128" fill="#D9D6CA" />
+
+            {/* LEFT EYE ASSEMBLY */}
+            <g transform="translate(68, 92)">
+              {/* Outer metallic orbital socket */}
+              <circle cx="0" cy="0" r="24" stroke="#D9D6CA" strokeWidth="1" />
+              <circle cx="0" cy="0" r="18" stroke="rgba(217, 214, 202, 0.35)" strokeWidth="1.5" strokeDasharray="3 2" />
+              
+              {/* Camera reticle tick marks */}
+              <line x1="-24" y1="0" x2="-20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
+              <line x1="24" y1="0" x2="20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
+              <line x1="0" y1="-24" x2="0" y2="-20" stroke="#D9D6CA" strokeWidth="1" />
+              <line x1="0" y1="24" x2="0" y2="20" stroke="#D9D6CA" strokeWidth="1" />
+
+              {/* Dynamic Pupil - Spring tracked looking target */}
+              <motion.circle
+                style={{
+                  x: pupilX,
+                  y: pupilY,
+                }}
+                cx="0"
+                cy="0"
+                r={isHooting ? 8 : 6}
+                fill="#D9D6CA"
+                className="transition-all duration-300"
+              />
+              {/* Glowing camera lens pinhole center */}
+              <motion.circle
+                style={{
+                  x: pupilX,
+                  y: pupilY,
+                }}
+                cx="0"
+                cy="0"
+                r="2"
+                fill={isHooting ? "#ef4444" : "#10b981"}
+                className="transition-[fill] duration-300"
+              />
+            </g>
+
+            {/* RIGHT EYE ASSEMBLY */}
+            <g transform="translate(132, 92)">
+              {/* Outer metallic orbital socket */}
+              <circle cx="0" cy="0" r="24" stroke="#D9D6CA" strokeWidth="1" />
+              <circle cx="0" cy="0" r="18" stroke="rgba(217, 214, 202, 0.35)" strokeWidth="1.5" strokeDasharray="3 2" />
+
+              {/* Camera reticle tick marks */}
+              <line x1="-24" y1="0" x2="-20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
+              <line x1="24" y1="0" x2="20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
+              <line x1="0" y1="-24" x2="0" y2="-20" stroke="#D9D6CA" strokeWidth="1" />
+              <line x1="0" y1="24" x2="0" y2="20" stroke="#D9D6CA" strokeWidth="1" />
+
+              {/* Dynamic Pupil - Spring tracked looking target */}
+              <motion.circle
+                style={{
+                  x: pupilX,
+                  y: pupilY,
+                }}
+                cx="0"
+                cy="0"
+                r={isHooting ? 8 : 6}
+                fill="#D9D6CA"
+                className="transition-all duration-300"
+              />
+              {/* Glowing camera lens pinhole center */}
+              <motion.circle
+                style={{
+                  x: pupilX,
+                  y: pupilY,
+                }}
+                cx="0"
+                cy="0"
+                r="2"
+                fill={isHooting ? "#ef4444" : "#10b981"}
+                className="transition-[fill] duration-300"
+              />
+            </g>
+
+            {/* Left and Right side auxiliary cyber lines */}
+            <path d="M25 110 L50 115" stroke="rgba(217, 214, 202, 0.2)" strokeWidth="1" />
+            <path d="M175 110 L150 115" stroke="rgba(217, 214, 202, 0.2)" strokeWidth="1" />
+            <path d="M60 152 L140 152" stroke="rgba(217, 214, 202, 0.3)" strokeWidth="1" strokeDasharray="2 3" />
+          </svg>
+        </motion.div>
+
+        {/* Brand Command promot elements */}
+        <div className="space-y-3 pointer-events-none">
+          <motion.h1
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.2, delay: 0.4 }}
+            className="text-md sm:text-lg font-bold tracking-[0.55em] text-[#D9D6CA] uppercase font-mono"
+          >
+            FOLLOW THE OWL
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            transition={{ duration: 1.5, delay: 0.8 }}
+            className="text-[9px] tracking-[0.3em] font-mono uppercase text-zinc-500"
+          >
+            [ CHRONICLE SENSORY PORTAL COMPLIANT ]
+          </motion.p>
         </div>
-      </div>
-
-      {/* Decorative Top Accent */}
-      <motion.div 
-        id="portal-top-tag"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 0.4 }}
-        transition={{ duration: 1.5, delay: 0.2 }}
-        className="text-[10px] tracking-[0.4em] font-mono uppercase text-zinc-500 z-20"
-      >
-        [ SECURE SONIC CELL // RE-0333 ]
       </motion.div>
 
-      {/* Center Cinematic Typography Block */}
-      <div className="flex flex-col items-center text-center justify-center flex-1 max-w-2xl py-12">
-        <motion.h1 
-          id="portal-main-title"
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 2.2, ease: [0.16, 1, 0.3, 1] }}
-          className="text-6xl md:text-8xl font-serif tracking-[0.25em] text-zinc-200 glow-text select-none font-light mb-6 font-display"
-        >
-          UNKNOWN
-        </motion.h1>
-
-        <motion.div 
-          id="portal-subtitle-container"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.8, delay: 0.6 }}
-          className="space-y-3"
-        >
-          <p className="text-sm md:text-md uppercase tracking-[0.55em] font-light text-gold-muted">
-            A Cinematic Sonic Archive
-          </p>
-          <p className="text-xs md:text-sm uppercase tracking-[0.35em] text-zinc-500 font-mono">
-            Guarded By The Owl
-          </p>
-        </motion.div>
-
-        {/* Custom micro-interactive eye status */}
-        <motion.div 
-          id="portal-owl-indicator"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.7 }}
-          transition={{ duration: 1.2, delay: 1.2 }}
-          onClick={handleOwlInteract}
-          className="mt-12 flex items-center gap-3 border border-zinc-900 bg-zinc-950/40 px-5 py-2.5 rounded-full backdrop-blur-md cursor-pointer hover:bg-zinc-900/60 hover:border-gold-muted/30 transition-all duration-300 select-none z-20"
-          title="Listen to the Sentinel's Call"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold-muted opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-gold-muted"></span>
-          </span>
-          <span className="text-[10px] tracking-[0.3em] font-mono text-zinc-400 uppercase flex items-center gap-1.5">
-            🦉 Follow the Owl [ CLICK TO HEAR ]
-          </span>
-        </motion.div>
+      {/* Touch indicator / instruction prompt */}
+      <div className="absolute bottom-10 flex flex-col items-center gap-1.5 pointer-events-none">
+        <span className="text-[9px] font-mono text-zinc-600 tracking-[0.35em] uppercase animate-pulse">
+          {isHooting ? "TRANSMITTING TO THE CORES..." : "[ TAP ANYWHERE TO INITIATE SEQUENCE ]"}
+        </span>
       </div>
-
-      {/* Action Area */}
-      <motion.div 
-        id="portal-action"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1.4, delay: 1.4, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-col items-center gap-4 w-full max-w-sm relative z-20"
-      >
-        <button 
-          id="enter-archive-btn"
-          onClick={onEnter}
-          className="group relative w-full py-4 text-center cursor-pointer overflow-hidden border border-zinc-800 bg-zinc-950 hover:border-gold-muted transition-all duration-700 ease-out rounded-sm"
-        >
-          {/* Accent hover backgrounds */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold-muted/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-          
-          <span className="relative text-xs tracking-[0.6em] font-display uppercase text-zinc-300 group-hover:text-gold-muted group-hover:glow-text transition-all duration-300">
-            ENTER THE ARCHIVE
-          </span>
-        </button>
-
-        <p className="text-[9px] font-mono text-zinc-600 tracking-[0.2em] text-center select-none">
-          BY ENTERING, YOU CONSENT TO AUDITORY CHRONOLOGY
-        </p>
-      </motion.div>
     </div>
   );
 }
+
+// Custom mathematical SVG Nuclear/Radioactive warning symbol
+export function RadioactiveIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={`${className} animate-spin-slow inline-block shrink-0`} viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="12" r="11" fill="currentColor" />
+      <circle cx="12" cy="12" r="9.3" fill="black" />
+      {/* 3 hazard fans */}
+      <path d="M12 12 L12 4.1 A7.9 7.9 0 0 1 18.8 8.1 Z" fill="currentColor" />
+      <path d="M12 12 L18.8 15.9 A7.9 7.9 0 0 1 12 19.9 Z" fill="currentColor" />
+      <path d="M12 12 L5.2 15.9 A7.9 7.9 0 0 1 5.2 8.1 Z" fill="currentColor" />
+      {/* Core */}
+      <circle cx="12" cy="12" r="2.3" fill="black" />
+      <circle cx="12" cy="12" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
