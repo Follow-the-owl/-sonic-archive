@@ -61,7 +61,7 @@ export default function IntroductionSection({ onFollowOwl }: IntroductionSection
       <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-start">
         <div className="space-y-6 text-zinc-400 font-sans text-sm md:text-base leading-relaxed font-light">
           <p>
-            <strong className="text-zinc-200 font-normal">UNKNOWN</strong> is a cinematic sonic archive. It is not a catalog of product offerings, nor a gallery of commercial beats. It is a secure vault for fragments of raw audio frequency and genuine midnight emotion. 
+            <strong className="text-zinc-200 font-normal">FOLLOW THE OWL</strong> is a cinematic sonic archive. It is not a catalog of product offerings, nor a gallery of commercial beats. It is a secure vault for fragments of raw audio frequency and genuine midnight emotion. 
           </p>
           <p>
             Every frequency preserved here was captured during hours when the world was sleeping, when daylight interference was fully muted.

@@ -95,7 +95,7 @@ export default function ObservatorySection() {
           >
             {/* Nav Header */}
             <div className="w-full max-w-5xl flex items-center justify-between font-mono text-[10px] text-zinc-500 mb-4 select-none">
-              <span>UNKNOWN VISUAL FIELD REGISTER // SPECIMEN_{activeMedia.id}</span>
+              <span>FOLLOW THE OWL VISUAL FIELD REGISTER // SPECIMEN_{activeMedia.id}</span>
               <button
                 id="close-obs-lightbox"
                 onClick={() => setActiveMedia(null)}

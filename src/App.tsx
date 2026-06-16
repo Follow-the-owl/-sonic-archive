@@ -79,11 +79,11 @@ export default function App() {
                   onClick={() => setActiveTab("The Owl Clock")}
                   className="cursor-pointer space-y-1 group relative select-none"
                 >
-                  <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-lg tracking-[0.25em]">
-                    UNKNOWN
+                  <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-sm sm:text-lg tracking-[0.25em]">
+                    FOLLOW THE OWL
                   </div>
-                  <h1 className="text-lg tracking-[0.25em] font-display font-bold text-white group-hover:text-gold-muted transition-colors uppercase leading-none">
-                    UNKNOWN
+                  <h1 className="text-sm sm:text-lg tracking-[0.25em] font-display font-bold text-white group-hover:text-gold-muted transition-colors uppercase leading-none">
+                    FOLLOW THE OWL
                   </h1>
                   <span className="text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-500 block leading-none">
                     SONIC ARCHIVE
@@ -226,9 +226,9 @@ export default function App() {
                     setActiveTab("The Owl Clock");
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}>
-                    <div className="absolute inset-0 blur-[2px] opacity-20 text-white font-display text-xl tracking-[0.25em]">UNKNOWN</div>
+                    <div className="absolute inset-0 blur-[2px] opacity-20 text-white font-display text-xl tracking-[0.25em]">FOLLOW THE OWL</div>
                     <h3 className="text-xl font-display font-bold tracking-[0.25em] text-white uppercase leading-none">
-                      UNKNOWN
+                      FOLLOW THE OWL
                     </h3>
                   </div>
                   <div className="space-y-1.5">
@@ -306,7 +306,7 @@ export default function App() {
 
               {/* Bottom Copyright stamp */}
               <div className="max-w-6xl mx-auto border-t border-zinc-950 mt-16 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[9px] text-zinc-700">
-                <span>© {new Date().getFullYear()} UNKNOWN. ALL CHRONOLOGIES SECURED.</span>
+                <span>© {new Date().getFullYear()} FOLLOW THE OWL. ALL CHRONOLOGIES SECURED.</span>
                 <span className="tracking-[0.14em]">OWNERSHIP LICENSES GUARDED BY THE SENTINEL OWLS</span>
               </div>
             </footer>

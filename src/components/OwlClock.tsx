@@ -182,49 +182,6 @@ export default function OwlClock() {
             referrerPolicy="no-referrer"
             className="w-full h-full object-cover opacity-100 pointer-events-none select-none transition-all duration-700"
           />
-
-          {/* Interactive Red Glowing Eyes overlayed perfectly over the image's physical sockets */}
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="relative w-full h-full">
-              {/* Left Eye orbital socket glow & tracker */}
-              <div 
-                className="absolute"
-                style={{
-                  top: "43.3%", 
-                  left: "44.6%",
-                  transform: "translate(-50%, -50%)"
-                }}
-              >
-                {/* Micro outer crimson lens shadow */}
-                <span className="absolute -inset-2.5 bg-red-600/30 blur-[4px] rounded-full animate-pulse" />
-                <motion.div
-                  style={{ x: pupilX, y: pupilY }}
-                  className="relative w-2 h-2 rounded-full"
-                >
-                  <span className={`block w-full h-full rounded-full transition-all duration-300 ${isHooting ? "bg-red-400 scale-[2.2] shadow-[0_0_15px_#dc2626]" : "bg-red-600 shadow-[0_0_8px_#dc2626]"}`} />
-                </motion.div>
-              </div>
-
-              {/* Right Eye orbital socket glow & tracker */}
-              <div 
-                className="absolute"
-                style={{
-                  top: "43.3%", 
-                  right: "42.1%",
-                  transform: "translate(50%, -50%)"
-                }}
-              >
-                {/* Micro outer crimson lens shadow */}
-                <span className="absolute -inset-2.5 bg-red-600/30 blur-[4px] rounded-full animate-pulse" />
-                <motion.div
-                  style={{ x: pupilX, y: pupilY }}
-                  className="relative w-2 h-2 rounded-full"
-                >
-                  <span className={`block w-full h-full rounded-full transition-all duration-300 ${isHooting ? "bg-red-400 scale-[2.2] shadow-[0_0_15px_#dc2626]" : "bg-red-600 shadow-[0_0_8px_#dc2626]"}`} />
-                </motion.div>
-              </div>
-            </div>
-          </div>
         </motion.div>
 
         {/* 3. TYPEWRITER FRAGMENTS STACK OVERLAYED PRECISELY UNDER/OVER THE OWL */}
