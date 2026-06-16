@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
+import { Lock } from "lucide-react";
 import { playOwlResonance } from "../audio";
+
+const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
 
 interface WelcomeScreenProps {
   onEnter: () => void;
@@ -33,14 +36,14 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
   }, [x, y]);
 
   // Transform 3D perspectives on mouse coordinates
-  const rotateX = useTransform(mouseY, (val) => val * -22);
-  const rotateY = useTransform(mouseX, (val) => val * 22);
-  const translateHeadX = useTransform(mouseX, (val) => val * 10);
-  const translateHeadY = useTransform(mouseY, (val) => val * 10);
+  const rotateX = useTransform(mouseY, (val) => val * -15);
+  const rotateY = useTransform(mouseX, (val) => val * 15);
+  const translateHeadX = useTransform(mouseX, (val) => val * 8);
+  const translateHeadY = useTransform(mouseY, (val) => val * 8);
   
   // Make pupils shift precisely inside orbits to stare directly at cursor
-  const pupilX = useTransform(mouseX, (val) => val * 14);
-  const pupilY = useTransform(mouseY, (val) => val * 14);
+  const pupilX = useTransform(mouseX, (val) => val * 5);
+  const pupilY = useTransform(mouseY, (val) => val * 5);
 
   const handleInteraction = () => {
     if (isHooting) return;
@@ -61,169 +64,73 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
     <div
       id="landing-portal"
       onClick={handleInteraction}
-      className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-center select-none cursor-pointer z-50 overflow-hidden"
+      className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-between select-none cursor-pointer z-50 overflow-hidden py-12 px-6"
     >
       {/* Absolute faint concentric coordinate circles to indicate spatial audio interface */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04] z-0">
         <div className="w-[300px] h-[300px] border border-[#D9D6CA] rounded-full animate-pulse" />
         <div className="absolute w-[500px] h-[500px] border border-[#D9D6CA] rounded-full border-dashed" />
-        <div className="absolute w-[700px] h-[700px] border border-zinc-800 rounded-full" />
       </div>
 
-      <motion.div
-        className="text-center flex flex-col items-center justify-center gap-12 relative z-10"
-        style={{ perspective: 1000 }}
-      >
-        {/* Dynamic Interactive SVG Sentinel Owl Head */}
+      {/* Top right "ARCHIVE ACCESS 🔒" badge - Styled exactly like the user's reference */}
+      <div className="w-full flex justify-end items-center z-50">
+        <div className="flex items-center gap-1.5 text-zinc-500/80 font-mono text-[9px] sm:text-[10px] tracking-[0.35em] uppercase hover:text-white transition-colors duration-300">
+          <span>ARCHIVE ACCESS</span>
+          <Lock size={11} className="stroke-[1.5] text-zinc-600 group-hover:text-zinc-400" />
+        </div>
+      </div>
+
+      {/* Center Image Deck wrapped in matching Parallax Skews */}
+      <div className="flex-1 w-full max-w-5xl flex items-center justify-center relative z-10 py-6">
         <motion.div
           style={{
             rotateX: rotateX,
             rotateY: rotateY,
             x: translateHeadX,
             y: translateHeadY,
+            perspective: 1200,
           }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.96 }}
-          animate={isHooting ? {
-            scale: [1, 1.15, 0.9],
-            filter: "drop-shadow(0 0 35px rgba(217, 214, 202, 0.6))"
-          } : {}}
-          transition={{ duration: 0.5 }}
-          className="relative w-56 h-56 flex items-center justify-center select-none cursor-pointer filter drop-shadow-[0_0_15px_rgba(217,214,202,0.06)]"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          className="relative w-[340px] h-[191px] sm:w-[500px] sm:h-[281px] md:w-[680px] md:h-[382px] lg:w-[800px] lg:h-[450px] flex items-center justify-center select-none overflow-hidden"
         >
-          <svg
-            viewBox="0 0 200 200"
-            className="w-full h-full transition-all duration-300"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {/* Ambient Aura behind head */}
-            <circle cx="100" cy="100" r="85" stroke="rgba(217, 214, 202, 0.03)" strokeWidth="1" />
-            <circle cx="100" cy="100" r="70" stroke="rgba(217, 214, 202, 0.05)" strokeWidth="1" strokeDasharray="4 4" />
+          {/* Real-image background perfectly matching the site's primary owl branding */}
+          <motion.img
+            src={owlBgImage}
+            alt="The Sentinel Entrance"
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover select-none pointer-events-none"
+            animate={isHooting ? {
+              scale: [1, 1.04, 0.98, 1],
+              filter: ["brightness(1) drop-shadow(0 0 10px rgba(220,38,38,0.15))", "brightness(1.2) drop-shadow(0 0 45px rgba(220,38,38,0.55))", "brightness(1) drop-shadow(0 0 10px rgba(0,0,0,0))"]
+            } : {}}
+            transition={{ duration: 0.8 }}
+          />
 
-            {/* Geometric Sharp Feathers/Spikes of the Outer Mask (Hardstone Goth style) */}
-            <path d="M50 40 L40 65 L25 80 L35 110 L50 140 L70 165 L100 180 L130 165 L150 140 L165 110 L175 80 L160 65 L150 40 L125 50 L100 35 L75 50 Z" stroke="#D9D6CA" strokeWidth="1.5" strokeLinejoin="miter" strokeMiterlimit="3" />
-            
-            {/* Sleek Angry Brow/Plates overlay */}
-            <path d="M45 75 L100 95 L155 75" stroke="#D9D6CA" strokeWidth="2.5" />
-            <path d="M100 95 L100 135" stroke="rgba(217, 214, 202, 0.3)" strokeWidth="1.5" />
+          {/* Spaced aesthetic title and axis slider marker precisely matching the uploaded layout */}
+          <div className="absolute inset-x-0 bottom-4 sm:bottom-6 md:bottom-10 lg:bottom-12 flex flex-col items-center gap-4 z-20 pointer-events-none">
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.5, delay: 0.2 }}
+              className="text-[12px] sm:text-[13px] md:text-[14px] font-normal tracking-[0.75em] text-[#D9D6CA] uppercase font-mono text-center select-none"
+            >
+              FOLLOW THE OWL
+            </motion.h1>
 
-            {/* Sharp ears */}
-            <polygon points="50,40 58,22 74,48" fill="black" stroke="#D9D6CA" strokeWidth="1.5" />
-            <polygon points="150,40 142,22 126,48" fill="black" stroke="#D9D6CA" strokeWidth="1.5" />
-
-            {/* Sleek Beak plate */}
-            <polygon points="100,105 92,128 108,128" fill="#D9D6CA" />
-
-            {/* LEFT EYE ASSEMBLY */}
-            <g transform="translate(68, 92)">
-              {/* Outer metallic orbital socket */}
-              <circle cx="0" cy="0" r="24" stroke="#D9D6CA" strokeWidth="1" />
-              <circle cx="0" cy="0" r="18" stroke="rgba(217, 214, 202, 0.35)" strokeWidth="1.5" strokeDasharray="3 2" />
-              
-              {/* Camera reticle tick marks */}
-              <line x1="-24" y1="0" x2="-20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
-              <line x1="24" y1="0" x2="20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
-              <line x1="0" y1="-24" x2="0" y2="-20" stroke="#D9D6CA" strokeWidth="1" />
-              <line x1="0" y1="24" x2="0" y2="20" stroke="#D9D6CA" strokeWidth="1" />
-
-              {/* Dynamic Pupil - Spring tracked looking target */}
-              <motion.circle
-                style={{
-                  x: pupilX,
-                  y: pupilY,
-                }}
-                cx="0"
-                cy="0"
-                r={isHooting ? 8 : 6}
-                fill="#D9D6CA"
-                className="transition-all duration-300"
-              />
-              {/* Glowing camera lens pinhole center */}
-              <motion.circle
-                style={{
-                  x: pupilX,
-                  y: pupilY,
-                }}
-                cx="0"
-                cy="0"
-                r="2"
-                fill={isHooting ? "#ef4444" : "#10b981"}
-                className="transition-[fill] duration-300"
-              />
-            </g>
-
-            {/* RIGHT EYE ASSEMBLY */}
-            <g transform="translate(132, 92)">
-              {/* Outer metallic orbital socket */}
-              <circle cx="0" cy="0" r="24" stroke="#D9D6CA" strokeWidth="1" />
-              <circle cx="0" cy="0" r="18" stroke="rgba(217, 214, 202, 0.35)" strokeWidth="1.5" strokeDasharray="3 2" />
-
-              {/* Camera reticle tick marks */}
-              <line x1="-24" y1="0" x2="-20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
-              <line x1="24" y1="0" x2="20" y2="0" stroke="#D9D6CA" strokeWidth="1" />
-              <line x1="0" y1="-24" x2="0" y2="-20" stroke="#D9D6CA" strokeWidth="1" />
-              <line x1="0" y1="24" x2="0" y2="20" stroke="#D9D6CA" strokeWidth="1" />
-
-              {/* Dynamic Pupil - Spring tracked looking target */}
-              <motion.circle
-                style={{
-                  x: pupilX,
-                  y: pupilY,
-                }}
-                cx="0"
-                cy="0"
-                r={isHooting ? 8 : 6}
-                fill="#D9D6CA"
-                className="transition-all duration-300"
-              />
-              {/* Glowing camera lens pinhole center */}
-              <motion.circle
-                style={{
-                  x: pupilX,
-                  y: pupilY,
-                }}
-                cx="0"
-                cy="0"
-                r="2"
-                fill={isHooting ? "#ef4444" : "#10b981"}
-                className="transition-[fill] duration-300"
-              />
-            </g>
-
-            {/* Left and Right side auxiliary cyber lines */}
-            <path d="M25 110 L50 115" stroke="rgba(217, 214, 202, 0.2)" strokeWidth="1" />
-            <path d="M175 110 L150 115" stroke="rgba(217, 214, 202, 0.2)" strokeWidth="1" />
-            <path d="M60 152 L140 152" stroke="rgba(217, 214, 202, 0.3)" strokeWidth="1" strokeDasharray="2 3" />
-          </svg>
+            {/* Hairline spacer with central hollow ring target */}
+            <motion.div 
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 0.5, scaleX: 1 }}
+              transition={{ duration: 1.8, delay: 0.5 }}
+              className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
+            >
+              <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-[#D9D6CA]/30" />
+              <div className="w-[11px] h-[11px] rounded-full border border-[#D9D6CA]/45 bg-transparent flex-shrink-0" />
+              <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-[#D9D6CA]/30" />
+            </motion.div>
+          </div>
         </motion.div>
-
-        {/* Brand Command promot elements */}
-        <div className="space-y-3 pointer-events-none">
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.2, delay: 0.4 }}
-            className="text-md sm:text-lg font-bold tracking-[0.55em] text-[#D9D6CA] uppercase font-mono"
-          >
-            FOLLOW THE OWL
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            transition={{ duration: 1.5, delay: 0.8 }}
-            className="text-[9px] tracking-[0.3em] font-mono uppercase text-zinc-500"
-          >
-            [ CHRONICLE SENSORY PORTAL COMPLIANT ]
-          </motion.p>
-        </div>
-      </motion.div>
-
-      {/* Touch indicator / instruction prompt */}
-      <div className="absolute bottom-10 flex flex-col items-center gap-1.5 pointer-events-none">
-        <span className="text-[9px] font-mono text-zinc-600 tracking-[0.35em] uppercase animate-pulse">
-          {isHooting ? "TRANSMITTING TO THE CORES..." : "[ TAP ANYWHERE TO INITIATE SEQUENCE ]"}
-        </span>
       </div>
     </div>
   );
@@ -245,4 +152,5 @@ export function RadioactiveIcon({ className = "w-4 h-4" }: { className?: string 
     </svg>
   );
 }
+
 
