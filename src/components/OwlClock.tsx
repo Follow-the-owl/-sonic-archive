@@ -75,6 +75,16 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
   const [showMutePrompt, setShowMutePrompt] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Smooth springs for high-performance responsive eye tracking and 3D skewing
   const x = useMotionValue(0);
@@ -191,58 +201,61 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
         {/* Bound strictly to start at 51% (safely below the eyes coordinates at 43.3%) to prevent upward drifting */}
         <div 
           id="typewriter-fragments-overlay"
-          className="absolute inset-x-0 bottom-1 top-[51%] flex flex-col justify-start items-center font-mono text-center select-none pointer-events-none z-20"
+          className="absolute inset-x-0 top-[51%] flex flex-col justify-start items-center font-mono text-center select-none pointer-events-none z-20"
         >
           {/* Floating typewriter text laid out organically on top of the owl's body, restricted cleanly to prevent bleeding over the head */}
           <div 
-            className="w-[300px] sm:w-[360px] max-h-[150px] sm:max-h-[200px] md:max-h-[225px] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pointer-events-auto bg-black/40 backdrop-blur-[1px] p-2 rounded-sm border border-zinc-950/10 flex flex-col justify-start"
+            className="w-[300px] sm:w-[360px] max-h-[240px] sm:max-h-[200px] md:max-h-[225px] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pointer-events-auto bg-black/40 backdrop-blur-[1px] p-2 rounded-sm border border-zinc-950/10 flex flex-col justify-start"
           >
-            {CLOCK_FRAGMENTS.map((item, index) => {
-              const reqActive = activePlayId === item.id;
-              const isHovered = hoveredIndex === index;
-              const anySelection = hoveredIndex !== null;
+            {(() => {
+              const displayedFragments = isMobile ? CLOCK_FRAGMENTS.slice(0, 5) : CLOCK_FRAGMENTS;
+              return displayedFragments.map((item, index) => {
+                const reqActive = activePlayId === item.id;
+                const isHovered = hoveredIndex === index;
+                const anySelection = hoveredIndex !== null;
 
-              return (
-                <div key={item.id} className="w-full shrink-0">
-                  <button
-                    onClick={() => handleRowClick(item)}
-                    onMouseEnter={() => setHoveredIndex(index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                    className="w-full text-center py-2 sm:py-2.5 outline-none transition-all duration-500 cursor-pointer relative group flex items-center justify-between animate-fade-in"
-                    style={{
-                      opacity: reqActive ? 1.0 : anySelection ? (isHovered ? 1.0 : 0.35) : 0.5
-                    }}
-                  >
-                    {/* Centered text structure with optional subtle active signal tag */}
-                    <div className="w-full flex items-center justify-center gap-2 relative">
-                      <AnimatePresence>
-                        {reqActive && (
-                          <motion.span
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0, opacity: 0 }}
-                            className="absolute left-0 w-1.5 h-1.5 rounded-full bg-[#D9D6CA] shadow-[0_0_8px_#D9D6CA]"
-                          />
-                        )}
-                      </AnimatePresence>
+                return (
+                  <div key={item.id} className="w-full shrink-0">
+                    <button
+                      onClick={() => handleRowClick(item)}
+                      onMouseEnter={() => setHoveredIndex(index)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                      className="w-full text-center py-2 sm:py-2.5 outline-none transition-all duration-500 cursor-pointer relative group flex items-center justify-between animate-fade-in"
+                      style={{
+                        opacity: reqActive ? 1.0 : anySelection ? (isHovered ? 1.0 : 0.35) : 0.5
+                      }}
+                    >
+                      {/* Centered text structure with optional subtle active signal tag */}
+                      <div className="w-full flex items-center justify-center gap-2 relative">
+                        <AnimatePresence>
+                          {reqActive && (
+                            <motion.span
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              className="absolute left-0 w-1.5 h-1.5 rounded-full bg-[#D9D6CA] shadow-[0_0_8px_#D9D6CA]"
+                            />
+                          )}
+                        </AnimatePresence>
 
-                      <span 
-                        className={`text-[10px] sm:text-[11px] font-normal tracking-[0.35em] transition-all duration-300 ${
-                          reqActive ? "text-white font-semibold glow-text" : "text-[#D9D6CA]/70 group-hover:text-white"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </div>
-                  </button>
+                        <span 
+                          className={`text-[10px] sm:text-[11px] font-normal tracking-[0.35em] transition-all duration-300 ${
+                            reqActive ? "text-white font-semibold glow-text" : "text-[#D9D6CA]/70 group-hover:text-white"
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </div>
+                    </button>
 
-                  {/* Pristine hairline horizontal divider as requested */}
-                  {index < CLOCK_FRAGMENTS.length - 1 && (
-                    <div className="h-[1px] w-full bg-[#D9D6CA]/15 shrink-0" />
-                  )}
-                </div>
-              );
-            })}
+                    {/* Pristine hairline horizontal divider as requested */}
+                    {index < displayedFragments.length - 1 && (
+                      <div className="h-[1px] w-full bg-[#D9D6CA]/15 shrink-0" />
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
 
           {/* User-requested Text overlay: ENTER THE ARCHIVE with centered lowercase v pointing down */}

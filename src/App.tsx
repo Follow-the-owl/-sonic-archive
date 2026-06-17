@@ -235,8 +235,8 @@ export default function App() {
               </AnimatePresence>
             </main>
 
-            {/* Audio Widget stays globally pinned to control playing state */}
-            <AudioControllerWidget />
+            {/* Audio Widget stays globally pinned to control playing state except on the Owl Clock page */}
+            {activeTab !== "The Owl Clock" && <AudioControllerWidget />}
 
             {/* STEP 11: Minimal Footer */}
             <footer id="site-footer" className="bg-[#020202] border-t border-zinc-900 py-16 px-4 md:px-8 mt-12 select-none">
