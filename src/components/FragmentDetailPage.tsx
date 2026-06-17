@@ -4,6 +4,13 @@ import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, V
 import { Fragment } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
+const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1781702400/WhatsApp_Image_2026-06-17_at_14.19.20_jwe6ql.jpg";
+
+const waveHeights = [
+  8, 14, 18, 10, 6, 12, 24, 32, 16, 20, 
+  38, 28, 42, 18, 30, 24, 12, 16, 32, 45, 
+  38, 26, 14, 8, 22, 34, 18, 12, 10, 6
+];
 
 interface FragmentDetailPageProps {
   fragment: Fragment;
@@ -25,6 +32,27 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
   const [clientEmail, setClientEmail] = useState("evianaconcepts1@gmail.com");
   const [isProcessingLicense, setIsProcessingLicense] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0.7); // Default high volume
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (isPlayingBeat) {
+      interval = setInterval(() => {
+        setElapsedTime((prev) => {
+          if (prev >= 103) {
+            pauseBeatPlay();
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } else {
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlayingBeat]);
 
   // Interactive Synthesizer and Sequencer parameters
   const [bpm, setBpm] = useState(fragment.bpm || 110);
@@ -555,438 +583,187 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
 
   const formattedSegmentId = `0x${fragment.id.replace(":", "")}`;
 
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
   return (
     <div 
       id={`fragment-detail-${fragment.id}`} 
-      className="min-h-screen w-full bg-black text-[#D9D6CA] flex flex-col justify-between items-center py-12 px-6 relative select-none"
+      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 md:p-12 relative select-none overflow-x-hidden bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${owlBackground})` }}
     >
       {/* 1. Global CRT horizontal scanline texture overlay */}
-      <div className="film-grain pointer-events-none opacity-40" />
+      <div className="film-grain pointer-events-none opacity-20 z-[2]" />
 
-      {/* 2. THE TACTICAL FOLLOW THE OWL CORNER BRACKETS */}
-      <div className="absolute top-6 left-6 border-t-[1.5px] border-l-[1.5px] w-10 h-10 border-[#C5A059]/30 pointer-events-none" />
-      <div className="absolute top-6 right-6 border-t-[1.5px] border-r-[1.5px] w-10 h-10 border-[#C5A059]/30 pointer-events-none" />
-      <div className="absolute bottom-6 left-6 border-b-[1.5px] border-l-[1.5px] w-10 h-10 border-[#C5A059]/30 pointer-events-none" />
-      <div className="absolute bottom-6 right-6 border-b-[1.5px] border-r-[1.5px] w-10 h-10 border-[#C5A059]/30 pointer-events-none" />
+      {/* Absolute dark vignette overlay around the edges for atmospheric depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/90 pointer-events-none z-0" />
 
-      {/* HEADER CONTROLLER AND ID REGULATION */}
-      <div className="w-full max-w-4xl flex items-center justify-between z-10 text-[9px] font-mono tracking-[0.25em] text-[#C5A059]/60">
-        <button 
-          onClick={onBack}
-          className="flex items-center gap-2 hover:text-[#D9D6CA] transition-colors cursor-pointer group text-[10px]"
-        >
-          <ArrowLeft size={11} className="group-hover:-translate-x-1 transition-transform" />
-          <span>RETURN TO CHRONO DESK</span>
-        </button>
-        <span className="hidden sm:inline">CHRONOLOGY METRIC SPECIFIERS: {formattedSegmentId}</span>
-      </div>
+      {/* Minimal back button positioned top-left over the illustration */}
+      <button 
+        onClick={onBack}
+        className="absolute top-5 left-5 z-[10] flex items-center gap-1.5 text-zinc-500 hover:text-white font-mono text-[8.5px] tracking-[0.25em] transition-colors cursor-pointer uppercase py-1 px-2.5 border border-zinc-900 bg-black/70 rounded-sm"
+      >
+        ← EXIT
+      </button>
 
-      {/* CENTRAL CORE TACTICAL DESK */}
-      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-3xl text-center space-y-7 z-10 mt-6 mb-4">
+      {/* Widened content container aligned bottom and constrained to 850px */}
+      <div className="w-full max-w-[850px] px-2 sm:px-5 pb-6 z-[3] flex flex-col space-y-4 text-left relative mt-auto">
         
-        {/* CORE NUCLEAR BRAND LOGO FROM THE REVOLUTIONARY SCREENSHOT */}
-        <div className="relative flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full bg-[#C5A059]/5 blur-xl animate-pulse" />
-          <div className="w-20 h-20 rounded-full border border-[#C5A059]/30 flex items-center justify-center relative bg-zinc-950/90 shadow-[0_0_15px_rgba(197,160,89,0.1)]">
-            <RadioactiveIcon className="w-11 h-11 text-[#C5A059] animate-spin-slow" />
-          </div>
-        </div>
-
-        {/* BRUTALIST BRAND TITLE BLOCK */}
-        <div className="space-y-3">
-          <span className="text-[10px] tracking-[0.55em] text-[#C5A059] uppercase font-mono block font-bold leading-none">
-            FOLLOW THE OWL
+        {/* Title block */}
+        <div className="space-y-1 text-left pl-0.5">
+          <span className="text-[10px] tracking-[0.4em] text-zinc-500 font-mono uppercase block font-bold leading-none">
+            FRAGMENT
           </span>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl tracking-[0.2em] font-mono font-black text-white uppercase leading-none">
-            {formattedTitle}
+          <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
+            {fragment.timestamp}
           </h2>
-          
-          {/* THE ORIGINAL SPLIT HAIRLINE SEPARATOR FROM THE SCREENSHOT */}
-          <div className="relative w-80 sm:w-96 md:w-[460px] h-[1.5px] bg-zinc-850 mx-auto flex items-center justify-start overflow-hidden">
-            <motion.div 
-              initial={{ x: "-100%" }}
-              animate={{ x: "0%" }}
-              transition={{ duration: 1.6, ease: "easeOut" }}
-              className="absolute left-0 top-0 bottom-0 w-2/3 bg-[#C5A059]" 
-            />
-          </div>
-
-          <span className="text-[9px] tracking-[0.38em] text-zinc-500 uppercase font-mono block leading-none">
-            {isPlayingBeat ? `${fragment.classification} SEQUENCE MODULATION ACTIVE` : "ESTABLISHING SECURE CONNECTION"}
-          </span>
+          <p className="text-[10px] tracking-widest text-[#C5A059] font-mono uppercase mt-0.5 opacity-80">
+            {fragment.name}
+          </p>
         </div>
 
-        {/* OSCILLOSCOPE WAVEFORM PLAYER CONTAINER */}
-        <div className="w-full max-w-xl space-y-2 bg-zinc-950/60 p-4 border border-zinc-900 rounded-sm">
-          <div className="flex items-center justify-between text-[9px] font-mono text-zinc-500 tracking-wider">
-            <span>REAL-TIME OSCILLOSCOPE ANALYSIS</span>
-            <span>BPM CLASSIFICATION: {fragment.bpm || 120}</span>
-          </div>
-          
-          {/* THE REAL DANCING OSCILLOSCOPE WAVE CANVAS */}
-          <div className="w-full bg-black/90 border border-zinc-900/80 rounded-sm overflow-hidden p-0.5 relative flex items-center justify-center min-h-[110px]">
-            <canvas 
-              ref={canvasRef} 
-              className="w-full h-[110px] block" 
-            />
-            {!isPlayingBeat && (
-              <div className="absolute inset-0 bg-black/35 backdrop-blur-[1px] flex items-center justify-center">
-                <span className="text-[9.5px] font-mono text-zinc-600 tracking-[0.25em] animate-pulse">
-                  SYSTEM PAUSED // HUM ACTIVE
-                </span>
-              </div>
-            )}
-          </div>
+        {/* PLAYBACK CONTROL BAR DIAL (Matches image play/pause widget block) */}
+        <div className="w-full border border-zinc-900/90 bg-zinc-950/90 py-3.5 px-4 rounded-sm flex items-center justify-between gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+            
+            {/* Play/Pause Button */}
+            <button
+              onClick={() => {
+                if (isPlayingBeat) {
+                  pauseBeatPlay();
+                } else {
+                  startBeatPlay();
+                }
+              }}
+              className="p-1.5 text-[#D9D6CA] hover:text-white transition-colors cursor-pointer shrink-0 flex items-center justify-center hover:scale-105 active:scale-95 duration-100"
+              title={isPlayingBeat ? "Pause" : "Play"}
+            >
+              {isPlayingBeat ? (
+                <Pause size={13} className="fill-[#D9D6CA] text-[#D9D6CA]" />
+              ) : (
+                <Play size={13} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0.5" />
+              )}
+            </button>
 
-          {/* Dynamic running index lights */}
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[8px] font-mono text-zinc-600">INPUT VOLT: 0xFB4</span>
-            <div className="flex items-center gap-1.5 font-mono text-[9px] text-[#C5A059]">
-              <span>VOL:</span>
-              <input 
+            {/* Current Playback Marker Elapsed Time */}
+            <span className="text-[9.5px] font-mono text-zinc-500 tracking-wider w-8 select-none">
+              {formatTime(elapsedTime)}
+            </span>
+
+            {/* Static Waveform visualization spikes */}
+            <div className="flex-grow flex items-center gap-[3px] h-8 justify-center min-w-0">
+              {waveHeights.map((h, i) => {
+                const progressLimit = (elapsedTime / 103);
+                const isPassed = (i / waveHeights.length) <= progressLimit;
+                // Add a highly responsive ripple if playing
+                const ripple = isPlayingBeat ? Math.sin((elapsedTime * 4) + i * 0.4) * (h * 0.25) : 0;
+                const finalH = Math.max(3, h + ripple);
+
+                return (
+                  <div
+                    key={i}
+                    className="w-[2px] rounded-sm transition-all duration-150"
+                    style={{
+                      height: `${finalH}px`,
+                      backgroundColor: isPassed ? '#D9D6CA' : '#1e1e1e'
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Total Duration Track length */}
+            <span className="text-[9.5px] font-mono text-zinc-500 tracking-wider select-none shrink-0">
+              01:43
+            </span>
+
+            {/* Volume feedback indicator and slider */}
+            <div className="flex items-center gap-1.5 pl-1.5 border-l border-zinc-900/85 shrink-0">
+              <button
+                onClick={() => setVolumeLevel(volumeLevel === 0 ? 0.7 : 0)}
+                className="text-zinc-500 hover:text-[#D9D6CA] transition-colors cursor-pointer"
+              >
+                {volumeLevel === 0 ? <VolumeX size={12} /> : <Volume2 size={12} />}
+              </button>
+              <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.05"
                 value={volumeLevel}
                 onChange={(e) => setVolumeLevel(parseFloat(e.target.value))}
-                className="w-16 h-1 accent-[#C5A059] bg-zinc-900 rounded-lg cursor-pointer appearance-none range-sm"
+                className="w-12 h-[2px] accent-[#D9D6CA] bg-zinc-800 rounded-lg cursor-pointer appearance-none range-sm focus:outline-none"
               />
             </div>
           </div>
-        </div>
 
-        {/* POETIC CHRONO-CORE TELEMETRY SPECIFICATION */}
-        <div className="w-full max-w-xl space-y-4 bg-zinc-950/40 border border-zinc-900/40 p-6 rounded-sm">
-          <div className="grid grid-cols-2 gap-4 text-left border-b border-zinc-900/80 pb-3.5 text-[10px] font-mono">
-            <div>
-              <span className="text-zinc-600 block">FREQUENCY INDEX:</span>
-              <span className="text-[#D9D6CA] font-medium">{fragment.frequency} Hz // {fragment.synthType.toUpperCase()}</span>
-            </div>
-            <div>
-              <span className="text-zinc-600 block">ESTABLISHED TIMESTAMP:</span>
-              <span className="text-[#D9D6CA] font-medium">{fragment.timestamp}</span>
-            </div>
-          </div>
-          <p className="text-xs text-zinc-400 font-sans tracking-wide leading-relaxed font-light text-center">
-            {fragment.description}
-          </p>
-          <div className="text-[9.5px] font-mono text-zinc-500 italic text-center">
-            "Sourced via high-contrast analog telemetry inside a {fragment.observation.toLowerCase()}"
-          </div>
-        </div>
-
-        {/* TACTICAL AUDIO MODULATION & STEP SEQUENCER DECK */}
-        <div className="w-full max-w-xl bg-zinc-950/80 border border-zinc-900 rounded-sm p-5 space-y-6 relative text-left">
-          {/* Deck Header */}
-          <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-            <div className="flex items-center gap-2">
-              <Sliders size={12} className="text-[#C5A059]" />
-              <span className="text-[10px] font-mono tracking-[0.25em] text-[#C5A059] font-bold">
-                TACTICAL RESONANCE MODULATOR DESK
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059] inline-block animate-ping" />
-              <span className="text-[8px] font-mono text-zinc-500 tracking-wider font-bold">MODE: SEQUENCE</span>
-            </div>
-          </div>
-
-          {/* Preset Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[8px] font-mono text-zinc-600 tracking-wider">LOAD PRESET PROFILES:</span>
-            <button
-              onClick={() => {
-                setSequenceMatrix({
-                  kick: [true, false, false, false, true, false, false, false],
-                  snare: [false, false, true, false, false, false, true, false],
-                  hihat: [true, true, true, true, true, true, true, true],
-                  synth: [true, false, true, true, false, true, false, true]
-                });
-                setBpm(110);
-                setFilterCutoff(1800);
-                setFilterResonance(3.0);
-                setSynthType("sine");
-              }}
-              className="px-2 py-1 text-[8px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-[#C5A059] hover:border-[#C5A059] cursor-pointer transition-colors"
-            >
-              PRESET A (TECHNO DRONE)
-            </button>
-            <button
-              onClick={() => {
-                setSequenceMatrix({
-                  kick: [true, false, true, false, true, false, true, false],
-                  snare: [false, false, false, false, true, false, false, false],
-                  hihat: [true, false, true, false, true, false, true, false],
-                  synth: [true, true, true, true, true, true, true, true]
-                });
-                setBpm(145);
-                setFilterCutoff(900);
-                setFilterResonance(6.5);
-                setSynthType("square");
-              }}
-              className="px-2 py-1 text-[8px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-[#C5A059] hover:border-[#C5A059] cursor-pointer transition-colors"
-            >
-              PRESET B (INDUSTRIAL SUB)
-            </button>
-            <button
-              onClick={() => {
-                setSequenceMatrix({
-                  kick: [true, false, false, false, false, false, false, false],
-                  snare: [false, false, false, false, false, false, false, false],
-                  hihat: [false, false, false, false, false, false, false, false],
-                  synth: [true, true, false, true, true, false, true, true]
-                });
-                setBpm(85);
-                setFilterCutoff(3200);
-                setFilterResonance(11.0);
-                setSynthType("sawtooth");
-              }}
-              className="px-2 py-1 text-[8px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-[#C5A059] hover:border-[#C5A059] cursor-pointer transition-colors"
-            >
-              PRESET C (AMBIENT HYPNO)
-            </button>
-            <button
-              onClick={() => {
-                setSequenceMatrix({
-                  kick: [false, false, false, false, false, false, false, false],
-                  snare: [false, false, false, false, false, false, false, false],
-                  hihat: [false, false, false, false, false, false, false, false],
-                  synth: [false, false, false, false, false, false, false, false]
-                });
-              }}
-              className="px-2 py-1 text-[8px] font-mono bg-zinc-900 border border-zinc-850 text-red-700 hover:text-red-500 hover:border-red-900 cursor-pointer transition-colors ml-auto"
-            >
-              RESET GRID
-            </button>
-          </div>
-
-          {/* Module 1: Master DAW Tape Transport Deck and Synthesizer voice selector */}
-          <div className="grid md:grid-cols-2 gap-4 bg-zinc-950 p-4 border border-zinc-900/60 rounded-sm">
-            {/* Transport controls */}
-            <div className="space-y-3">
-              <span className="text-[9px] font-mono text-zinc-500 tracking-wider block font-bold">// TAPE DECK CONTROLS</span>
-              <div className="flex items-center gap-2">
-                {/* PLAY */}
-                <button
-                  onClick={startBeatPlay}
-                  className={`flex-grow py-2.5 px-3 border font-mono text-[9px] uppercase tracking-[0.18em] transition-all duration-200 rounded-none cursor-pointer flex items-center justify-center gap-1.5 ${
-                    isPlayingBeat
-                      ? "bg-[#C5A059] text-black border-[#C5A059] font-black shadow-[0_0_10px_rgba(197,160,89,0.25)]"
-                      : "bg-black border-zinc-800 text-zinc-400 hover:text-white hover:border-[#C5A059]/50"
-                  }`}
-                >
-                  <Play size={9} className="fill-current text-current" />
-                  <span>PLAY</span>
-                </button>
-
-                {/* PAUSE */}
-                <button
-                  onClick={pauseBeatPlay}
-                  className={`py-2.5 px-3 border font-mono text-[9px] uppercase tracking-[0.18em] transition-all duration-200 rounded-none cursor-pointer flex items-center justify-center gap-1.5 ${
-                    !isPlayingBeat && stepTrackerRef.current > 0
-                      ? "bg-zinc-800 text-white border-zinc-700"
-                      : "bg-black border-zinc-850 text-zinc-500 hover:text-zinc-300 hover:border-zinc-750"
-                  }`}
-                >
-                  <Pause size={9} className="fill-current text-current" />
-                  <span>PAUSE</span>
-                </button>
-
-                {/* STOP / RESET */}
-                <button
-                  onClick={stopBeatPlay}
-                  className="py-2.5 px-3 bg-black border border-zinc-850 hover:border-zinc-750 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider"
-                >
-                  <RotateCcw size={9} />
-                  <span>RESET</span>
-                </button>
+          {/* METADATA GRID SECTION (Matches screenshot grid table) */}
+          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex flex-col md:flex-row shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            <div className="flex-grow grid grid-cols-2 sm:grid-cols-4 border-b md:border-b-0 md:border-r border-zinc-900">
+              
+              {/* Box 1: Recovered Artist */}
+              <div className="p-3 border-r border-b sm:border-b-0 border-zinc-900 flex flex-col justify-between h-[52px]">
+                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
+                  RECOVERED ARTIST:
+                </span>
+                <span className="text-[#D9D6CA] text-[10.5px] font-mono font-bold font-serif truncate mt-1">
+                  Unknown
+                </span>
               </div>
 
-              {/* Tempo BPM Slider */}
-              <div className="pt-1.5 space-y-1">
-                <div className="flex items-center justify-between text-[8px] font-mono text-zinc-500">
-                  <span>TEMPO / OSC SPEED:</span>
-                  <span className="text-[#C5A059] font-bold font-mono">{bpm} BPM</span>
-                </div>
-                <input
-                  type="range"
-                  min="60"
-                  max="220"
-                  step="1"
-                  value={bpm}
-                  onChange={(e) => setBpm(parseInt(e.target.value))}
-                  className="w-full h-1 accent-[#C5A059] bg-zinc-900 rounded-lg cursor-pointer appearance-none range-sm"
-                />
-              </div>
-            </div>
-
-            {/* Synthesizer voice selector */}
-            <div className="space-y-3 border-t md:border-t-0 md:border-l border-zinc-900/80 pt-3 md:pt-0 md:pl-4">
-              <span className="text-[9px] font-mono text-zinc-500 tracking-wider block font-bold">// CHORD TIMBRE VOCALS</span>
-              <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-                {(["sine", "triangle", "sawtooth", "square"] as const).map((type) => {
-                  const isCur = synthType === type;
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => setSynthType(type)}
-                      className={`py-1.5 px-2 text-[8px] font-mono uppercase tracking-wider border rounded-none transition-all duration-200 cursor-pointer text-center ${
-                        isCur
-                          ? "border-[#C5A059] bg-[#C5A059]/10 text-[#C5A059] font-bold"
-                          : "border-zinc-900 bg-zinc-950 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800"
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="text-[7.5px] font-mono text-zinc-650 leading-relaxed block leading-xs">
-                Morphes the fundamental vocal frequency profile. Sines are warm, saws are abrasive.
-              </span>
-            </div>
-          </div>
-
-          {/* Module 2: Resonant Lowpass Filter sweep dial */}
-          <div className="bg-zinc-950 p-4 border border-zinc-900/60 rounded-sm space-y-3.5">
-            <span className="text-[9px] font-mono text-zinc-500 tracking-wider block font-bold">// BIQUAD RESONANT SWEED FILTER</span>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Filter cutoff slider */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[8px] font-mono text-zinc-500">
-                  <span>CUTOFF FREQUENCY:</span>
-                  <span className="text-[#C5A059] font-mono font-bold">{filterCutoff} Hz</span>
-                </div>
-                <input
-                  type="range"
-                  min="100"
-                  max="8000"
-                  step="50"
-                  value={filterCutoff}
-                  onChange={(e) => setFilterCutoff(parseInt(e.target.value))}
-                  className="w-full h-1 accent-[#C5A059] bg-zinc-900 rounded-lg cursor-pointer appearance-none range-sm"
-                />
+              {/* Box 2: Track Length */}
+              <div className="p-3 border-b sm:border-r sm:border-b-0 border-zinc-900 flex flex-col justify-between h-[52px]">
+                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
+                  LENGTH:
+                </span>
+                <span className="text-[#D9D6CA] text-[10.5px] font-mono font-bold mt-1">
+                  01:43
+                </span>
               </div>
 
-              {/* Filter resonance Q slider */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[8px] font-mono text-zinc-500">
-                  <span>RESONANCE FEEDBACK (Q):</span>
-                  <span className="text-[#C5A059] font-mono font-bold">{filterResonance.toFixed(1)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="12.0"
-                  step="0.5"
-                  value={filterResonance}
-                  onChange={(e) => setFilterResonance(parseFloat(e.target.value))}
-                  className="w-full h-1 accent-[#C5A059] bg-zinc-900 rounded-lg cursor-pointer appearance-none range-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Module 3: Clickable Step Sequencer pattern programming grid */}
-          <div className="space-y-3 bg-zinc-950 p-4 border border-zinc-900/60 rounded-sm">
-            <div className="flex items-center justify-between text-[9px] font-mono text-zinc-500 tracking-wider block font-bold">
-              <span>// 8-STEP CONFLICT MATRIX PATTERN</span>
-              <span className="text-zinc-600">STEPS 1-8</span>
-            </div>
-
-            {/* Matrix Board */}
-            <div className="space-y-2.5 pt-1">
-              {(["synth", "kick", "snare", "hihat"] as const).map((trackName) => {
-                const isActive = activeTracks[trackName];
-                const labels = {
-                  synth: "CHORD SYNTH",
-                  kick: "808 BASS",
-                  snare: "CYBER CLAP",
-                  hihat: "METAL HAT"
-                };
-
-                return (
-                  <div key={trackName} className="flex items-center gap-3">
-                    {/* Track Header / Mute handler */}
-                    <div className="w-[100px] flex items-center justify-between font-mono text-[8px] tracking-wider shrink-0 select-none">
-                      <span className={`font-bold uppercase ${isActive ? "text-zinc-350" : "text-zinc-650 line-through"}`}>
-                        {labels[trackName]}
-                      </span>
-                      
-                      {/* Active click switcher */}
-                      <button
-                        onClick={() => setActiveTracks(prev => ({ ...prev, [trackName]: !prev[trackName] }))}
-                        className={`text-[8px] px-1 py-0.5 border rounded-none transition-colors cursor-pointer block text-center uppercase font-black tracking-tight ${
-                          isActive
-                            ? "border-[#C5A059]/40 bg-[#C5A059]/5 text-[#C5A059]"
-                            : "border-zinc-900 bg-black text-zinc-700"
-                        }`}
-                        title={isActive ? "Mute Track" : "Activate Track"}
-                      >
-                        {isActive ? "ON" : "OFF"}
-                      </button>
-                    </div>
-
-                    {/* Step program keys */}
-                    <div className="flex-grow grid grid-cols-8 gap-1.5">
-                      {sequenceMatrix[trackName].map((isSet, stepIdx) => {
-                        const isPlayhead = currentStep === stepIdx && isPlayingBeat;
-                        
-                        return (
-                          <button
-                            key={stepIdx}
-                            onClick={() => {
-                              const copy = [...sequenceMatrix[trackName]];
-                              copy[stepIdx] = !copy[stepIdx];
-                              setSequenceMatrix(prev => ({ ...prev, [trackName]: copy }));
-                            }}
-                            className={`h-7 relative rounded-none border transition-all duration-150 cursor-pointer overflow-hidden ${
-                              isSet 
-                                ? isActive
-                                  ? "bg-[#C5A059] border-[#C5A059] text-black shadow-[0_0_8px_rgba(197,160,89,0.3)] font-black"
-                                  : "bg-zinc-800 border-zinc-750 text-zinc-400"
-                                : "bg-black border-zinc-900/80 text-zinc-700 hover:border-zinc-700 hover:text-zinc-500"
-                            } ${isPlayhead ? "ring-1 ring-white/50 ring-offset-1 ring-offset-black scale-y-105 z-10" : ""}`}
-                          >
-                            <span className="absolute inset-0 flex items-center justify-center text-[7.5px] font-mono font-bold">
-                              {stepIdx + 1}
-                            </span>
-                            {isPlayhead && (
-                              <span className="absolute top-0 left-0 right-0 h-[2.5px] bg-[#C5A059] animate-pulse" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+              {/* Box 3: Signal Integrity */}
+              <div className="p-3 border-r border-zinc-900 flex flex-col justify-between h-[52px] text-left">
+                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
+                  SIGNAL INTEGRITY:
+                </span>
+                <div className="mt-1">
+                  <span className="text-[#D9D6CA] text-[10.5px] font-mono font-bold block leading-none">
+                    93%
+                  </span>
+                  <div className="w-full bg-zinc-900 h-[1.5px] mt-1 overflow-hidden">
+                    <div className="bg-[#D9D6CA] h-full" style={{ width: "93%" }} />
                   </div>
-                );
-              })}
+                </div>
+              </div>
+
+              {/* Box 4: Current Status */}
+              <div className="p-3 flex flex-col justify-between h-[52px] text-left">
+                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
+                  STATUS:
+                </span>
+                <span className={`text-[#D9D6CA] text-[10.5px] font-mono font-bold uppercase mt-1 ${isPlayingBeat ? "text-emerald-500 font-black" : "text-[#D9D6CA]"}`}>
+                  Active
+                </span>
+              </div>
             </div>
 
-            <div className="text-[7.5px] font-mono text-zinc-600 flex items-center justify-between border-t border-zinc-900/60 pt-2 pb-0.5">
-              <span>TAP ANY SQUARE TO ACTIVATE OR DEACTIVATE INDIVIDUAL FREQUENCY STEP NOTATIONS</span>
-              <span className="text-[#C5A059] font-bold">OUTWARD SCAN ACTIVE</span>
-            </div>
-          </div>
-
-          {/* Core Master License trigger drawer linkage */}
-          <div className="pt-2">
+            {/* Right Interactive Box: Request Clearance / licensing portal */}
             <button
-              id={`license-deck-btn-${fragment.id}`}
-              onClick={() => {
-                setShowLicensePanel(true);
-              }}
-              className="w-full py-3.5 px-6 bg-zinc-950 border border-zinc-900 text-zinc-400 hover:text-white hover:border-[#C5A059]/40 font-mono text-[10px] tracking-[0.25em] uppercase rounded-none cursor-pointer transition-all duration-300 flex items-center justify-center gap-2.5"
+              onClick={() => setShowLicensePanel(true)}
+              className="w-full md:w-auto px-4 py-3.5 bg-zinc-950 font-serif font-bold text-[10px] tracking-widest text-[#D9D6CA] hover:text-white hover:bg-zinc-900/60 flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1 min-h-[52px]"
             >
-              <Award size={11} className="text-[#C5A059]" />
-              <span>ACQUIRE COMPLETE OWNERSHIP LICENSE</span>
+              <span>REQUEST CLEARANCE</span>
+              <span className="font-mono text-xs text-[#C5A059] ml-1">→</span>
             </button>
           </div>
-        </div>
 
-      </div>
+          {/* Under-Grid small decoration line */}
+          <div className="w-full flex justify-center py-1 mt-1 z-10 font-mono text-zinc-700 text-[10px] select-none tracking-[0.3em]">
+            |||
+          </div>
+        </div>
 
       {/* LICENSE MODAL OVERLAY IN HIGH FIDELITY */}
       <AnimatePresence>

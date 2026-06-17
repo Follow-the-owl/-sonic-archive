@@ -13,6 +13,17 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
   const [isHooting, setIsHooting] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showRestricted, setShowRestricted] = useState(false);
+
+  // Auto-reset "Access Restricted" state after 3 seconds
+  useEffect(() => {
+    if (showRestricted) {
+      const timer = setTimeout(() => {
+        setShowRestricted(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showRestricted]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -207,10 +218,29 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
 
       {/* Top right "ARCHIVE ACCESS 🔒" badge - Styled exactly like the user's reference */}
       <div className="w-full flex justify-end items-center z-50">
-        <div className="flex items-center gap-1.5 text-zinc-500/80 font-mono text-[9px] sm:text-[10px] tracking-[0.35em] uppercase hover:text-white transition-colors duration-300">
-          <span>ARCHIVE ACCESS</span>
-          <Lock size={11} className="stroke-[1.5] text-zinc-600 group-hover:text-zinc-400" />
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowRestricted(true);
+          }}
+          className="flex items-center gap-1.5 font-mono text-[9px] sm:text-[10px] tracking-[0.35em] uppercase transition-colors duration-300 pointer-events-auto bg-transparent border-0 outline-none p-0 group"
+          style={{ cursor: "pointer" }}
+        >
+          {showRestricted ? (
+            <motion.span
+              initial={{ opacity: 0, y: -2 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[#FF4444] font-bold tracking-[0.2em] flex items-center gap-1"
+            >
+              ACCESS RESTRICTED 🔴
+            </motion.span>
+          ) : (
+            <>
+              <span className="text-zinc-500/80 group-hover:text-white transition-colors duration-300">ARCHIVE ACCESS</span>
+              <Lock size={11} className="stroke-[1.5] text-zinc-600 group-hover:text-white transition-colors duration-300" />
+            </>
+          )}
+        </button>
       </div>
 
       {/* Center Image Deck wrapped in matching Parallax Skews */}
@@ -260,10 +290,29 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
               className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
             >
               <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-[#D9D6CA]/30" />
-              {/* Perfectly rendering a sharp geometric miter-joined triangle as requested */}
-              <svg viewBox="0 0 12 12" className="w-[11px] h-[11px] text-[#D9D6CA]/45 flex-shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing */}
+              <motion.svg
+                viewBox="0 0 12 12"
+                className="w-[11px] h-[11px] text-[#D9D6CA] flex-shrink-0"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                animate={{
+                  opacity: [0.35, 1, 0.35],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(197, 160, 89, 0))",
+                    "drop-shadow(0 0 4px rgba(197, 160, 89, 0.85))",
+                    "drop-shadow(0 0 0px rgba(197, 160, 89, 0))"
+                  ],
+                  scale: [0.95, 1.08, 0.95]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
                 <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
-              </svg>
+              </motion.svg>
               <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-[#D9D6CA]/30" />
             </motion.div>
           </div>

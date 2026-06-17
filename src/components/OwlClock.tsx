@@ -248,7 +248,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
           {/* User-requested Text overlay: ENTER THE ARCHIVE with centered lowercase v pointing down */}
           <div className="mt-5 flex flex-col items-center gap-1 pointer-events-auto select-none">
             <span className="text-[12px] sm:text-[13px] font-bold tracking-[0.35em] text-[#D9D6CA] font-serif uppercase">
-              ENTER THE ARCHIVE
+              REQUEST CLEARANCE
             </span>
             <span className="text-[11px] text-[#D9D6CA]/80 font-mono font-bold animate-bounce mt-1">
               v
