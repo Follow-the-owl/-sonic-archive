@@ -153,16 +153,10 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
   return (
     <div
       id="owl-clock-stage"
-      className="relative w-full min-h-screen bg-black text-[#D9D6CA] flex flex-col justify-between items-center py-12 px-4 select-none overflow-hidden"
+      className="relative w-full min-h-screen bg-black text-[#D9D6CA] flex flex-col justify-center items-center py-12 px-4 select-none overflow-hidden"
     >
       {/* 1. Subtle global glowing focus vignette behind the content */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,10,12,0.15)_0%,rgba(0,0,0,1)_80%)] pointer-events-none z-0" />
-
-      {/* Extreme Minimal Navigation indicator at Top */}
-      <div className="w-full max-w-4xl flex justify-between items-center text-[8px] font-mono tracking-[0.4em] text-zinc-700 uppercase z-10 px-4">
-        <span>CHRONO RECEPTOR MODULE</span>
-        <span>HOUSTON CORE // TIMEWARPS</span>
-      </div>
 
       {/* 2. THE CHERISHED CORE CONTAINER -- CENTERING OWL & TYPEWRITER ROWS */}
       <motion.div
@@ -250,63 +244,18 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
               );
             })}
           </div>
+
+          {/* User-requested Text overlay: ENTER THE ARCHIVE with centered lowercase v pointing down */}
+          <div className="mt-5 flex flex-col items-center gap-1 pointer-events-auto select-none">
+            <span className="text-[12px] sm:text-[13px] font-bold tracking-[0.35em] text-[#D9D6CA] font-serif uppercase">
+              ENTER THE ARCHIVE
+            </span>
+            <span className="text-[11px] text-[#D9D6CA]/80 font-mono font-bold animate-bounce mt-1">
+              v
+            </span>
+          </div>
         </div>
       </motion.div>
-
-      {/* 4. LOWER SCREEN: IMMERSIVE LOG OR CORES AT BOTTOM */}
-      <div className="w-full max-w-xl text-center flex flex-col items-center gap-6 z-10 px-4">
-        {/* Dynamic Log description row, fading in instantly on active play state */}
-        <div className="min-h-[48px] flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            {activeFragment ? (
-              <motion.div
-                key={activeFragment.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className="space-y-1.5"
-              >
-                <p className="text-[10px] font-mono tracking-[0.18em] text-zinc-500 uppercase">
-                  // {activeFragment.synthType} frequency detected at {activeFragment.frequency} hz
-                </p>
-                <p className="text-[11px] font-mono tracking-[0.08em] text-[#D9D6CA] max-w-md mx-auto italic leading-normal">
-                  "{activeFragment.description}"
-                </p>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.35 }}
-                className="text-[9px] font-mono tracking-[0.3em] text-zinc-600 uppercase"
-              >
-                [ SELECT OR RE-TRIG FRAGMENT SIGNALS UNDER CHRONO CORES ]
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Global Stop Command and Touch Hint */}
-        {activePlayId && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={() => {
-              stopAudio();
-              setActivePlayId(null);
-            }}
-            className="flex items-center gap-1.5 px-4 py-1.5 border border-zinc-800 hover:border-[#D9D6CA]/60 text-[9px] font-mono tracking-[0.25em] text-zinc-500 hover:text-[#D9D6CA] bg-black/80 uppercase transition-all duration-300 rounded-none cursor-pointer"
-          >
-            <span className="w-1.5 h-1.5 bg-[#D9D6CA] rounded-none inline-block" />
-            <span>DISCHARGE RESONANCE LOOP</span>
-          </motion.button>
-        )}
-
-        {/* Soft tap prompt at the absolute footer */}
-        <span className="text-[8px] font-mono tracking-[0.35em] text-zinc-700 uppercase">
-          {isHooting ? "TRANSMITTING RESONANCE DIALS CAREFULLY..." : "CLINT CALIBRATION ACTIVE // STRIKE THE OWL HEAD TO HOOT"}
-        </span>
-      </div>
     </div>
   );
 }
