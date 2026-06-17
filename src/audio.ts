@@ -24,6 +24,16 @@ let isAmbientEnabled: boolean = true;
 let activeId: string | null = null;
 let activeCallback: ((isPlaying: boolean, fragmentId: string | null) => void) | null = null;
 
+let globalAnalyser: AnalyserNode | null = null;
+
+export function getGlobalAnalyser(): AnalyserNode | null {
+  return globalAnalyser;
+}
+
+export function getAudioContext(): AudioContext | null {
+  return audioCtx;
+}
+
 export function registerAudioCallback(callback: (isPlaying: boolean, fragmentId: string | null) => void) {
   activeCallback = callback;
 }
@@ -33,7 +43,15 @@ function initAudio() {
     audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     masterGain = audioCtx.createGain();
     masterGain.gain.setValueAtTime(0.5, audioCtx.currentTime); // 50% default volume
-    masterGain.connect(audioCtx.destination);
+    
+    // Setup global high fidelity analyser
+    globalAnalyser = audioCtx.createAnalyser();
+    globalAnalyser.fftSize = 256;
+    globalAnalyser.smoothingTimeConstant = 0.7;
+    
+    // Map output signal chain
+    masterGain.connect(globalAnalyser);
+    globalAnalyser.connect(audioCtx.destination);
     
     // Create dedicated ambient loop channel to avoid interference with plays/stops
     ambientGain = audioCtx.createGain();

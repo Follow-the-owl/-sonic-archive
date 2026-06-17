@@ -184,7 +184,7 @@ export default function IntroductionSection({ onFollowOwl }: IntroductionSection
           onClick={onFollowOwl}
           className="group relative inline-flex items-center gap-3 px-8 py-3 border border-zinc-800 bg-zinc-950 text-xs tracking-[0.4em] text-zinc-300 hover:text-gold-muted hover:border-gold-muted transition-all duration-500 rounded-sm cursor-pointer"
         >
-          <span>FOLLOW THE OWL</span>
+          <span>ASCEND // FOLLOW THE OWL</span>
           <span className="text-sm font-sans group-hover:translate-x-1.5 transition-transform duration-300">🦉</span>
         </button>
       </motion.div>

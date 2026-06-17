@@ -219,7 +219,7 @@ export default function FeaturedSection() {
                 }}
                 className={`w-full py-4 text-center font-mono text-[9px] tracking-[0.4em] uppercase transition-all duration-300 rounded-none cursor-pointer ${
                   activeSignal === selectedFragment.id
-                    ? "bg-red-950/20 text-red-500 border border-red-950/30 hover:bg-red-950/40"
+                    ? "bg-[#D9D6CA]/10 text-[#D9D6CA] border border-[#D9D6CA]/30 hover:bg-[#D9D6CA]/20"
                     : "bg-[#D9D6CA] text-black hover:bg-white hover:text-black font-bold"
                 }`}
               >

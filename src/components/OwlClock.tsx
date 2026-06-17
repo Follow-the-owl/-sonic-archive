@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw } from "lucide-react";
-import { FRAGMENTS } from "../data";
+import { FRAGMENTS, Fragment } from "../data";
 import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance } from "../audio";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
@@ -13,6 +13,10 @@ interface ClockFragment {
   synthType: "drone" | "keys" | "bell" | "noise" | "pulse";
   frequency: number;
   description: string;
+}
+
+interface OwlClockProps {
+  onSelectFragment?: (frag: Fragment) => void;
 }
 
 const CLOCK_FRAGMENTS: ClockFragment[] = [
@@ -66,7 +70,7 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
   }
 ];
 
-export default function OwlClock() {
+export default function OwlClock({ onSelectFragment }: OwlClockProps) {
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
@@ -126,16 +130,21 @@ export default function OwlClock() {
   };
 
   const handleRowClick = (item: ClockFragment) => {
-    if (activePlayId === item.id) {
-      stopAudio();
-      setActivePlayId(null);
+    const matchedFrag = FRAGMENTS.find(f => f.id === item.mappedId);
+    if (matchedFrag && onSelectFragment) {
+      onSelectFragment(matchedFrag);
     } else {
-      playFragment(item.mappedId, item.frequency, item.synthType);
-      setActivePlayId(item.id);
-      
-      // Auto pulse eye briefly on frequency click
-      setIsHooting(true);
-      setTimeout(() => setIsHooting(false), 600);
+      if (activePlayId === item.id) {
+        stopAudio();
+        setActivePlayId(null);
+      } else {
+        playFragment(item.mappedId, item.frequency, item.synthType);
+        setActivePlayId(item.id);
+        
+        // Auto pulse eye briefly on frequency click
+        setIsHooting(true);
+        setTimeout(() => setIsHooting(false), 600);
+      }
     }
   };
 
@@ -171,7 +180,7 @@ export default function OwlClock() {
           className="absolute inset-0 w-full h-full flex items-center justify-center cursor-pointer select-none overflow-hidden"
           animate={isHooting ? {
             scale: [1, 1.03, 0.98, 1],
-            filter: ["brightness(1) drop-shadow(0 0 10px rgba(220,38,38,0.15))", "brightness(1.23) drop-shadow(0 0 45px rgba(220,38,38,0.55))", "brightness(1) drop-shadow(0 0 10px rgba(0,0,0,0))"]
+            filter: ["brightness(1) drop-shadow(0 0 10px rgba(217,214,202,0.15))", "brightness(1.23) drop-shadow(0 0 45px rgba(217,214,202,0.55))", "brightness(1) drop-shadow(0 0 10px rgba(0,0,0,0))"]
           } : {}}
           transition={{ duration: 0.8 }}
         >
@@ -218,7 +227,7 @@ export default function OwlClock() {
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0, opacity: 0 }}
-                            className="absolute left-0 w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]"
+                            className="absolute left-0 w-1.5 h-1.5 rounded-full bg-[#D9D6CA] shadow-[0_0_8px_#D9D6CA]"
                           />
                         )}
                       </AnimatePresence>
@@ -286,9 +295,9 @@ export default function OwlClock() {
               stopAudio();
               setActivePlayId(null);
             }}
-            className="flex items-center gap-1.5 px-4 py-1.5 border border-zinc-800 hover:border-red-800 text-[9px] font-mono tracking-[0.25em] text-zinc-500 hover:text-red-400 bg-black/80 uppercase transition-all duration-300 rounded-none cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 border border-zinc-800 hover:border-[#D9D6CA]/60 text-[9px] font-mono tracking-[0.25em] text-zinc-500 hover:text-[#D9D6CA] bg-black/80 uppercase transition-all duration-300 rounded-none cursor-pointer"
           >
-            <span className="w-1.5 h-1.5 bg-red-600 rounded-none inline-block" />
+            <span className="w-1.5 h-1.5 bg-[#D9D6CA] rounded-none inline-block" />
             <span>DISCHARGE RESONANCE LOOP</span>
           </motion.button>
         )}

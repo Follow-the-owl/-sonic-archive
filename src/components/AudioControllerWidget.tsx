@@ -122,7 +122,7 @@ export default function AudioControllerWidget() {
           <button 
             id="widget-stop-signal"
             onClick={stopAudio}
-            className="flex items-center gap-1 border border-zinc-800 hover:border-red-950/40 hover:bg-red-950/20 px-2 py-1 rounded-sm text-[9px] text-zinc-400 hover:text-red-400 font-mono uppercase tracking-[0.1em] cursor-pointer"
+            className="flex items-center gap-1 border border-zinc-800 hover:border-[#D9D6CA]/40 hover:bg-[#D9D6CA]/20 px-2 py-1 rounded-sm text-[9px] text-zinc-400 hover:text-[#D9D6CA] font-mono uppercase tracking-[0.1em] cursor-pointer"
             title="Close Active Signal"
           >
             <Square size={10} className="fill-current" />

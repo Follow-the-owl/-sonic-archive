@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-serif: "Courier Prime", Courier, monospace;
-  --font-sans: "Courier Prime", Courier, monospace;
-  --font-display: "Courier Prime", Courier, monospace;
-  --font-mono: "Courier Prime", Courier, monospace;
+  --font-serif: "Special Elite", system-ui, serif;
+  --font-sans: "Special Elite", system-ui, serif;
+  --font-display: "Special Elite", system-ui, serif;
+  --font-mono: "Special Elite", system-ui, serif;
   
   --color-dark-black: #000000;
   --color-dark-charcoal: #050505;
@@ -13,9 +13,9 @@
   --color-gold-muted: #D9D6CA; /* Sand/bone-beige from dontoliver.com */
 }
 
-/* Global Courier Prime Enforcer */
+/* Global Vintage Special Elite Enforcer */
 html, body, #root, * {
-  font-family: "Courier Prime", Courier, monospace !important;
+  font-family: "Special Elite", system-ui, serif !important;
 }
 
 /* Custom Scrollbar */

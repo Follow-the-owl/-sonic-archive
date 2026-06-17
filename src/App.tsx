@@ -10,6 +10,8 @@ import SignalTowerSection from "./components/SignalTowerSection";
 import AudioControllerWidget from "./components/AudioControllerWidget";
 import { transitionAmbient, playOwlResonance } from "./audio";
 import OwlClock from "./components/OwlClock";
+import FragmentDetailPage from "./components/FragmentDetailPage";
+import { Fragment } from "./data";
 
 
 type NavigationTab =
@@ -22,6 +24,7 @@ export default function App() {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<NavigationTab>("The Owl Clock");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
 
   // Auto-scroll to top when tab changes
   useEffect(() => {
@@ -60,6 +63,25 @@ export default function App() {
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           >
             <WelcomeScreen onEnter={() => setHasEntered(true)} />
+          </motion.div>
+        ) : selectedFragment ? (
+          // STEP 1.5: Detailed Immersive Fragment Page with customized design & Web Audio test beat
+          <motion.div
+            key="fragment-detail-view"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full relative z-10"
+          >
+            <FragmentDetailPage 
+              fragment={selectedFragment} 
+              onBack={() => {
+                setSelectedFragment(null);
+                // Also scroll top on return
+                window.scrollTo({ top: 0, behavior: "instant" });
+              }} 
+            />
           </motion.div>
         ) : (
           // STEP 2: Main Website Architecture with Guide Navigation
@@ -198,7 +220,7 @@ export default function App() {
                   transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                 >
                   {activeTab === "The Owl Clock" && (
-                    <OwlClock />
+                    <OwlClock onSelectFragment={(frag) => setSelectedFragment(frag)} />
                   )}
                   {activeTab === "The Observatory" && (
                     <ObservatorySection />
@@ -307,7 +329,7 @@ export default function App() {
               {/* Bottom Copyright stamp */}
               <div className="max-w-6xl mx-auto border-t border-zinc-950 mt-16 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[9px] text-zinc-700">
                 <span>© {new Date().getFullYear()} FOLLOW THE OWL. ALL CHRONOLOGIES SECURED.</span>
-                <span className="tracking-[0.14em]">OWNERSHIP LICENSES GUARDED BY THE SENTINEL OWLS</span>
+                <span className="tracking-[0.14em]">OWNERSHIP LICENSES SECURED BY GLOBAL CHRONOLOGY METRIC</span>
               </div>
             </footer>
           </motion.div>

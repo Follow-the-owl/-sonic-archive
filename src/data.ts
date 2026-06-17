@@ -9,6 +9,7 @@ export interface Fragment {
   isExclusive: boolean;
   frequency: number; // For synth generation
   synthType: "drone" | "keys" | "bell" | "noise" | "pulse";
+  bpm: number;
 }
 
 export interface JournalEntry {
@@ -66,7 +67,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "A slow, breathing analog sub-drone layered with tape dust and a recurring minor two-note theme, capturing the dark wet highway energy of Don's deep-space records.",
     isExclusive: false,
     frequency: 110, // A2 (deep drone)
-    synthType: "drone"
+    synthType: "drone",
+    bpm: 78
   },
   {
     id: "02:17",
@@ -78,7 +80,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "Faint glass-like piano notes suspended in a vast cavern of pitch-shifted delays. Captures the eerie, neon green energy of kryptonite elements.",
     isExclusive: false,
     frequency: 293.66, // D4 (glass harp tone)
-    synthType: "keys"
+    synthType: "keys",
+    bpm: 92
   },
   {
     id: "03:33",
@@ -90,7 +93,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "High-energy, industrial-trap sub-bass synthetic grit combined with isolated hollow metal bell strikes. Mastered at 03:33 AM in cold vacuum chambers.",
     isExclusive: false,
     frequency: 220, // A3 (haunting bell)
-    synthType: "bell"
+    synthType: "bell",
+    bpm: 140
   },
   {
     id: "05:58",
@@ -102,7 +106,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "An evolving, majestic low-bass drone with wave-shaping sirens and warm tape saturation that builds slowly, introducing high-pitch string overtones.",
     isExclusive: false,
     frequency: 146.83, // D3 (warm swell)
-    synthType: "pulse"
+    synthType: "pulse",
+    bpm: 128
   },
   {
     id: "07:44",
@@ -114,7 +119,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "A hyper-distorted analog tape-loop pulse that sounds like tires peeling on cold concrete. Brutal, rhythmic, and high-contrast.",
     isExclusive: true,
     frequency: 329.63, // E4
-    synthType: "pulse"
+    synthType: "pulse",
+    bpm: 160
   },
   {
     id: "09:05",
@@ -126,7 +132,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "Saturated analog tape-static pulsing like a dark motorcycle rev, layered with a warning-buzz major fifth chord. Raw and heavy.",
     isExclusive: false,
     frequency: 164.81, // E3
-    synthType: "noise"
+    synthType: "noise",
+    bpm: 85
   },
   {
     id: "10:40",
@@ -138,7 +145,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "A dark ambient sub-harmonic landscape reflecting security chambers and chrome steel finishes, with freezing atmospheric high air frequencies.",
     isExclusive: false,
     frequency: 98.0, // G2
-    synthType: "drone"
+    synthType: "drone",
+    bpm: 120
   },
   {
     id: "11:11",
@@ -150,7 +158,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "A beautiful, decaying celestial chord sequence played on vintage magnetic tape reels that breaks down and reforms, mimicking the final melodic fade out.",
     isExclusive: true,
     frequency: 440, // A4
-    synthType: "keys"
+    synthType: "keys",
+    bpm: 105
   },
   {
     id: "12:00",
@@ -162,7 +171,8 @@ export const FRAGMENTS: Fragment[] = [
     description: "A heavy, majestic ambient motorcycle synth-chorus spanning miles of empty asphalt. Cinematic, grand, and forever bound to the asphalt.",
     isExclusive: true,
     frequency: 196.0, // G3
-    synthType: "drone"
+    synthType: "drone",
+    bpm: 120
   }
 ];
 
