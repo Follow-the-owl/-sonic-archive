@@ -319,52 +319,8 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
         </motion.div>
       </div>
 
-      {/* Dynamic continuous oscillation wave bar player */}
-      <div 
-        onClick={(e) => e.stopPropagation()} 
-        className="w-full max-w-md bg-zinc-950/80 border border-zinc-900/80 p-5 rounded-sm space-y-3 z-30 mb-4 shadow-[0_8px_40px_rgba(0,0,0,0.95)]"
-      >
-        <div className="flex items-center justify-between text-[8px] sm:text-[9px] font-mono tracking-[0.2em] text-[#C5A059]">
-          <span className="flex items-center gap-1.5 uppercase font-bold text-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C5A059] inline-block animate-ping" />
-            LIVE SENTINEL DISPATCH // ACTIVE BROADCAST
-          </span>
-          <span className="text-zinc-500 font-mono">BPM: 110</span>
-        </div>
-
-        {/* Oscillating Pill Wave Canvas */}
-        <div className="w-full bg-black border border-zinc-900/60 rounded-sm overflow-hidden flex items-center justify-center h-16 relative">
-          <canvas ref={canvasRef} className="w-full h-[70px] block" />
-        </div>
-
-        <div className="flex items-center justify-between gap-4 pt-1">
-          <button 
-            id="welcome-play-beat-btn"
-            onClick={toggleEntranceBeat}
-            className={`flex items-center gap-2 px-4 py-2 border font-mono text-[9px] uppercase tracking-[0.2em] transition-all duration-300 rounded-none cursor-pointer ${
-              isPlaying
-                ? "border-[#C5A059] bg-[#C5A059] text-black font-black shadow-[0_0_12px_rgba(197,160,89,0.35)]"
-                : "border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-650 bg-black/60"
-            }`}
-          >
-            {isPlaying ? (
-              <>
-                <Square size={10} className="fill-current text-black" />
-                <span>SUSPEND BEAT</span>
-              </>
-            ) : (
-              <>
-                <Play size={10} className="fill-current text-zinc-400" />
-                <span>PLAY SENTINEL BEAT</span>
-              </>
-            )}
-          </button>
-          
-          <span className="text-[9px] tracking-[0.1em] font-mono text-zinc-500 text-right leading-none">
-            CLICK SCREEN TO ACCESS ARCHIVE
-          </span>
-        </div>
-      </div>
+    
+    
     </div>
   );
 }
