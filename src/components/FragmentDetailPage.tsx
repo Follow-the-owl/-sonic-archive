@@ -4,7 +4,7 @@ import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, V
 import { Fragment } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
-const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1781702400/WhatsApp_Image_2026-06-17_at_14.19.20_jwe6ql.jpg";
+const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1781704888/WhatsApp_Image_2026-06-17_at_14.50.42_nrxame.jpg";
 
 const waveHeights = [
   8, 14, 18, 10, 6, 12, 24, 32, 16, 20, 
@@ -592,7 +592,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
   return (
     <div 
       id={`fragment-detail-${fragment.id}`} 
-      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 md:p-12 relative select-none overflow-x-hidden bg-cover bg-center bg-no-repeat"
+      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 pb-3 sm:pb-5 relative select-none overflow-x-hidden bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: `url(${owlBackground})` }}
     >
       {/* 1. Global CRT horizontal scanline texture overlay */}
@@ -610,23 +610,23 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
       </button>
 
       {/* Widened content container aligned bottom and constrained to 850px */}
-      <div className="w-full max-w-[850px] px-2 sm:px-5 pb-6 z-[3] flex flex-col space-y-4 text-left relative mt-auto">
+      <div className="w-full max-w-[850px] px-2 sm:px-5 pb-0 z-[3] flex flex-col space-y-4 text-left relative mt-auto">
         
         {/* Title block */}
         <div className="space-y-1 text-left pl-0.5">
-          <span className="text-[10px] tracking-[0.4em] text-zinc-500 font-mono uppercase block font-bold leading-none">
+          <span className="text-[10px] tracking-[0.4em] text-zinc-500 font-mono uppercase block font-medium leading-none">
             FRAGMENT
           </span>
           <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
             {fragment.timestamp}
           </h2>
-          <p className="text-[10px] tracking-widest text-[#C5A059] font-mono uppercase mt-0.5 opacity-80">
+          <p className="text-[10px] tracking-widest text-[#D9D6CA]/60 font-mono uppercase mt-0.5">
             {fragment.name}
           </p>
         </div>
 
         {/* PLAYBACK CONTROL BAR DIAL (Matches image play/pause widget block) */}
-        <div className="w-full border border-zinc-900/90 bg-zinc-950/90 py-3.5 px-4 rounded-sm flex items-center justify-between gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+        <div className="w-full border border-zinc-900 bg-zinc-950/80 py-3.5 px-4 rounded-sm flex items-center justify-between gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
             
             {/* Play/Pause Button */}
             <button
@@ -667,7 +667,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                     className="w-[2px] rounded-sm transition-all duration-150"
                     style={{
                       height: `${finalH}px`,
-                      backgroundColor: isPassed ? '#D9D6CA' : '#1e1e1e'
+                      backgroundColor: isPassed ? '#D9D6CA' : 'rgba(217, 214, 202, 0.15)'
                     }}
                   />
                 );
@@ -680,7 +680,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
             </span>
 
             {/* Volume feedback indicator and slider */}
-            <div className="flex items-center gap-1.5 pl-1.5 border-l border-zinc-900/85 shrink-0">
+            <div className="flex items-center gap-1.5 pl-1.5 border-l border-zinc-900 shrink-0">
               <button
                 onClick={() => setVolumeLevel(volumeLevel === 0 ? 0.7 : 0)}
                 className="text-zinc-500 hover:text-[#D9D6CA] transition-colors cursor-pointer"
@@ -700,62 +700,60 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
           </div>
 
           {/* METADATA GRID SECTION (Matches screenshot grid table) */}
-          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex flex-col md:flex-row shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-            <div className="flex-grow grid grid-cols-2 sm:grid-cols-4 border-b md:border-b-0 md:border-r border-zinc-900">
-              
-              {/* Box 1: Recovered Artist */}
-              <div className="p-3 border-r border-b sm:border-b-0 border-zinc-900 flex flex-col justify-between h-[52px]">
-                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
-                  RECOVERED ARTIST:
-                </span>
-                <span className="text-[#D9D6CA] text-[10.5px] font-mono font-bold font-serif truncate mt-1">
-                  Unknown
-                </span>
-              </div>
+          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex flex-row divide-x divide-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            
+            {/* Box 1: Recovered Artist */}
+            <div className="flex-[1.5] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px]">
+              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
+                RECOVERED ARTIST:
+              </span>
+              <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium truncate mt-1">
+                Unknown
+              </span>
+            </div>
 
-              {/* Box 2: Track Length */}
-              <div className="p-3 border-b sm:border-r sm:border-b-0 border-zinc-900 flex flex-col justify-between h-[52px]">
-                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
-                  LENGTH:
-                </span>
-                <span className="text-[#D9D6CA] text-[10.5px] font-mono font-bold mt-1">
-                  01:43
-                </span>
-              </div>
+            {/* Box 2: Track Length */}
+            <div className="flex-[0.9] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px]">
+              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
+                LENGTH:
+              </span>
+              <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium mt-1">
+                01:43
+              </span>
+            </div>
 
-              {/* Box 3: Signal Integrity */}
-              <div className="p-3 border-r border-zinc-900 flex flex-col justify-between h-[52px] text-left">
-                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
-                  SIGNAL INTEGRITY:
+            {/* Box 3: Signal Integrity */}
+            <div className="flex-[1.5] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px] text-left">
+              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
+                SIGNAL INTEGRITY:
+              </span>
+              <div className="mt-1">
+                <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium block leading-none">
+                  93%
                 </span>
-                <div className="mt-1">
-                  <span className="text-[#D9D6CA] text-[10.5px] font-mono font-bold block leading-none">
-                    93%
-                  </span>
-                  <div className="w-full bg-zinc-900 h-[1.5px] mt-1 overflow-hidden">
-                    <div className="bg-[#D9D6CA] h-full" style={{ width: "93%" }} />
-                  </div>
+                <div className="w-full bg-zinc-900 h-[1.5px] mt-1 overflow-hidden">
+                  <div className="bg-[#D9D6CA] h-full" style={{ width: "93%" }} />
                 </div>
-              </div>
-
-              {/* Box 4: Current Status */}
-              <div className="p-3 flex flex-col justify-between h-[52px] text-left">
-                <span className="text-[7.5px] font-mono text-zinc-650 tracking-[0.1em] uppercase block font-bold leading-none">
-                  STATUS:
-                </span>
-                <span className={`text-[#D9D6CA] text-[10.5px] font-mono font-bold uppercase mt-1 ${isPlayingBeat ? "text-emerald-500 font-black" : "text-[#D9D6CA]"}`}>
-                  Active
-                </span>
               </div>
             </div>
 
-            {/* Right Interactive Box: Request Clearance / licensing portal */}
+            {/* Box 4: Current Status */}
+            <div className="flex-[0.9] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px] text-left">
+              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
+                STATUS:
+              </span>
+              <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium uppercase mt-1 truncate">
+                Active
+              </span>
+            </div>
+
+            {/* Box 5: Request Clearance */}
             <button
               onClick={() => setShowLicensePanel(true)}
-              className="w-full md:w-auto px-4 py-3.5 bg-zinc-950 font-serif font-bold text-[10px] tracking-widest text-[#D9D6CA] hover:text-white hover:bg-zinc-900/60 flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1 min-h-[52px]"
+              className="flex-[1.6] min-w-0 p-2 sm:px-3 sm:py-3.5 bg-zinc-950/85 hover:bg-zinc-900/60 font-mono font-medium text-[7.5px] sm:text-[9.5px] tracking-wider sm:tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1 h-[48px] sm:h-[52px] border-0 outline-none"
             >
-              <span>REQUEST CLEARANCE</span>
-              <span className="font-mono text-xs text-[#C5A059] ml-1">→</span>
+              <span className="truncate">REQUEST CLEARANCE</span>
+              <span className="font-mono text-[9px] sm:text-xs shrink-0 select-none">→</span>
             </button>
           </div>
 
