@@ -102,10 +102,10 @@ export default function App() {
                   className="cursor-pointer space-y-1 group relative select-none"
                 >
                   <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-sm sm:text-lg tracking-[0.25em]">
-                    FOLLOW THE OWL
+                    THE OWL CLOCK
                   </div>
                   <h1 className="text-sm sm:text-lg tracking-[0.25em] font-display font-bold text-white group-hover:text-gold-muted transition-colors uppercase leading-none">
-                    FOLLOW THE OWL
+                    THE OWL CLOCK
                   </h1>
                   <span className="text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-500 block leading-none">
                     SONIC ARCHIVE
@@ -248,9 +248,9 @@ export default function App() {
                     setActiveTab("The Owl Clock");
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}>
-                    <div className="absolute inset-0 blur-[2px] opacity-20 text-white font-display text-xl tracking-[0.25em]">FOLLOW THE OWL</div>
+                    <div className="absolute inset-0 blur-[2px] opacity-20 text-white font-display text-xl tracking-[0.25em]">THE OWL CLOCK</div>
                     <h3 className="text-xl font-display font-bold tracking-[0.25em] text-white uppercase leading-none">
-                      FOLLOW THE OWL
+                      THE OWL CLOCK
                     </h3>
                   </div>
                   <div className="space-y-1.5">
