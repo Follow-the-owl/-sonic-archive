@@ -703,54 +703,19 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
           <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex flex-row divide-x divide-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
             
             {/* Box 1: Recovered Artist */}
-            <div className="flex-[1.5] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px]">
-              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
+            <div className="flex-1 min-w-0 p-3 sm:p-4 flex flex-col justify-between h-[52px] sm:h-[58px]">
+              <span className="text-[7.5px] sm:text-[9px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
                 RECOVERED ARTIST:
               </span>
-              <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium truncate mt-1">
+              <span className="text-[#D9D6CA] text-[10px] sm:text-[13px] font-mono font-medium truncate mt-1">
                 Unknown
-              </span>
-            </div>
-
-            {/* Box 2: Track Length */}
-            <div className="flex-[0.9] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px]">
-              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
-                LENGTH:
-              </span>
-              <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium mt-1">
-                01:43
-              </span>
-            </div>
-
-            {/* Box 3: Signal Integrity */}
-            <div className="flex-[1.5] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px] text-left">
-              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
-                SIGNAL INTEGRITY:
-              </span>
-              <div className="mt-1">
-                <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium block leading-none">
-                  93%
-                </span>
-                <div className="w-full bg-zinc-900 h-[1.5px] mt-1 overflow-hidden">
-                  <div className="bg-[#D9D6CA] h-full" style={{ width: "93%" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Box 4: Current Status */}
-            <div className="flex-[0.9] min-w-0 p-2 sm:p-3 flex flex-col justify-between h-[48px] sm:h-[52px] text-left">
-              <span className="text-[7.5px] sm:text-[8.5px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
-                STATUS:
-              </span>
-              <span className="text-[#D9D6CA] text-[10px] sm:text-[12.5px] font-mono font-medium uppercase mt-1 truncate">
-                Active
               </span>
             </div>
 
             {/* Box 5: Request Clearance */}
             <button
               onClick={() => setShowLicensePanel(true)}
-              className="flex-[1.6] min-w-0 p-2 sm:px-3 sm:py-3.5 bg-zinc-950/85 hover:bg-zinc-900/60 font-mono font-medium text-[7.5px] sm:text-[9.5px] tracking-wider sm:tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1 h-[48px] sm:h-[52px] border-0 outline-none"
+              className="flex-1 min-w-0 p-3 sm:px-4 bg-zinc-950/85 hover:bg-zinc-900/60 font-mono font-medium text-[8px] sm:text-[10px] tracking-wider sm:tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1.5 h-[52px] sm:h-[58px] border-0 outline-none"
             >
               <span className="truncate">REQUEST CLEARANCE</span>
               <span className="font-mono text-[9px] sm:text-xs shrink-0 select-none">→</span>
