@@ -212,22 +212,6 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
       id="landing-portal"
       className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-between select-none cursor-default z-50 overflow-hidden py-12 px-6"
     >
-      {/* Fullscreen blood-red delayed vignette fade design on active entry click */}
-      <AnimatePresence>
-        {isTriggered && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.2, ease: "easeOut" }}
-            className="absolute inset-0 z-0 pointer-events-none mix-blend-screen"
-            style={{
-              backgroundImage: "radial-gradient(circle at center, rgba(160, 10, 10, 0.42) 0%, rgba(0, 0, 0, 1) 100%)"
-            }}
-          />
-        )}
-      </AnimatePresence>
-
       {/* Absolute faint concentric coordinate circles to indicate spatial audio interface */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04] z-0">
         <div className="w-[300px] h-[300px] border border-[#D9D6CA] rounded-full animate-pulse" />
@@ -276,19 +260,6 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
           whileTap={{ scale: 0.99 }}
           className="relative w-[340px] h-[191px] sm:w-[500px] sm:h-[281px] md:w-[680px] md:h-[382px] lg:w-[800px] lg:h-[450px] flex items-center justify-center select-none overflow-hidden cursor-pointer rounded-lg group"
         >
-          {/* Intense local red delayed glow surrounding the owl image card */}
-          <AnimatePresence>
-            {isTriggered && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0.3, 0.85, 0.6] }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-0 bg-red-950/20 z-[1] pointer-events-none filter blur-2xl"
-              />
-            )}
-          </AnimatePresence>
-
           {/* Real-image background perfectly matching the site's primary owl branding */}
           <motion.img
             src={owlBgImage}
