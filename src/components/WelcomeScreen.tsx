@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
 import { Lock, Play, Square } from "lucide-react";
 import { playOwlResonance, getGlobalAnalyser, playFragment, stopAudio, registerAudioCallback } from "../audio";
 
@@ -14,6 +14,7 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
   const [isBlinking, setIsBlinking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showRestricted, setShowRestricted] = useState(false);
+  const [isTriggered, setIsTriggered] = useState(false);
 
   // Auto-reset "Access Restricted" state after 3 seconds
   useEffect(() => {
@@ -189,27 +190,44 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
     };
   }, [isPlaying]);
 
-  const handleInteraction = () => {
-    if (isHooting) return;
+  const handleInteraction = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (isHooting || isTriggered) return;
+    setIsTriggered(true);
     setIsHooting(true);
     try {
       playOwlResonance();
-    } catch (e) {
-      console.warn("Audio context not initialized yet", e);
+    } catch (err) {
+      console.warn("Audio context not initialized yet", err);
     }
     
-    // Smooth delay for the hoot sound before transitioning
+    // Satisfy requirement: "there should be a red delayed glow before giving the archive access"
     setTimeout(() => {
       onEnter();
-    }, 1100);
+    }, 1600);
   };
 
   return (
     <div
       id="landing-portal"
-      onClick={handleInteraction}
-      className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-between select-none cursor-pointer z-50 overflow-hidden py-12 px-6"
+      className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-between select-none cursor-default z-50 overflow-hidden py-12 px-6"
     >
+      {/* Fullscreen blood-red delayed vignette fade design on active entry click */}
+      <AnimatePresence>
+        {isTriggered && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+            className="absolute inset-0 z-0 pointer-events-none mix-blend-screen"
+            style={{
+              backgroundImage: "radial-gradient(circle at center, rgba(160, 10, 10, 0.42) 0%, rgba(0, 0, 0, 1) 100%)"
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Absolute faint concentric coordinate circles to indicate spatial audio interface */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04] z-0">
         <div className="w-[300px] h-[300px] border border-[#D9D6CA] rounded-full animate-pulse" />
@@ -246,6 +264,7 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
       {/* Center Image Deck wrapped in matching Parallax Skews */}
       <div className="flex-1 w-full max-w-5xl flex items-center justify-center relative z-10 py-6">
         <motion.div
+          onClick={handleInteraction}
           style={{
             rotateX: rotateX,
             rotateY: rotateY,
@@ -253,20 +272,36 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
             y: translateHeadY,
             perspective: 1200,
           }}
-          whileHover={{ scale: 1.01 }}
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.99 }}
-          className="relative w-[340px] h-[191px] sm:w-[500px] sm:h-[281px] md:w-[680px] md:h-[382px] lg:w-[800px] lg:h-[450px] flex items-center justify-center select-none overflow-hidden"
+          className="relative w-[340px] h-[191px] sm:w-[500px] sm:h-[281px] md:w-[680px] md:h-[382px] lg:w-[800px] lg:h-[450px] flex items-center justify-center select-none overflow-hidden cursor-pointer rounded-lg group"
         >
+          {/* Intense local red delayed glow surrounding the owl image card */}
+          <AnimatePresence>
+            {isTriggered && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.3, 0.85, 0.6] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0 bg-red-950/20 z-[1] pointer-events-none filter blur-2xl"
+              />
+            )}
+          </AnimatePresence>
+
           {/* Real-image background perfectly matching the site's primary owl branding */}
           <motion.img
             src={owlBgImage}
             alt="The Sentinel Entrance"
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover select-none pointer-events-none"
-            animate={isHooting ? {
-              scale: [1, 1.04, 0.98, 1],
-            } : {}}
-            transition={{ duration: 0.8 }}
+            className="w-full h-full object-cover select-none pointer-events-none transition-all duration-700"
+            animate={{
+              scale: isHooting ? [1, 1.05, 0.98, 1] : 1,
+              filter: isTriggered 
+                ? "sepia(0.35) saturate(3) hue-rotate(320deg) brightness(0.85) drop-shadow(0 0 25px rgba(220,38,38,0.7))"
+                : "none"
+            }}
+            transition={{ duration: 1.5 }}
           />
 
 
