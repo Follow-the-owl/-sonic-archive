@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, ArrowUpRight, ShoppingBag } from "lucide-react";
+import { Menu, X, ArrowUpRight, ShoppingBag, Vault } from "lucide-react";
 
 // Components Imports
 import WelcomeScreen from "./components/WelcomeScreen";
@@ -113,7 +113,7 @@ export default function App() {
                 </div>
 
                 {/* Desktop Menu Guide Navbar - completely flat brutalist tab elements */}
-                <nav id="desktop-nav" className="hidden lg:flex items-center gap-1.5">
+                <nav id="desktop-nav" className="hidden md:flex items-center gap-1.5">
                   {tabsList.map((tab) => {
                     const isSelected = activeTab === tab;
                     return (
@@ -124,7 +124,7 @@ export default function App() {
                         className={`px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] transition-all duration-300 rounded-none relative flex items-center gap-1.5 cursor-pointer border ${
                           isSelected 
                             ? "text-black bg-[#D9D6CA] border-[#D9D6CA] font-bold" 
-                            : "text-zinc-400 border-transparent hover:text-white hover:border-zinc-800"
+                            : "text-zinc-400 border-transparent hover:text-white hover:border-[#D9D6CA]/20"
                         }`}
                       >
                         {isSelected && (
@@ -150,14 +150,14 @@ export default function App() {
                   {/* Visual trigger to go back to welcome screen config / merch */}
                   <button 
                     onClick={() => setHasEntered(false)}
-                    className="flex lg:flex items-center gap-1 border border-zinc-900 bg-neutral-950 px-3 py-1.5 text-[9px] uppercase tracking-widest text-[#D9D6CA] hover:border-[#D9D6CA] transition-colors cursor-pointer rounded-none"
+                    className="flex items-center gap-1.5 border border-zinc-900 bg-neutral-950 px-3 py-1.5 text-[9px] uppercase tracking-widest text-[#D9D6CA] hover:border-[#D9D6CA] transition-colors cursor-pointer rounded-none"
                     title="View Physical Media & Shop"
                   >
                     <ShoppingBag size={11} />
                     <span className="hidden sm:inline">MEDIA & BAG</span>
                   </button>
 
-                  <div className="lg:hidden">
+                  <div className="md:hidden">
                     <button
                       id="mobile-menu-toggle"
                       onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -169,7 +169,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mobile Drawer Navigation overlay */}
+              {/* Drawer Navigation overlay */}
               <AnimatePresence>
                 {mobileMenuOpen && (
                   <motion.div
@@ -178,7 +178,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3 }}
-                    className="absolute top-full left-0 right-0 bg-black border-b border-zinc-900 p-6 flex flex-col gap-2.5 lg:hidden shadow-2xl z-50"
+                    className="absolute top-full left-0 right-0 bg-black border-b border-zinc-900 p-6 flex flex-col gap-2.5 md:hidden shadow-2xl z-50"
                   >
                     {tabsList.map((tab) => {
                       const isSelected = activeTab === tab;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
-import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause } from "lucide-react";
+import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause, Search, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
 import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
@@ -80,48 +80,57 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   // High-fidelity license state variables
   const [showLicensePanel, setShowLicensePanel] = useState<boolean>(false);
-  const [selectedTier, setSelectedTier] = useState<"mp3" | "mp3-wav" | "premium" | "exclusive" | null>(null);
-  const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({});
+  const [selectedTier, setSelectedTier] = useState<"preview" | "archive" | "master" | "custodian" | "transfer" | null>(null);
   const [clientEmail, setClientEmail] = useState<string>("");
   const [isProcessingLicense, setIsProcessingLicense] = useState<boolean>(false);
   const [licenseSuccess, setLicenseSuccess] = useState<boolean>(false);
+  const [expandedTerms, setExpandedTerms] = useState<Record<string, boolean>>({});
 
-  const getTierDetails = (tier: "mp3" | "mp3-wav" | "premium" | "exclusive") => {
-    switch (tier) {
-      case "mp3":
-        return {
-          title: "MP3 License",
-          sub: "MP3",
-          price: "$30.00",
-          usecase: "Standard non-exclusive license. Encoded at 320kbps.",
-          deliverables: "High-quality engineered MP3 Master Track"
-        };
-      case "mp3-wav":
-        return {
-          title: "MP3 + WAV License",
-          sub: "MP3 & WAV",
-          price: "$50.00",
-          usecase: "High quality audio split master license. Ideal for indie artists and films.",
-          deliverables: "Uncompressed Stereo 24-bit WAV file + high-fidelity MP3"
-        };
-      case "premium":
-        return {
-          title: "Premium License",
-          sub: "MP3 & WAV",
-          price: "$100.00",
-          usecase: "Complete commercial release rights including multi-track separates (stems).",
-          deliverables: "HQ WAV separated stemming tracks (Drums, Bass, Synths) + master deliverables"
-        };
-      case "exclusive":
-        return {
-          title: "Exclusive Unlimited Buyout",
-          sub: "Unlimited Usage Ownership",
-          price: "$1,250.00",
-          usecase: "Permanent master recording ownership title transfer. Retired from Follow The Owl archives.",
-          deliverables: "All raw stems, master project agreements, and lifetime mechanical copyright contract"
-        };
+  const CONTRACT_TIERS = [
+    { 
+      id: "preview", 
+      title: "SIGNAL PREVIEW", 
+      price: "$100", 
+      subtitle: "MP3 & WAV preview files", 
+      terms: "Includes high-quality MP3 & WAV preview files. Intended for personal evaluation and non-commercial broadcast tests." 
+    },
+    { 
+      id: "archive", 
+      title: "ARCHIVE ACCESS", 
+      price: "$250", 
+      subtitle: "Lossless stems & WAV master", 
+      terms: "Includes high-fidelity lossless masters. Grants usage across non-commercial streaming audio and digital archival platforms." 
+    },
+    { 
+      id: "master", 
+      title: "MASTER ACCESS", 
+      price: "$500", 
+      subtitle: "Master recording clearance", 
+      terms: "Includes full multitrack stems, instrumental masters, and synchronization rights for independent visual media productions." 
+    },
+    { 
+      id: "custodian", 
+      title: "CUSTODIAN ACCESS", 
+      price: "$1,000", 
+      subtitle: "Custodian archive guardianship", 
+      terms: "Grants deep mechanical rights and custody over physical analog tape masters where applicable. For semi-commercial broadcasting." 
+    },
+    { 
+      id: "transfer", 
+      title: "ARCHIVE TRANSFER", 
+      price: "$2,500+", 
+      subtitle: "Unlimited buyout & source ownership", 
+      terms: "Complete intellectual ownership transfer of raw soundwave master files. Unlimited unrestricted global commercial exploit rights." 
     }
-  };
+  ] as const;
+
+  // Search & scroll wheel states
+  const [pickedHour, setPickedHour] = useState<number | null>(null);
+  const [pickedMinute, setPickedMinute] = useState<number | null>(null);
+  const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(null);
+  const [isManual, setIsManual] = useState<boolean>(false);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const handleAcquireLicense = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +143,39 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
       setLicenseSuccess(true);
     }, 1400);
   };
+
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Sync picked values with current active signal or real time if user hasn't gone manual
+  useEffect(() => {
+    if (activePlayId) {
+      const activeFrag = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
+      if (activeFrag) {
+        const cleaned = activeFrag.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
+        const [timeStr, ampmStr] = cleaned.split(" ");
+        const [hStr, mStr] = timeStr.split(":");
+        setPickedHour(parseInt(hStr, 10));
+        setPickedMinute(parseInt(mStr, 10));
+        setPickedAMPM((ampmStr || "AM") as "AM" | "PM");
+        setIsManual(false); // reset manual if user switched to playing a different signal row
+      }
+    } else if (!isManual) {
+      let h = currentTime.getHours();
+      const am = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      h = h ? h : 12;
+      setPickedHour(h);
+      setPickedMinute(currentTime.getMinutes());
+      setPickedAMPM(am);
+    }
+  }, [activePlayId, currentTime, isManual]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -218,6 +260,108 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   const activeFragment = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
 
+  // Dynamic variables for Clock Wheel Selector Card
+  const displayHour = pickedHour !== null ? pickedHour : (activeFragment ? 2 : currentTime.getHours() % 12 || 12);
+  const displayMinute = pickedMinute !== null ? pickedMinute : (activeFragment ? 17 : currentTime.getMinutes());
+  const displayAMPM = pickedAMPM !== null ? pickedAMPM : (activeFragment ? "AM" : (currentTime.getHours() >= 12 ? "PM" : "AM"));
+
+  const prevHour = displayHour === 1 ? 12 : displayHour - 1;
+  const prevMinute = displayMinute === 0 ? 59 : displayMinute - 1;
+  const nextHour = displayHour === 12 ? 1 : displayHour + 1;
+  const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
+  const fmt = (num: number) => String(num).padStart(2, "0");
+
+  // Wheel interaction event handlers
+  const handleScrollHour = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setIsManual(true);
+    const step = e.deltaY > 0 ? 1 : -1;
+    let next = displayHour + step;
+    if (next > 12) next = 1;
+    if (next < 1) next = 12;
+    setPickedHour(next);
+  };
+
+  const handleScrollMinute = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setIsManual(true);
+    const step = e.deltaY > 0 ? 1 : -1;
+    let next = displayMinute + step;
+    if (next > 59) next = 0;
+    if (next < 0) next = 59;
+    setPickedMinute(next);
+  };
+
+  const handleScrollAMPM = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setIsManual(true);
+    setPickedAMPM(displayAMPM === "AM" ? "PM" : "AM");
+  };
+
+  const handleHourClick = (h: number) => {
+    setIsManual(true);
+    setPickedHour(h);
+  };
+
+  const handleMinuteClick = (m: number) => {
+    setIsManual(true);
+    setPickedMinute(m);
+  };
+
+  const handleAMPMClick = (ampm: "AM" | "PM") => {
+    setIsManual(true);
+    setPickedAMPM(ampm);
+  };
+
+  // Find the closest fragment circular in time (1440 minutes)
+  const getFragmentCloseness = (item: ClockFragment, h: number, m: number, ampm: "AM" | "PM") => {
+    const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
+    const [timeStr, ampmStr] = cleaned.split(" ");
+    const [hStr, mStr] = timeStr.split(":");
+    const itemH = parseInt(hStr, 10);
+    const itemM = parseInt(mStr, 10);
+    const itemAMPM = ampmStr || "AM";
+
+    const get24Min = (hour: number, minute: number, mer: string) => {
+      let h24 = hour % 12;
+      if (mer === "PM") h24 += 12;
+      return h24 * 60 + minute;
+    };
+
+    const targetMinutes = get24Min(h, m, ampm);
+    const itemMinutes = get24Min(itemH, itemM, itemAMPM);
+
+    let diff = Math.abs(targetMinutes - itemMinutes);
+    if (diff > 720) {
+      diff = 1440 - diff;
+    }
+    return diff;
+  };
+
+  let matchedClockFragment = CLOCK_FRAGMENTS[1]; // default 02:17 AM fallback
+  let minDiff = Infinity;
+  CLOCK_FRAGMENTS.forEach(item => {
+    const diff = getFragmentCloseness(item, displayHour, displayMinute, displayAMPM);
+    if (diff < minDiff) {
+      minDiff = diff;
+      matchedClockFragment = item;
+    }
+  });
+
+  const matchedActualFrag = FRAGMENTS.find(f => f.id === matchedClockFragment.mappedId) || FRAGMENTS[1];
+
+  const handleTransmit = () => {
+    if (onSelectFragment) {
+      onSelectFragment(matchedActualFrag);
+    }
+  };
+
+  // Filtered fragments based on user typing
+  const filteredClockFragments = CLOCK_FRAGMENTS.filter(frag => {
+    const rawVal = `${frag.label} ${frag.description} ${frag.synthType}`.toLowerCase();
+    return rawVal.includes(searchQuery.toLowerCase());
+  });
+
   const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[1]; // fallback to 02:17 AM
   const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS[1];
   const formattedTitle = matchedFrag.name.toUpperCase();
@@ -236,7 +380,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
   return (
     <div
       id="owl-clock-stage"
-      className="relative w-full min-h-screen bg-black text-[#D9D6CA] flex flex-col justify-start items-center pt-20 pb-16 sm:pt-28 md:pt-32 px-4 select-none overflow-hidden"
+      className="relative w-full min-h-screen bg-black text-[#D9D6CA] flex flex-col justify-start items-center pt-8 pb-16 sm:pt-12 px-4 select-none overflow-hidden"
     >
       {/* 1. Subtle global focus vignette */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,10,12,0.15)_0%,rgba(0,0,0,1)_80%)] pointer-events-none z-0" />
@@ -244,9 +388,212 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
       {/* 2. THE MAIN WRAPPER */}
       <div className="relative w-full max-w-xl z-10 mx-auto flex flex-col items-center">
         
+        {/* CLOCK WHEEL SELECTOR CARD */}
+        <div className="w-full bg-[#101010]/50 border border-zinc-900 rounded-2xl py-5 sm:py-6 px-6 sm:px-10 flex flex-col items-center justify-between mb-8 relative shadow-2xl z-20">
+          
+          <div className="w-full flex items-center justify-between">
+            {/* Left: Search with Input */}
+            <div className="flex items-center gap-2 flex-grow max-w-[140px] sm:max-w-[220px]">
+              <Search 
+                size={18} 
+                strokeWidth={1.5} 
+                className="text-[#D9D6CA]/40 hover:text-white cursor-pointer shrink-0 transition-colors" 
+                onClick={() => setIsSearching(!isSearching)} 
+              />
+              {isSearching ? (
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Filter fragments..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-b border-zinc-800 text-xs text-[#D9D6CA] focus:border-[#D9D6CA]/50 outline-none w-full tracking-widest font-mono py-0.5"
+                />
+              ) : (
+                <button
+                  onClick={() => setIsSearching(true)}
+                  className="text-[9px] sm:text-[10px] tracking-[0.2em] text-[#D9D6CA]/30 font-mono hover:text-[#D9D6CA]/60 transition-colors cursor-pointer bg-transparent border-0 select-none pb-0.5"
+                >
+                  SEARCH SIGNALS
+                </button>
+              )}
+            </div>
+
+            {/* Right/Center: Time Picker Wheels Column */}
+            <div className="flex items-center gap-5 sm:gap-7 pr-2 font-mono select-none">
+              {/* Column 1: HOUR */}
+              <div 
+                onWheel={handleScrollHour}
+                className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
+                title="Scroll wheel or click to select hour"
+              >
+                {/* Prev Hour */}
+                <button
+                  type="button"
+                  onClick={() => handleHourClick(prevHour)}
+                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                >
+                  {fmt(prevHour)}
+                </button>
+                {/* Target Hour */}
+                <button
+                  type="button"
+                  onClick={handleTransmit}
+                  className="text-white font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 hover:scale-110 active:scale-95 bg-transparent border-0 outline-none cursor-pointer"
+                  title="Click to transmit signal"
+                >
+                  {fmt(displayHour)}
+                </button>
+                {/* Next Hour */}
+                <button
+                  type="button"
+                  onClick={() => handleHourClick(nextHour)}
+                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                >
+                  {fmt(nextHour)}
+                </button>
+              </div>
+
+              {/* Separator: Colons */}
+              <div className="flex flex-col items-center justify-center h-20 text-center">
+                <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
+                <button 
+                  type="button"
+                  onClick={handleTransmit}
+                  className="text-white font-bold text-base sm:text-lg h-8 flex items-center justify-center animate-pulse cursor-pointer hover:scale-115 active:scale-95 bg-transparent border-0 outline-none"
+                  title="Click to transmit signal"
+                >
+                  :
+                </button>
+                <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
+              </div>
+
+              {/* Column 2: MINUTE */}
+              <div 
+                onWheel={handleScrollMinute}
+                className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
+                title="Scroll wheel or click to select minute"
+              >
+                {/* Prev Minute */}
+                <button
+                  type="button"
+                  onClick={() => handleMinuteClick(prevMinute)}
+                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                >
+                  {fmt(prevMinute)}
+                </button>
+                {/* Target Minute */}
+                <button
+                  type="button"
+                  onClick={handleTransmit}
+                  className="text-white font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 hover:scale-110 active:scale-95 bg-transparent border-0 outline-none cursor-pointer"
+                  title="Click to transmit signal"
+                >
+                  {fmt(displayMinute)}
+                </button>
+                {/* Next Minute */}
+                <button
+                  type="button"
+                  onClick={() => handleMinuteClick(nextMinute)}
+                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                >
+                  {fmt(nextMinute)}
+                </button>
+              </div>
+
+              {/* Column 3: MERIDIEM (AM/PM) */}
+              <div 
+                onWheel={handleScrollAMPM}
+                className="flex flex-col items-center justify-center h-20 text-center min-w-[32px] cursor-ns-resize"
+                title="Scroll wheel or click to toggle AM/PM"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
+                  className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
+                >
+                  {displayAMPM === "AM" ? "PM" : "AM"}
+                </button>
+                {/* Target Meridiem */}
+                <button
+                  type="button"
+                  onClick={handleTransmit}
+                  className="text-white font-bold text-xs sm:text-sm h-8 flex items-center justify-center tracking-wider transition-all duration-300 hover:scale-110 active:scale-95 bg-transparent border-0 outline-none cursor-pointer"
+                  title="Click to transmit signal"
+                >
+                  {displayAMPM}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
+                  className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
+                >
+                  {displayAMPM === "AM" ? "PM" : "AM"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom active signal transmission prompt */}
+          <div className="w-full border-t border-zinc-900/40 mt-4 pt-3 text-center">
+            <button
+              onClick={handleTransmit}
+              className="text-[9px] sm:text-[10px] tracking-[0.25em] uppercase font-bold text-[#D9D6CA]/60 hover:text-white bg-transparent border-0 cursor-pointer select-none py-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
+              title={`Transmit to ${matchedActualFrag.name}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+              <span>TRANSMIT TO: {matchedClockFragment.label} &mdash; {formattedTitle} &rarr;</span>
+            </button>
+          </div>
+
+          {/* Search Dropdown / Overlay */}
+          {isSearching && searchQuery && (
+            <div className="absolute top-[102%] left-0 right-0 bg-[#0c0c0c]/98 border border-zinc-900 rounded-xl p-4 shadow-2xl z-50 text-left font-mono">
+              <span className="text-[9px] text-[#D9D6CA]/40 tracking-wider uppercase block mb-2 px-2 select-none font-bold">
+                MATCHED CHRONO FREQUENCIES ({filteredClockFragments.length})
+              </span>
+              <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                {filteredClockFragments.length === 0 ? (
+                  <div className="text-xs text-zinc-600 p-2 italic">No matching signals resolved...</div>
+                ) : (
+                  filteredClockFragments.map(frag => {
+                    const actualFrag = FRAGMENTS.find(f => f.id === frag.mappedId) || FRAGMENTS[1];
+                    return (
+                      <button
+                        key={frag.id}
+                        onClick={() => {
+                          const cleaned = frag.label.replace("FRAGMENT ", "").trim();
+                          const [timeStr, ampmStr] = cleaned.split(" ");
+                          const [hStr, mStr] = timeStr.split(":");
+                          setPickedHour(parseInt(hStr, 10));
+                          setPickedMinute(parseInt(mStr, 10));
+                          setPickedAMPM((ampmStr || "AM") as "AM" | "PM");
+                          setIsManual(true);
+                          setSearchQuery("");
+                          setIsSearching(false);
+                          if (onSelectFragment) {
+                            onSelectFragment(actualFrag);
+                          }
+                        }}
+                        className="w-full text-left p-2 hover:bg-zinc-900 text-[#D9D6CA]/80 hover:text-white rounded transition-colors border-0 bg-transparent flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <span className="text-xs font-bold tracking-widest text-[#D9D6CA]">{frag.label}</span>
+                          <span className="text-[10px] text-zinc-500 truncate">{frag.description}</span>
+                        </div>
+                        <span className="text-[9px] text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded uppercase shrink-0 font-mono">{frag.synthType}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Parallax / Interactive Owl Body Background that encompasses head and buttons */}
         <motion.div 
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[340px] sm:w-[460px] md:w-[485px] h-[580px] sm:h-[685px] md:h-[740px] pointer-events-none z-0 overflow-hidden"
+          className="absolute top-28 left-1/2 -translate-x-1/2 w-[340px] sm:w-[460px] md:w-[485px] h-[360px] sm:h-[480px] md:h-[510px] pointer-events-none z-0 overflow-hidden"
           style={{
             rotateX,
             rotateY,
@@ -265,20 +612,27 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
             className="w-full h-full object-cover opacity-85 pointer-events-none select-none"
           />
           {/* Gradients to blend seamless with black background on all sides */}
-          <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black to-transparent pointer-events-none" />
-          <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black to-transparent pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black to-transparent pointer-events-none" />
+          <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black to-transparent pointer-events-none" />
         </motion.div>
 
-        {/* 2a. Interactive trigger box covering the upper section where the owl's head resides */}
+        {/* 2a. Interactive trigger box covering the upper section where the owl's head resides (placed with z-index behind cards) */}
         <div
           onClick={handleOwlCall}
-          className="relative w-full h-[180px] sm:h-[220px] md:h-[250px] cursor-pointer z-10"
+          className="absolute top-[160px] sm:top-[200px] left-1/2 -translate-x-1/2 w-[240px] h-[160px] cursor-pointer z-10"
           title="Click the Sentinel Owl"
         />
 
-        {/* 3. VERTICAL STACK OF HORIZONTAL TIMESTAMPS LAYERED DIRECTLY OVER OWL'S BODY */}
+        {/* RECOVERED SIGNALS Section Header */}
+        <div className="w-full text-center z-10 mt-[260px] sm:mt-[320px] mb-4">
+          <h2 className="text-[10px] sm:text-xs leading-none tracking-[0.3em] text-[#D9D6CA]/40 font-bold uppercase select-none">
+            RECOVERED SIGNALS
+          </h2>
+        </div>
+
+        {/* 3. VERTICAL STACK OF HORIZONTAL TIMESTAMPS */}
         <div className="w-full space-y-3 sm:space-y-4 px-2 sm:px-4 z-10">
           {(() => {
             const displayedFragments = CLOCK_FRAGMENTS.slice(0, 5); // display exactly 5 rows matching mockup
@@ -344,254 +698,236 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
         </div>
       </div>
 
-      {/* LICENSE MODAL OVERLAY IN HIGH FIDELITY */}
       <AnimatePresence>
         {showLicensePanel && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/85 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/95 backdrop-blur-sm">
             {/* Modal Container */}
             <motion.div
               id="licensing-modal-box"
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-              className="relative w-full max-w-4xl bg-[#0b0b0b] border border-zinc-900 rounded-lg text-white shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
+              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={{ duration: 0.25 }}
+              className="relative w-full max-w-[480px] bg-black border border-zinc-900 text-[#D9D6CA] p-6 sm:p-8 flex flex-col items-center select-none font-mono text-center shadow-2xl rounded-2xl"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-zinc-900 px-6 py-5 bg-[#050505]">
-                <h3 className="text-sm sm:text-base font-mono font-bold tracking-[0.15em] text-[#C5A059] uppercase">
-                  Choose contract type
+              {/* Header section with Choose Contract Type and Close button */}
+              <div className="w-full flex items-center justify-between border-b border-zinc-900 pb-4 mb-5">
+                <h3 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-[#D6C291] uppercase">
+                  CHOOSE CONTRACT TYPE
                 </h3>
                 <button
                   onClick={() => {
                     setShowLicensePanel(false);
                     setSelectedTier(null);
                     setLicenseSuccess(false);
+                    setClientEmail("");
                   }}
-                  className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-900/40 rounded-full transition-all cursor-pointer border-0 bg-transparent flex items-center justify-center"
-                  title="Close panel"
+                  className="text-[#D9D6CA]/40 hover:text-white font-mono text-base cursor-pointer border-0 bg-transparent p-1 transition-colors outline-none"
+                  title="Exit clearance state"
                 >
-                  <X size={16} />
+                  ✕
                 </button>
               </div>
 
-              {/* Multi-Column Layout */}
-              <div className="flex flex-col md:flex-row p-6 md:p-8 gap-8 overflow-y-auto bg-gradient-to-b from-[#0b0b0b] to-[#040404] text-left">
-                {/* Left Column: Track preview summary card */}
-                <div className="w-full md:w-1/4 flex flex-col items-center border-b md:border-b-0 md:border-r border-zinc-900/65 pb-6 md:pb-0 md:pr-8 shrink-0">
-                  <div className="relative group w-44 h-44 bg-zinc-950 border border-[#C5A059]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center">
-                    <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-black to-zinc-950 flex flex-col items-center justify-center relative p-6">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(197,160,89,0.08)_0%,transparent_70%)]" />
-                      <RadioactiveIcon className="w-16 h-16 text-[#C5A059] animate-spin-slow" />
-                      <span className="text-[7.5px] font-mono text-[#C5A059] absolute bottom-3.5 tracking-widest text-center uppercase font-bold">FTO SECURE RECORDER</span>
-                    </div>
-
-                    {/* Circular Interactive Play Trigger Button Overlay */}
-                    <button
-                      onClick={toggleModalPlay}
-                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer border-0 bg-transparent"
-                    >
-                      <div className="w-12 h-12 rounded-full border border-[#C5A059] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(197,160,89,0.35)] transform hover:scale-105 transition-transform">
-                        {isPlayingBeat ? (
-                          <Pause size={14} className="fill-[#C5A059] text-[#C5A059] ml-0" />
-                        ) : (
-                          <Play size={14} className="fill-[#C5A059] text-[#C5A059] ml-0.5" />
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Static visual audio player microindicator */}
-                    {isPlayingBeat && (
-                      <div className="absolute bottom-2.5 right-2.5 flex items-end gap-1 px-1.5 py-1 bg-black/80 rounded-sm border border-zinc-900 w-auto">
-                        <span className="w-1 h-3.5 bg-[#C5A059] origin-bottom animate-bounce" style={{ animationDelay: "0.1s" }} />
-                        <span className="w-1 h-2 bg-[#C5A059] origin-bottom animate-bounce" style={{ animationDelay: "0.3s" }} />
-                        <span className="w-1 h-3 bg-[#C5A059] origin-bottom animate-bounce" style={{ animationDelay: "0.2s" }} />
-                      </div>
-                    )}
+              <div className="w-full flex flex-col items-center">
+                
+                {/* 2. Beautiful circular radioactive art representing fragment artwork */}
+                <div className="relative w-44 h-44 border border-zinc-900 bg-black/40 flex flex-col items-center justify-center p-4 rounded-2xl mb-4 group overflow-hidden shadow-xl">
+                  {/* Radioactive Icon from welcome screens */}
+                  <div className="w-16 h-16 text-[#D6C291] opacity-90 group-hover:scale-105 group-hover:rotate-45 transition-all duration-700">
+                    <RadioactiveIcon className="w-full h-full" />
                   </div>
-
-                  <span className="text-white text-base font-bold text-center mt-5 truncate max-w-full block tracking-wide">
-                    {matchedFrag.name}
+                  
+                  <span className="text-[8px] font-mono tracking-[0.25em] text-[#D6C291]/50 uppercase mt-4 select-none pointer-events-none">
+                    FTO SECURE RECORDER
                   </span>
-                  <span className="text-zinc-500 text-[10px] font-mono text-center mt-1.5 tracking-wider uppercase">
-                    Ozedikus // THE OWL CLOCK
-                  </span>
+                  
+                  {/* Subtle active / playing sound waves */}
+                  {isPlayingBeat && (
+                    <div className="absolute inset-x-0 bottom-2 flex items-end justify-center gap-1">
+                      <span className="w-[1.5px] h-3 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.1s" }} />
+                      <span className="w-[1.5px] h-5 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.2s" }} />
+                      <span className="w-[1.5px] h-2 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.3s" }} />
+                    </div>
+                  )}
                 </div>
 
-                {/* Right Column: Tiers Selection or Checkout Forms */}
-                <div className="flex-grow space-y-4 max-h-[400px] overflow-y-auto pr-1">
-                  {!selectedTier ? (
-                    /* Display Tiers list matching mockup */
-                    <div className="space-y-4 text-left">
-                      {(["mp3", "mp3-wav", "premium", "exclusive"] as const).map((tierId) => {
-                        const info = getTierDetails(tierId);
-                        const isExpanded = expandedTiers[tierId] || false;
+                {/* 3. Title & metadata */}
+                <h2 className="text-sm sm:text-base font-bold tracking-[0.25em] text-white uppercase mb-1 font-mono">
+                  {formattedTitle}
+                </h2>
+                
+                {/* 4. Classification state display */}
+                <div className="text-[9px] font-mono tracking-[0.22em] text-[#D9D6CA]/40 uppercase mb-5 select-none font-bold">
+                  {matchedFrag.classification || "OZEDIKUS"} // FOLLOW THE OWL
+                </div>
 
-                        return (
-                          <div
-                            key={tierId}
-                            className="bg-zinc-950/80 hover:bg-zinc-950 border border-zinc-900 hover:border-[#C5A059]/40 p-5 rounded-md flex flex-col transition-all duration-200"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="space-y-1">
-                                <h4 className="font-bold text-[#D9D6CA] text-sm tracking-wide">
-                                  {info.title}
-                                </h4>
-                                <span className="text-zinc-500 text-[9px] font-mono tracking-wider block uppercase">
-                                  {info.sub}
-                                </span>
+                {/* 5. Decorative border */}
+                <div className="w-full h-[1px] bg-zinc-900/40 mb-5" />
+
+                {/* 6. MIDDLE CONTAINER: EITHER THE TIERS LIST OR SUCCESS CONTENT */}
+                <div className="w-full min-h-[140px] flex flex-col justify-center">
+                  {licenseSuccess ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="w-full py-8 text-center flex flex-col items-center bg-zinc-950/45 border border-zinc-900 rounded-2xl p-6"
+                    >
+                      <span className="text-[11px] font-bold text-emerald-500 tracking-[0.25em] uppercase mb-3">
+                        ✓ SECURED & REGISTERED
+                      </span>
+                      <p className="text-[10px] sm:text-xs text-[#D9D6CA]/80 tracking-[0.14em] leading-relaxed font-light font-mono">
+                        Contract calibration metrics dispatched to:<br />
+                        <span className="text-white font-bold block mt-2 text-sm select-all">{clientEmail}</span>
+                      </p>
+                      <button
+                        onClick={() => {
+                          setLicenseSuccess(false);
+                          setSelectedTier(null);
+                          setClientEmail("");
+                        }}
+                        className="mt-6 text-[10px] tracking-[0.2em] font-bold text-[#D6C291] bg-transparent border border-zinc-900 hover:border-[#D6C291]/30 hover:bg-zinc-950 rounded-lg px-4 py-2 uppercase transition-all duration-300"
+                      >
+                        RESET VAULT
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <>
+                      {/* List of 5 cards representing the attached UI screenshot */}
+                      <div className="w-full space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                        {CONTRACT_TIERS.map((tier) => {
+                          const isSelected = selectedTier === tier.id;
+                          const isExpanded = !!expandedTerms[tier.id];
+                          return (
+                            <div
+                              key={tier.id}
+                              onClick={() => setSelectedTier(tier.id)}
+                              className={`w-full bg-[#101010]/30 border rounded-2xl p-4 text-left transition-all duration-300 relative overflow-hidden flex flex-col cursor-pointer ${
+                                isSelected
+                                  ? "border-[#D6C291] shadow-[0_0_15px_rgba(214,194,145,0.12)] bg-[#12110e]/50"
+                                  : "border-zinc-900/60 hover:border-zinc-800"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex flex-col min-w-0 pr-3">
+                                  <span className={`font-serif tracking-wide text-xs sm:text-sm font-medium ${isSelected ? "text-white" : "text-[#D9D6CA]/90"}`}>
+                                    {tier.title}
+                                  </span>
+                                  <span className="text-[9px] text-zinc-500 tracking-widest font-mono uppercase mt-1">
+                                    {tier.subtitle}
+                                  </span>
+                                </div>
+                                
+                                {/* Gold Price Pill Button with lock */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedTier(tier.id);
+                                  }}
+                                  className="bg-[#D6C291] hover:brightness-110 active:scale-95 text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-[0_0_8px_rgba(214,194,145,0.2)]"
+                                >
+                                  <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
+                                  <span>+ {tier.price}.00</span>
+                                </button>
                               </div>
-
-                              {/* Price check out buttons */}
+                              
+                              {/* Show Usage terms button */}
                               <button
-                                onClick={() => setSelectedTier(tierId)}
-                                className="bg-[#C5A059] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-4 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(197,160,89,0.2)] rounded-sm cursor-pointer shrink-0 border-0"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedTerms(prev => ({ ...prev, [tier.id]: !prev[tier.id] }));
+                                }}
+                                className="text-[9px] font-mono tracking-widest text-[#D6C291]/70 hover:text-white mt-3 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left py-0.5 select-none font-bold"
                               >
-                                <ShoppingBag size={10} className="fill-current text-current" />
-                                <span>+ {info.price}</span>
+                                <span>{isExpanded ? "▲ HIDE USAGE TERMS" : "▼ SHOW USAGE TERMS"}</span>
                               </button>
-                            </div>
-
-                            {/* Show/Hide usage terms accordion link */}
-                            <div className="mt-3 text-left">
-                              <button
-                                onClick={() =>
-                                  setExpandedTiers((prev) => ({
-                                    ...prev,
-                                    [tierId]: !prev[tierId],
-                                  }))
-                                }
-                                className="flex items-center gap-1 text-[8.5px] font-mono tracking-widest text-[#C5A059]/80 hover:text-[#C5A059] cursor-pointer bg-transparent border-0 p-0"
-                              >
-                                {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                                <span className="uppercase">{isExpanded ? "Hide usage terms" : "Show usage terms"}</span>
-                              </button>
-
-                              {/* Collapsible details container */}
-                              <AnimatePresence initial={false}>
+                              
+                              <AnimatePresence>
                                 {isExpanded && (
                                   <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "auto", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="overflow-hidden"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="mt-2 text-[9px] leading-relaxed text-[#D9D6CA]/60 font-mono border-t border-zinc-900/50 pt-2 select-text"
                                   >
-                                    <div className="mt-3.5 pl-3 border-l border-zinc-900/80 space-y-2 py-0.5">
-                                      <p className="text-[10.5px] text-zinc-400 font-sans leading-relaxed font-light">
-                                        {info.usecase}
-                                      </p>
-                                      
-                                      <div className="space-y-1 text-left pt-1">
-                                        <span className="text-zinc-500 text-[8px] font-mono font-bold tracking-wider block uppercase">
-                                          SPECIFIC DELIVERABLES & RIGHTS:
-                                        </span>
-                                        <p className="text-zinc-400 text-[9.5px] font-mono leading-relaxed pl-1">
-                                          • {info.deliverables}
-                                        </p>
-                                      </div>
-                                    </div>
+                                    {tier.terms}
                                   </motion.div>
                                 )}
                               </AnimatePresence>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    /* Display secure checkout slide inside modal */
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="border border-zinc-900 bg-zinc-950 p-6 rounded-md space-y-5"
-                    >
-                      <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                        <button
-                          onClick={() => {
-                            setSelectedTier(null);
-                            setLicenseSuccess(false);
-                          }}
-                          className="text-[9px] font-mono text-[#C5A059] hover:underline uppercase tracking-wider flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                        >
-                          ← Select another contract
-                        </button>
-                        <span className="text-[8.5px] font-mono text-zinc-500 tracking-wider">
-                          SECURE CHANCELLOR LINK
-                        </span>
+                          );
+                        })}
                       </div>
 
-                      {licenseSuccess ? (
-                        <div className="text-center py-6 space-y-3 font-mono">
-                          <span className="text-xs font-bold text-[#C5A059] tracking-widest block">
-                            ✓ TRANSACTION SECURED & DISPATCHED
-                          </span>
-                          <p className="text-[11px] text-zinc-400 font-sans font-light leading-relaxed">
-                            All calibrated mechanical outputs and premium stems for <strong className="text-white">{formattedTitle}</strong> have been compiled into your contract vault. A validation key and stem downloads catalog has been sent to <strong className="text-white">{clientEmail}</strong>.
-                          </p>
-                          <button
-                            onClick={() => {
-                              setSelectedTier(null);
-                              setLicenseSuccess(false);
-                              setShowLicensePanel(false);
-                            }}
-                            className="text-[10px] font-mono text-black bg-[#C5A059] px-4 py-2 tracking-widest uppercase hover:bg-white transition-colors cursor-pointer mt-3 border-0"
+                      {/* Email input field appears if a tier is selected */}
+                      <AnimatePresence>
+                        {selectedTier && (
+                          <motion.form
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            onSubmit={handleAcquireLicense}
+                            className="w-full bg-zinc-950/60 border border-zinc-900 rounded-xl p-4 mt-4 text-left font-mono"
                           >
-                            Close Port
-                          </button>
-                        </div>
-                      ) : (
-                        <form onSubmit={handleAcquireLicense} className="space-y-4 font-mono text-left">
-                          <div className="space-y-1">
-                            <span className="text-zinc-500 text-[8px] tracking-wider uppercase block font-bold">
-                              CONTRACT DEED // TIER SELECTED
-                            </span>
-                            <div className="text-white text-xs font-bold tracking-wide">
-                              {getTierDetails(selectedTier).title.toUpperCase()} — {getTierDetails(selectedTier).price}
+                            <div className="flex justify-between items-center text-[10px] tracking-wider mb-2">
+                              <span className="text-[#D9D6CA]/40 uppercase">CONTRACT RESERVED</span>
+                              <span className="text-white font-bold">{CONTRACT_TIERS.find(t => t.id === selectedTier)?.title}</span>
                             </div>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block">
-                              Client Credentials Email Address *
-                            </label>
-                            <div className="relative flex items-center bg-zinc-950 border border-zinc-900 px-3 py-2.5 rounded-sm focus-within:border-[#C5A059]">
-                              <Mail size={12} className="text-zinc-650 mr-2 shrink-0" />
+                            
+                            <div className="space-y-1.5">
+                              <label className="text-[8px] text-[#D6C291]/80 tracking-widest block uppercase font-bold">
+                                ENTER VAULT CREDIT EMAIL
+                              </label>
                               <input
                                 type="email"
                                 required
-                                placeholder="YOUR DESIGNATED EMAIL VAULT..."
+                                placeholder="vault@credentials.local"
                                 value={clientEmail}
                                 onChange={(e) => setClientEmail(e.target.value)}
-                                className="w-full bg-transparent border-none text-[11px] text-zinc-300 outline-none placeholder:text-zinc-800"
+                                className="w-full bg-black border border-zinc-900 text-center py-2.5 px-3 text-xs outline-none text-[#D9D6CA] focus:border-[#D6C291]/40 placeholder:text-zinc-800 tracking-wider font-mono rounded-lg"
                               />
                             </div>
-                          </div>
-
-                          <div className="p-3.5 bg-black border border-zinc-900 text-[9.5px] text-zinc-500 rounded-sm leading-relaxed space-y-1">
-                            <span className="text-zinc-400 text-[7.5px] font-bold block tracking-wider">
-                              LICENSING MECHANICAL AGREEMENT:
-                            </span>
-                            <p className="font-sans font-light text-zinc-400">
-                              By approving this secure checkout contract transfer, you acknowledge the terms of the mechanical and master raw audio stem usage guidelines. ZERO audio tag marks are embedded on final delivery tracks.
-                            </p>
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={isProcessingLicense}
-                            className="w-full py-3.5 bg-[#C5A059] hover:bg-white text-black font-semibold tracking-widest uppercase transition-colors rounded-none cursor-pointer flex items-center justify-center gap-2 text-[10px] font-mono shadow-[0_4px_12px_rgba(197,160,89,0.15)] border-0"
-                          >
-                            <Download size={11} className="text-black" />
-                            <span>
-                              {isProcessingLicense ? "GENERATING SECURE CONTRACTS..." : "CONFIRM SECURE TRANSFER"}
-                            </span>
-                          </button>
-                        </form>
-                      )}
-                    </motion.div>
+                          </motion.form>
+                        )}
+                      </AnimatePresence>
+                    </>
                   )}
                 </div>
+
+                {/* 7. Bottom active button triggers final action */}
+                {!licenseSuccess && (
+                  <div className="w-full mt-5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        if (!selectedTier) return;
+                        if (!clientEmail) {
+                          const inputEl = document.querySelector('input[type="email"]') as HTMLInputElement;
+                          if (inputEl) inputEl.focus();
+                          return;
+                        }
+                        handleAcquireLicense(e);
+                      }}
+                      disabled={!selectedTier || isProcessingLicense}
+                      className={`w-full border py-3.5 tracking-[0.25em] uppercase font-mono text-xs transition-all duration-300 flex items-center justify-center gap-2 rounded-xl ${
+                        selectedTier
+                          ? "border-[#D6C291] bg-neutral-950/80 text-[#D6C291] hover:bg-[#D6C291] hover:text-black cursor-pointer shadow-[0_0_15px_rgba(214,194,145,0.1)]"
+                          : "border-zinc-900 bg-neutral-950 text-zinc-600 cursor-not-allowed"
+                      }`}
+                    >
+                      {isProcessingLicense ? (
+                        <span>PROCESSING...</span>
+                      ) : (
+                        <span>&lt; REQUEST CLEARANCE →</span>
+                      )}
+                    </button>
+                  </div>
+                )}
+
               </div>
             </motion.div>
           </div>
