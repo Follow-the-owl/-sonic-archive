@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause, Search, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
@@ -72,6 +72,7 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
 ];
 
 export default function OwlClock({ onSelectFragment }: OwlClockProps) {
+  const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
@@ -80,7 +81,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   // High-fidelity license state variables
   const [showLicensePanel, setShowLicensePanel] = useState<boolean>(false);
-  const [selectedTier, setSelectedTier] = useState<"preview" | "archive" | "master" | "custodian" | "transfer" | null>(null);
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [clientEmail, setClientEmail] = useState<string>("");
   const [isProcessingLicense, setIsProcessingLicense] = useState<boolean>(false);
   const [licenseSuccess, setLicenseSuccess] = useState<boolean>(false);
@@ -88,39 +89,85 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   const CONTRACT_TIERS = [
     { 
-      id: "preview", 
-      title: "SIGNAL PREVIEW", 
+      id: "access", 
+      title: "ACCESS LICENSE", 
       price: "$100", 
-      subtitle: "MP3 & WAV preview files", 
-      terms: "Includes high-quality MP3 & WAV preview files. Intended for personal evaluation and non-commercial broadcast tests." 
+      subtitle: "For artists testing concepts.", 
+      includes: [
+        "MP3 Download",
+        "Non-exclusive",
+        "1 Commercial Release",
+        "Up to 100,000 Streams",
+        "1 Music Video",
+        "Live Performances Allowed"
+      ],
+      restrictions: [
+        "No Stems",
+        "No Content ID",
+        "No TV/Film",
+        "No Transfer"
+      ],
+      extraNote: "Upgrade required if limits are exceeded."
     },
     { 
-      id: "archive", 
-      title: "ARCHIVE ACCESS", 
+      id: "release", 
+      title: "RELEASE LICENSE", 
       price: "$250", 
-      subtitle: "Lossless stems & WAV master", 
-      terms: "Includes high-fidelity lossless masters. Grants usage across non-commercial streaming audio and digital archival platforms." 
+      subtitle: "For professional independent releases.", 
+      includes: [
+        "WAV Download",
+        "MP3 Download",
+        "Non-exclusive",
+        "1 Commercial Release",
+        "Up to 1,000,000 Streams",
+        "2 Music Videos",
+        "Live Performances",
+        "Radio Use"
+      ],
+      restrictions: [
+        "No Content ID",
+        "No Transfer",
+        "No Sync Licensing"
+      ],
+      extraNote: ""
     },
     { 
-      id: "master", 
-      title: "MASTER ACCESS", 
+      id: "commercial", 
+      title: "COMMERCIAL LICENSE", 
       price: "$500", 
-      subtitle: "Master recording clearance", 
-      terms: "Includes full multitrack stems, instrumental masters, and synchronization rights for independent visual media productions." 
+      subtitle: "For brands, creators, and larger campaigns.", 
+      includes: [
+        "WAV",
+        "MP3",
+        "Stems",
+        "Commercial Advertising",
+        "Online Campaigns",
+        "Unlimited Streams",
+        "Unlimited Videos"
+      ],
+      restrictions: [
+        "Non-exclusive",
+        "No Ownership Transfer"
+      ],
+      extraNote: ""
     },
     { 
-      id: "custodian", 
-      title: "CUSTODIAN ACCESS", 
-      price: "$1,000", 
-      subtitle: "Custodian archive guardianship", 
-      terms: "Grants deep mechanical rights and custody over physical analog tape masters where applicable. For semi-commercial broadcasting." 
-    },
-    { 
-      id: "transfer", 
-      title: "ARCHIVE TRANSFER", 
-      price: "$2,500+", 
-      subtitle: "Unlimited buyout & source ownership", 
-      terms: "Complete intellectual ownership transfer of raw soundwave master files. Unlimited unrestricted global commercial exploit rights." 
+      id: "exclusive", 
+      title: "EXCLUSIVE ACQUISITION", 
+      price: "Starting at $2,500", 
+      subtitle: "Exclusive rights and beat removal.", 
+      includes: [
+        "Exclusive Rights",
+        "Beat Removed From Archive",
+        "WAV",
+        "MP3",
+        "Stems",
+        "Commercial Exploitation Rights",
+        "Unlimited Streams",
+        "Unlimited Videos"
+      ],
+      restrictions: [],
+      extraNote: "Ownership of composition and publishing does not automatically transfer. Separate negotiation required."
     }
   ] as const;
 
@@ -155,6 +202,10 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   // Sync picked values with current active signal or real time if user hasn't gone manual
   useEffect(() => {
+    if (searchQuery.trim() !== "") {
+      // Direct focus on search results, do not overwrite with real time or unrelated active play cues
+      return;
+    }
     if (activePlayId) {
       const activeFrag = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
       if (activeFrag) {
@@ -175,7 +226,37 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
       setPickedMinute(currentTime.getMinutes());
       setPickedAMPM(am);
     }
-  }, [activePlayId, currentTime, isManual]);
+  }, [activePlayId, currentTime, isManual, searchQuery]);
+
+  // Set picked clock scroll wheel values dynamically based on search matches
+  useEffect(() => {
+    if (searchQuery.trim() !== "") {
+      const queryLower = searchQuery.toLowerCase();
+      const matches = CLOCK_FRAGMENTS.filter(frag => {
+        const rawVal = `${frag.label} ${frag.description} ${frag.synthType}`.toLowerCase();
+        return rawVal.includes(queryLower);
+      });
+      if (matches.length > 0) {
+        const firstMatch = matches[0];
+        const cleaned = firstMatch.label.replace("FRAGMENT", "").trim(); // e.g. "02:17 AM"
+        const [timePart, ampmPart] = cleaned.split(" ");
+        const [hourStr, minStr] = timePart.split(":");
+        const h = parseInt(hourStr, 10);
+        const m = parseInt(minStr, 10);
+        const ampm = (ampmPart || "AM") as "AM" | "PM";
+
+        setPickedHour(h);
+        setPickedMinute(m);
+        setPickedAMPM(ampm);
+        setIsManual(true);
+
+        // Scroll to the recovered section below
+        setTimeout(() => {
+          recoveredSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 120);
+      }
+    }
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -338,29 +419,32 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
     return diff;
   };
 
-  let matchedClockFragment = CLOCK_FRAGMENTS[1]; // default 02:17 AM fallback
-  let minDiff = Infinity;
-  CLOCK_FRAGMENTS.forEach(item => {
-    const diff = getFragmentCloseness(item, displayHour, displayMinute, displayAMPM);
-    if (diff < minDiff) {
-      minDiff = diff;
-      matchedClockFragment = item;
-    }
-  });
-
-  const matchedActualFrag = FRAGMENTS.find(f => f.id === matchedClockFragment.mappedId) || FRAGMENTS[1];
-
-  const handleTransmit = () => {
-    if (onSelectFragment) {
-      onSelectFragment(matchedActualFrag);
-    }
-  };
-
   // Filtered fragments based on user typing
   const filteredClockFragments = CLOCK_FRAGMENTS.filter(frag => {
     const rawVal = `${frag.label} ${frag.description} ${frag.synthType}`.toLowerCase();
     return rawVal.includes(searchQuery.toLowerCase());
   });
+
+  const exactClockFragment = CLOCK_FRAGMENTS.find(item => {
+    const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
+    const [timeStr, ampmStr] = cleaned.split(" ");
+    const [hStr, mStr] = timeStr.split(":");
+    let itemH = parseInt(hStr, 10);
+    if (itemH === 0) itemH = 12; // Midnight is 12 in 12-hour
+    const itemM = parseInt(mStr, 10);
+    const itemAMPM = (ampmStr || "AM") as "AM" | "PM";
+    return itemH === displayHour && itemM === displayMinute && itemAMPM === displayAMPM;
+  });
+
+  const exactActualFrag = exactClockFragment
+    ? (FRAGMENTS.find(f => f.id === exactClockFragment.mappedId) || null)
+    : null;
+
+  const handleTransmit = () => {
+    if (exactActualFrag && onSelectFragment) {
+      onSelectFragment(exactActualFrag);
+    }
+  };
 
   const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[1]; // fallback to 02:17 AM
   const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS[1];
@@ -421,172 +505,149 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
             {/* Right/Center: Time Picker Wheels Column */}
             <div className="flex items-center gap-5 sm:gap-7 pr-2 font-mono select-none">
-              {/* Column 1: HOUR */}
-              <div 
-                onWheel={handleScrollHour}
-                className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
-                title="Scroll wheel or click to select hour"
-              >
-                {/* Prev Hour */}
-                <button
-                  type="button"
-                  onClick={() => handleHourClick(prevHour)}
-                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                >
-                  {fmt(prevHour)}
-                </button>
-                {/* Target Hour */}
-                <button
-                  type="button"
-                  onClick={handleTransmit}
-                  className="text-white font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 hover:scale-110 active:scale-95 bg-transparent border-0 outline-none cursor-pointer"
-                  title="Click to transmit signal"
-                >
-                  {fmt(displayHour)}
-                </button>
-                {/* Next Hour */}
-                <button
-                  type="button"
-                  onClick={() => handleHourClick(nextHour)}
-                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                >
-                  {fmt(nextHour)}
-                </button>
-              </div>
+              {!searchQuery || searchQuery.trim() === "" ? (
+                <div className="text-[#D9D6CA]/20 text-[10px] sm:text-xs tracking-widest uppercase font-mono py-6 pr-4">
+                  &mdash; &mdash;
+                </div>
+              ) : filteredClockFragments.length === 0 ? (
+                <div className="text-red-500/90 text-[10px] sm:text-xs tracking-widest uppercase font-mono font-bold border border-red-950/40 bg-red-950/10 px-3 py-1.5 rounded-lg whitespace-nowrap">
+                  it is is not available
+                </div>
+              ) : (
+                <>
+                  {/* Column 1: HOUR */}
+                  <div 
+                    onWheel={handleScrollHour}
+                    className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
+                    title="Scroll wheel or click to select hour"
+                  >
+                    {/* Prev Hour */}
+                    <button
+                      type="button"
+                      onClick={() => handleHourClick(prevHour)}
+                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                    >
+                      {fmt(prevHour)}
+                    </button>
+                    {/* Target Hour */}
+                    <button
+                      type="button"
+                      onClick={handleTransmit}
+                      className={`${
+                        exactClockFragment 
+                          ? "text-white hover:scale-110 active:scale-95 cursor-pointer" 
+                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
+                      } font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 bg-transparent border-0 outline-none`}
+                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
+                    >
+                      {fmt(displayHour)}
+                    </button>
+                    {/* Next Hour */}
+                    <button
+                      type="button"
+                      onClick={() => handleHourClick(nextHour)}
+                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                    >
+                      {fmt(nextHour)}
+                    </button>
+                  </div>
 
-              {/* Separator: Colons */}
-              <div className="flex flex-col items-center justify-center h-20 text-center">
-                <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
-                <button 
-                  type="button"
-                  onClick={handleTransmit}
-                  className="text-white font-bold text-base sm:text-lg h-8 flex items-center justify-center animate-pulse cursor-pointer hover:scale-115 active:scale-95 bg-transparent border-0 outline-none"
-                  title="Click to transmit signal"
-                >
-                  :
-                </button>
-                <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
-              </div>
+                  {/* Separator: Colons */}
+                  <div className="flex flex-col items-center justify-center h-20 text-center">
+                    <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
+                    <button 
+                      type="button"
+                      onClick={handleTransmit}
+                      className={`${
+                        exactClockFragment 
+                          ? "text-white animate-pulse hover:scale-115 active:scale-95 cursor-pointer" 
+                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
+                      } font-bold text-base sm:text-lg h-8 flex items-center justify-center transition-all duration-300 bg-transparent border-0 outline-none`}
+                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
+                    >
+                      :
+                    </button>
+                    <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
+                  </div>
 
-              {/* Column 2: MINUTE */}
-              <div 
-                onWheel={handleScrollMinute}
-                className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
-                title="Scroll wheel or click to select minute"
-              >
-                {/* Prev Minute */}
-                <button
-                  type="button"
-                  onClick={() => handleMinuteClick(prevMinute)}
-                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                >
-                  {fmt(prevMinute)}
-                </button>
-                {/* Target Minute */}
-                <button
-                  type="button"
-                  onClick={handleTransmit}
-                  className="text-white font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 hover:scale-110 active:scale-95 bg-transparent border-0 outline-none cursor-pointer"
-                  title="Click to transmit signal"
-                >
-                  {fmt(displayMinute)}
-                </button>
-                {/* Next Minute */}
-                <button
-                  type="button"
-                  onClick={() => handleMinuteClick(nextMinute)}
-                  className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                >
-                  {fmt(nextMinute)}
-                </button>
-              </div>
+                  {/* Column 2: MINUTE */}
+                  <div 
+                    onWheel={handleScrollMinute}
+                    className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
+                    title="Scroll wheel or click to select minute"
+                  >
+                    {/* Prev Minute */}
+                    <button
+                      type="button"
+                      onClick={() => handleMinuteClick(prevMinute)}
+                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                    >
+                      {fmt(prevMinute)}
+                    </button>
+                    {/* Target Minute */}
+                    <button
+                      type="button"
+                      onClick={handleTransmit}
+                      className={`${
+                        exactClockFragment 
+                          ? "text-white hover:scale-110 active:scale-95 cursor-pointer" 
+                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
+                      } font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 bg-transparent border-0 outline-none`}
+                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
+                    >
+                      {fmt(displayMinute)}
+                    </button>
+                    {/* Next Minute */}
+                    <button
+                      type="button"
+                      onClick={() => handleMinuteClick(nextMinute)}
+                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
+                    >
+                      {fmt(nextMinute)}
+                    </button>
+                  </div>
 
-              {/* Column 3: MERIDIEM (AM/PM) */}
-              <div 
-                onWheel={handleScrollAMPM}
-                className="flex flex-col items-center justify-center h-20 text-center min-w-[32px] cursor-ns-resize"
-                title="Scroll wheel or click to toggle AM/PM"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
-                  className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
-                >
-                  {displayAMPM === "AM" ? "PM" : "AM"}
-                </button>
-                {/* Target Meridiem */}
-                <button
-                  type="button"
-                  onClick={handleTransmit}
-                  className="text-white font-bold text-xs sm:text-sm h-8 flex items-center justify-center tracking-wider transition-all duration-300 hover:scale-110 active:scale-95 bg-transparent border-0 outline-none cursor-pointer"
-                  title="Click to transmit signal"
-                >
-                  {displayAMPM}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
-                  className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
-                >
-                  {displayAMPM === "AM" ? "PM" : "AM"}
-                </button>
-              </div>
+                  {/* Column 3: MERIDIEM (AM/PM) */}
+                  <div 
+                    onWheel={handleScrollAMPM}
+                    className="flex flex-col items-center justify-center h-20 text-center min-w-[32px] cursor-ns-resize"
+                    title="Scroll wheel or click to toggle AM/PM"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
+                      className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
+                    >
+                      {displayAMPM === "AM" ? "PM" : "AM"}
+                    </button>
+                    {/* Target Meridiem */}
+                    <button
+                      type="button"
+                      onClick={handleTransmit}
+                      className={`${
+                        exactClockFragment 
+                          ? "text-white hover:scale-110 active:scale-95 cursor-pointer" 
+                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
+                      } font-bold text-xs sm:text-sm h-8 flex items-center justify-center tracking-wider transition-all duration-300 bg-transparent border-0 outline-none`}
+                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
+                    >
+                      {displayAMPM}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
+                      className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
+                    >
+                      {displayAMPM === "AM" ? "PM" : "AM"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-
-          {/* Bottom active signal transmission prompt */}
-          <div className="w-full border-t border-zinc-900/40 mt-4 pt-3 text-center">
-            <button
-              onClick={handleTransmit}
-              className="text-[9px] sm:text-[10px] tracking-[0.25em] uppercase font-bold text-[#D9D6CA]/60 hover:text-white bg-transparent border-0 cursor-pointer select-none py-1 transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
-              title={`Transmit to ${matchedActualFrag.name}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-              <span>TRANSMIT TO: {matchedClockFragment.label} &mdash; {formattedTitle} &rarr;</span>
-            </button>
-          </div>
-
-          {/* Search Dropdown / Overlay */}
-          {isSearching && searchQuery && (
-            <div className="absolute top-[102%] left-0 right-0 bg-[#0c0c0c]/98 border border-zinc-900 rounded-xl p-4 shadow-2xl z-50 text-left font-mono">
-              <span className="text-[9px] text-[#D9D6CA]/40 tracking-wider uppercase block mb-2 px-2 select-none font-bold">
-                MATCHED CHRONO FREQUENCIES ({filteredClockFragments.length})
-              </span>
-              <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                {filteredClockFragments.length === 0 ? (
-                  <div className="text-xs text-zinc-600 p-2 italic">No matching signals resolved...</div>
-                ) : (
-                  filteredClockFragments.map(frag => {
-                    const actualFrag = FRAGMENTS.find(f => f.id === frag.mappedId) || FRAGMENTS[1];
-                    return (
-                      <button
-                        key={frag.id}
-                        onClick={() => {
-                          const cleaned = frag.label.replace("FRAGMENT ", "").trim();
-                          const [timeStr, ampmStr] = cleaned.split(" ");
-                          const [hStr, mStr] = timeStr.split(":");
-                          setPickedHour(parseInt(hStr, 10));
-                          setPickedMinute(parseInt(mStr, 10));
-                          setPickedAMPM((ampmStr || "AM") as "AM" | "PM");
-                          setIsManual(true);
-                          setSearchQuery("");
-                          setIsSearching(false);
-                          if (onSelectFragment) {
-                            onSelectFragment(actualFrag);
-                          }
-                        }}
-                        className="w-full text-left p-2 hover:bg-zinc-900 text-[#D9D6CA]/80 hover:text-white rounded transition-colors border-0 bg-transparent flex items-center justify-between cursor-pointer"
-                      >
-                        <div className="flex flex-col min-w-0 pr-2">
-                          <span className="text-xs font-bold tracking-widest text-[#D9D6CA]">{frag.label}</span>
-                          <span className="text-[10px] text-zinc-500 truncate">{frag.description}</span>
-                        </div>
-                        <span className="text-[9px] text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded uppercase shrink-0 font-mono">{frag.synthType}</span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+          {searchQuery.trim() !== "" && !exactClockFragment && (
+            <div className="w-full text-center mt-3 pt-2 border-t border-zinc-900/40 text-red-500/80 text-[10px] sm:text-xs tracking-widest uppercase font-mono font-bold animate-pulse">
+              it is is not available
             </div>
           )}
         </div>
@@ -633,9 +694,18 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
         </div>
 
         {/* 3. VERTICAL STACK OF HORIZONTAL TIMESTAMPS */}
-        <div className="w-full space-y-3 sm:space-y-4 px-2 sm:px-4 z-10">
+        <div ref={recoveredSectionRef} className="w-full space-y-3 sm:space-y-4 px-2 sm:px-4 z-10">
           {(() => {
-            const displayedFragments = CLOCK_FRAGMENTS.slice(0, 5); // display exactly 5 rows matching mockup
+            let displayedFragments = [...CLOCK_FRAGMENTS.slice(0, 5)];
+            if (searchQuery.trim() !== "" && filteredClockFragments.length > 0) {
+              const matched = filteredClockFragments[0];
+              // Prepend matching search signal as the first recovered signal, slice to limit top 5
+              displayedFragments = [
+                matched,
+                ...displayedFragments.filter(f => f.id !== matched.id)
+              ].slice(0, 5);
+            }
+
             return displayedFragments.map((item, index) => {
               const reqActive = activePlayId === item.id;
               const cleanLabel = item.label.replace("FRAGMENT ", "").trim();
@@ -793,7 +863,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                     </motion.div>
                   ) : (
                     <>
-                      {/* List of 5 cards representing the attached UI screenshot */}
+                      {/* List of 4 cards representing the updated user clearance tiers */}
                       <div className="w-full space-y-3 max-h-[360px] overflow-y-auto pr-1">
                         {CONTRACT_TIERS.map((tier) => {
                           const isSelected = selectedTier === tier.id;
@@ -828,7 +898,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                   className="bg-[#D6C291] hover:brightness-110 active:scale-95 text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-[0_0_8px_rgba(214,194,145,0.2)]"
                                 >
                                   <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
-                                  <span>+ {tier.price}.00</span>
+                                  <span>{tier.price}</span>
                                 </button>
                               </div>
                               
@@ -841,7 +911,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                 }}
                                 className="text-[9px] font-mono tracking-widest text-[#D6C291]/70 hover:text-white mt-3 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left py-0.5 select-none font-bold"
                               >
-                                <span>{isExpanded ? "▲ HIDE USAGE TERMS" : "▼ SHOW USAGE TERMS"}</span>
+                                <span>{isExpanded ? "▲ HIDE DETAILS" : "▼ SHOW DETAILS"}</span>
                               </button>
                               
                               <AnimatePresence>
@@ -851,9 +921,39 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                     animate={{ opacity: 1, height: "auto" }}
                                     exit={{ opacity: 0, height: 0 }}
                                     transition={{ duration: 0.18 }}
-                                    className="mt-2 text-[9px] leading-relaxed text-[#D9D6CA]/60 font-mono border-t border-zinc-900/50 pt-2 select-text"
+                                    className="mt-3 text-[10px] leading-relaxed text-[#D9D6CA]/80 font-mono border-t border-zinc-900/40 pt-3 select-text space-y-3"
                                   >
-                                    {tier.terms}
+                                    {tier.includes && tier.includes.length > 0 && (
+                                      <div>
+                                        <div className="text-[#D6C291]/90 font-bold tracking-wider text-[9px] uppercase mb-1">
+                                          Includes:
+                                        </div>
+                                        <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/70">
+                                          {tier.includes.map((item, idx) => (
+                                            <li key={idx}>{item}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+
+                                    {tier.restrictions && tier.restrictions.length > 0 && (
+                                      <div>
+                                        <div className="text-red-400/80 font-bold tracking-wider text-[9px] uppercase mb-1">
+                                          Restrictions:
+                                        </div>
+                                        <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/50">
+                                          {tier.restrictions.map((item, idx) => (
+                                            <li key={idx}>{item}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+
+                                    {tier.extraNote && (
+                                      <div className="text-[#D6C291]/60 text-[9px] italic pt-1 border-t border-zinc-900/20 leading-relaxed">
+                                        {tier.extraNote}
+                                      </div>
+                                    )}
                                   </motion.div>
                                 )}
                               </AnimatePresence>
