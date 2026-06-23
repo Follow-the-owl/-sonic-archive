@@ -81,7 +81,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   // High-fidelity license state variables
   const [showLicensePanel, setShowLicensePanel] = useState<boolean>(false);
-  const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [selectedTier, setSelectedTier] = useState<"preview" | "archive" | "master" | "custodian" | "transfer" | null>(null);
   const [clientEmail, setClientEmail] = useState<string>("");
   const [isProcessingLicense, setIsProcessingLicense] = useState<boolean>(false);
   const [licenseSuccess, setLicenseSuccess] = useState<boolean>(false);
@@ -89,85 +89,39 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
   const CONTRACT_TIERS = [
     { 
-      id: "access", 
-      title: "ACCESS LICENSE", 
+      id: "preview", 
+      title: "SIGNAL PREVIEW", 
       price: "$100", 
-      subtitle: "For artists testing concepts.", 
-      includes: [
-        "MP3 Download",
-        "Non-exclusive",
-        "1 Commercial Release",
-        "Up to 100,000 Streams",
-        "1 Music Video",
-        "Live Performances Allowed"
-      ],
-      restrictions: [
-        "No Stems",
-        "No Content ID",
-        "No TV/Film",
-        "No Transfer"
-      ],
-      extraNote: "Upgrade required if limits are exceeded."
+      subtitle: "MP3 & WAV preview files", 
+      terms: "Includes high-quality MP3 & WAV preview files. Intended for personal evaluation and non-commercial broadcast tests." 
     },
     { 
-      id: "release", 
-      title: "RELEASE LICENSE", 
+      id: "archive", 
+      title: "ARCHIVE ACCESS", 
       price: "$250", 
-      subtitle: "For professional independent releases.", 
-      includes: [
-        "WAV Download",
-        "MP3 Download",
-        "Non-exclusive",
-        "1 Commercial Release",
-        "Up to 1,000,000 Streams",
-        "2 Music Videos",
-        "Live Performances",
-        "Radio Use"
-      ],
-      restrictions: [
-        "No Content ID",
-        "No Transfer",
-        "No Sync Licensing"
-      ],
-      extraNote: ""
+      subtitle: "Lossless stems & WAV master", 
+      terms: "Includes high-fidelity lossless masters. Grants usage across non-commercial streaming audio and digital archival platforms." 
     },
     { 
-      id: "commercial", 
-      title: "COMMERCIAL LICENSE", 
+      id: "master", 
+      title: "MASTER ACCESS", 
       price: "$500", 
-      subtitle: "For brands, creators, and larger campaigns.", 
-      includes: [
-        "WAV",
-        "MP3",
-        "Stems",
-        "Commercial Advertising",
-        "Online Campaigns",
-        "Unlimited Streams",
-        "Unlimited Videos"
-      ],
-      restrictions: [
-        "Non-exclusive",
-        "No Ownership Transfer"
-      ],
-      extraNote: ""
+      subtitle: "Master recording clearance", 
+      terms: "Includes full multitrack stems, instrumental masters, and synchronization rights for independent visual media productions." 
     },
     { 
-      id: "exclusive", 
-      title: "EXCLUSIVE ACQUISITION", 
-      price: "Starting at $2,500", 
-      subtitle: "Exclusive rights and beat removal.", 
-      includes: [
-        "Exclusive Rights",
-        "Beat Removed From Archive",
-        "WAV",
-        "MP3",
-        "Stems",
-        "Commercial Exploitation Rights",
-        "Unlimited Streams",
-        "Unlimited Videos"
-      ],
-      restrictions: [],
-      extraNote: "Ownership of composition and publishing does not automatically transfer. Separate negotiation required."
+      id: "custodian", 
+      title: "CUSTODIAN ACCESS", 
+      price: "$1,000", 
+      subtitle: "Custodian archive guardianship", 
+      terms: "Grants deep mechanical rights and custody over physical analog tape masters where applicable. For semi-commercial broadcasting." 
+    },
+    { 
+      id: "transfer", 
+      title: "ARCHIVE TRANSFER", 
+      price: "$2,500+", 
+      subtitle: "Unlimited buyout & source ownership", 
+      terms: "Complete intellectual ownership transfer of raw soundwave master files. Unlimited unrestricted global commercial exploit rights." 
     }
   ] as const;
 
@@ -863,7 +817,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                     </motion.div>
                   ) : (
                     <>
-                      {/* List of 4 cards representing the updated user clearance tiers */}
+                      {/* List of 5 cards representing the attached UI screenshot */}
                       <div className="w-full space-y-3 max-h-[360px] overflow-y-auto pr-1">
                         {CONTRACT_TIERS.map((tier) => {
                           const isSelected = selectedTier === tier.id;
@@ -898,7 +852,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                   className="bg-[#D6C291] hover:brightness-110 active:scale-95 text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-[0_0_8px_rgba(214,194,145,0.2)]"
                                 >
                                   <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
-                                  <span>{tier.price}</span>
+                                  <span>+ {tier.price}.00</span>
                                 </button>
                               </div>
                               
@@ -911,7 +865,7 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                 }}
                                 className="text-[9px] font-mono tracking-widest text-[#D6C291]/70 hover:text-white mt-3 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left py-0.5 select-none font-bold"
                               >
-                                <span>{isExpanded ? "▲ HIDE DETAILS" : "▼ SHOW DETAILS"}</span>
+                                <span>{isExpanded ? "▲ HIDE USAGE TERMS" : "▼ SHOW USAGE TERMS"}</span>
                               </button>
                               
                               <AnimatePresence>
@@ -921,39 +875,9 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                     animate={{ opacity: 1, height: "auto" }}
                                     exit={{ opacity: 0, height: 0 }}
                                     transition={{ duration: 0.18 }}
-                                    className="mt-3 text-[10px] leading-relaxed text-[#D9D6CA]/80 font-mono border-t border-zinc-900/40 pt-3 select-text space-y-3"
+                                    className="mt-2 text-[9px] leading-relaxed text-[#D9D6CA]/60 font-mono border-t border-zinc-900/50 pt-2 select-text"
                                   >
-                                    {tier.includes && tier.includes.length > 0 && (
-                                      <div>
-                                        <div className="text-[#D6C291]/90 font-bold tracking-wider text-[9px] uppercase mb-1">
-                                          Includes:
-                                        </div>
-                                        <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/70">
-                                          {tier.includes.map((item, idx) => (
-                                            <li key={idx}>{item}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-
-                                    {tier.restrictions && tier.restrictions.length > 0 && (
-                                      <div>
-                                        <div className="text-red-400/80 font-bold tracking-wider text-[9px] uppercase mb-1">
-                                          Restrictions:
-                                        </div>
-                                        <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/50">
-                                          {tier.restrictions.map((item, idx) => (
-                                            <li key={idx}>{item}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-
-                                    {tier.extraNote && (
-                                      <div className="text-[#D6C291]/60 text-[9px] italic pt-1 border-t border-zinc-900/20 leading-relaxed">
-                                        {tier.extraNote}
-                                      </div>
-                                    )}
+                                    {tier.terms}
                                   </motion.div>
                                 )}
                               </AnimatePresence>

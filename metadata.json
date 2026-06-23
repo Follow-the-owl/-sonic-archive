@@ -1,6 +1,6 @@
 {
   "name": "Follow The Owl",
-  "description": "A  sonic archive for fragments of sound and emotion, guarded by the owl. Discover dark ambient compositions and track of the night.",
+  "description": "A cinematic sonic archive for fragments of sound and emotion, guarded by the owl. Discover dark ambient compositions and track of the night.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
