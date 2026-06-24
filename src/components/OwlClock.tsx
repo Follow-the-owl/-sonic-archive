@@ -507,7 +507,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                 </div>
               ) : filteredClockFragments.length === 0 ? (
                 <div className="text-red-500/90 text-[10px] sm:text-xs tracking-widest uppercase font-mono font-bold border border-red-950/40 bg-red-950/10 px-3 py-1.5 rounded-lg whitespace-nowrap">
-                  it is is not available
+                  it is restricted
                 </div>
               ) : (
                 <>
@@ -643,7 +643,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           </div>
           {searchQuery.trim() !== "" && !exactClockFragment && (
             <div className="w-full text-center mt-3 pt-2 border-t border-zinc-900/40 text-red-500/80 text-[10px] sm:text-xs tracking-widest uppercase font-mono font-bold animate-pulse">
-              it is is not available
+              it is restricted
             </div>
           )}
         </div>
