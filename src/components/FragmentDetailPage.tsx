@@ -12,20 +12,105 @@ const waveHeights = [
   38, 26, 14, 8, 22, 34, 18, 12, 10, 6
 ];
 
+const CONTRACT_TIERS = [
+  { 
+    id: "access", 
+    title: "ACCESS LICENSE", 
+    price: "$100", 
+    subtitle: "For artists testing concepts.", 
+    includes: [
+      "MP3 Download",
+      "Non-exclusive",
+      "1 Commercial Release",
+      "Up to 100,000 Streams",
+      "1 Music Video",
+      "Live Performances Allowed"
+    ],
+    restrictions: [
+      "No Stems",
+      "No Content ID",
+      "No TV/Film",
+      "No Transfer"
+    ],
+    extraNote: "Upgrade required if limits are exceeded."
+  },
+  { 
+    id: "release", 
+    title: "RELEASE LICENSE", 
+    price: "$250", 
+    subtitle: "For professional independent releases.", 
+    includes: [
+      "WAV Download",
+      "MP3 Download",
+      "Non-exclusive",
+      "1 Commercial Release",
+      "Up to 1,000,000 Streams",
+      "2 Music Videos",
+      "Live Performances",
+      "Radio Use"
+    ],
+    restrictions: [
+      "No Content ID",
+      "No Transfer",
+      "No Sync Licensing"
+    ],
+    extraNote: ""
+  },
+  { 
+    id: "commercial", 
+    title: "COMMERCIAL LICENSE", 
+    price: "$500", 
+    subtitle: "For brands, creators, and larger campaigns.", 
+    includes: [
+      "WAV",
+      "MP3",
+      "Stems",
+      "Commercial Advertising",
+      "Online Campaigns",
+      "Unlimited Streams",
+      "Unlimited Videos"
+    ],
+    restrictions: [
+      "Non-exclusive",
+      "No Ownership Transfer"
+    ],
+    extraNote: ""
+  },
+  { 
+    id: "exclusive", 
+    title: "EXCLUSIVE ACQUISITION", 
+    price: "Starting at $2,500", 
+    subtitle: "Exclusive rights and beat removal.", 
+    includes: [
+      "Exclusive Rights",
+      "Beat Removed From Archive",
+      "WAV",
+      "MP3",
+      "Stems",
+      "Commercial Exploitation Rights",
+      "Unlimited Streams",
+      "Unlimited Videos"
+    ],
+    restrictions: [],
+    extraNote: "Ownership of composition and publishing does not automatically transfer. Separate negotiation required."
+  }
+] as const;
+
 interface FragmentDetailPageProps {
   fragment: Fragment;
   onBack: () => void;
+  onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
 }
 
-export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailPageProps) {
+export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: FragmentDetailPageProps) {
   const [isPlayingBeat, setIsPlayingBeat] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showLicensePanel, setShowLicensePanel] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<"mp3" | "mp3-wav" | "premium" | "exclusive" | null>(null);
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({
-    "mp3": false,
-    "mp3-wav": false,
-    "premium": false,
+    "access": false,
+    "release": false,
+    "commercial": false,
     "exclusive": false
   });
   const [licenseSuccess, setLicenseSuccess] = useState(false);
@@ -542,41 +627,10 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
     }, 1400);
   };
 
-  const getTierDetails = (tier: "mp3" | "mp3-wav" | "premium" | "exclusive") => {
-    switch (tier) {
-      case "mp3":
-        return {
-          title: "MP3 License",
-          sub: "MP3",
-          price: "$30.00",
-          usecase: "Standard non-exclusive license. Encoded at 320kbps.",
-          deliverables: "High-quality engineered MP3 Master Track"
-        };
-      case "mp3-wav":
-        return {
-          title: "MP3 + WAV License",
-          sub: "MP3 & WAV",
-          price: "$50.00",
-          usecase: "High quality audio split master license. Ideal for indie artists and films.",
-          deliverables: "Uncompressed Stereo 24-bit WAV file + high-fidelity MP3"
-        };
-      case "premium":
-        return {
-          title: "Premium License",
-          sub: "MP3 & WAV",
-          price: "$100.00",
-          usecase: "Complete commercial release rights including multi-track separates (stems).",
-          deliverables: "HQ WAV separated stemming tracks (Drums, Bass, Synths) + master deliverables"
-        };
-      case "exclusive":
-        return {
-          title: "Exclusive Unlimited Buyout",
-          sub: "Unlimited Usage Ownership",
-          price: "$1,250.00",
-          usecase: "Permanent master recording ownership title transfer. Retired from Follow The Owl archives.",
-          deliverables: "All raw stems, master project agreements, and lifetime mechanical copyright contract"
-        };
-    }
+  const getTierDetails = (tierId: string | null) => {
+    const tier = CONTRACT_TIERS.find(t => t.id === tierId);
+    if (tier) return tier;
+    return CONTRACT_TIERS[0];
   };
 
   const formattedTitle = fragment.name.toUpperCase();
@@ -703,7 +757,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
           <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex flex-row divide-x divide-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
             
             {/* Box 1: Recovered Artist */}
-            <div className="flex-1 min-w-0 p-3 sm:p-4 flex flex-col justify-between h-[52px] sm:h-[58px]">
+            <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between h-[52px] sm:h-[58px]">
               <span className="text-[7.5px] sm:text-[9px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
                 RECOVERED ARTIST:
               </span>
@@ -712,10 +766,10 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
               </span>
             </div>
 
-            {/* Box 5: Request Clearance */}
+            {/* Box 2: Request Clearance */}
             <button
               onClick={() => setShowLicensePanel(true)}
-              className="flex-1 min-w-0 p-3 sm:px-4 bg-zinc-950/85 hover:bg-zinc-900/60 font-mono font-medium text-[8px] sm:text-[10px] tracking-wider sm:tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1.5 h-[52px] sm:h-[58px] border-0 outline-none"
+              className="flex-1 p-3 sm:px-4 bg-zinc-950/80 hover:bg-zinc-900/60 font-mono font-medium text-[8px] sm:text-[10px] tracking-wider sm:tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1.5 h-[52px] sm:h-[58px] border-0 outline-none"
             >
               <span className="truncate">REQUEST CLEARANCE</span>
               <span className="font-mono text-[9px] sm:text-xs shrink-0 select-none">→</span>
@@ -764,11 +818,15 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                 {/* Left Column: Track preview summary card */}
                 <div className="w-full md:w-1/4 flex flex-col items-center border-b md:border-b-0 md:border-r border-zinc-900/65 pb-6 md:pb-0 md:pr-8 shrink-0">
                   <div className="relative group w-44 h-44 bg-zinc-950 border border-[#C5A059]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center">
-                    <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-black to-zinc-950 flex flex-col items-center justify-center relative p-6">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(197,160,89,0.08)_0%,transparent_70%)]" />
-                      <RadioactiveIcon className="w-16 h-16 text-[#C5A059] animate-spin-slow" />
-                      <span className="text-[7.5px] font-mono text-[#C5A059] absolute bottom-3.5 tracking-widest text-center uppercase font-bold">FTO SECURE RECORDER</span>
-                    </div>
+                    <img
+                      src={owlBackground}
+                      alt="The Sentinel Owl"
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700 pointer-events-none select-none"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
+
+                    <span className="text-[7.5px] font-mono text-[#C5A059] absolute bottom-3.5 tracking-widest text-center uppercase font-bold z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">FTO SECURE RECORDER</span>
 
                     {/* Circular Interactive Play Trigger Button Overlay */}
                     <button
@@ -779,7 +837,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                           startBeatPlay();
                         }
                       }}
-                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer"
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer z-20"
                     >
                       <div className="w-12 h-12 rounded-full border border-[#C5A059] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(197,160,89,0.35)] transform hover:scale-105 transition-transform">
                         {isPlayingBeat ? (
@@ -792,7 +850,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
 
                     {/* Static visual audio player microindicator */}
                     {isPlayingBeat && (
-                      <div className="absolute bottom-2.5 right-2.5 flex items-end gap-1 px-1.5 py-1 bg-black/80 rounded-sm border border-zinc-900 w-auto">
+                      <div className="absolute bottom-2.5 right-2.5 flex items-end gap-1 px-1.5 py-1 bg-black/80 rounded-sm border border-zinc-900 w-auto z-10">
                         <span className="w-1 h-3.5 bg-[#C5A059] origin-bottom animate-bounce animate-duration-1000" style={{ animationDelay: "0.1s" }} />
                         <span className="w-1 h-2 bg-[#C5A059] origin-bottom animate-bounce animate-duration-750" style={{ animationDelay: "0.3s" }} />
                         <span className="w-1 h-3 bg-[#C5A059] origin-bottom animate-bounce animate-duration-1200" style={{ animationDelay: "0.2s" }} />
@@ -800,12 +858,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                     )}
                   </div>
 
-                  <span className="text-white text-base font-bold text-center mt-5 truncate max-w-full block tracking-wide">
-                    {fragment.name}
-                  </span>
-                  <span className="text-zinc-500 text-[10px] font-mono text-center mt-1.5 tracking-wider uppercase">
-                    Ozedikus // FOLLOW THE OWL
-                  </span>
+                  {/* Empty space after image */}
                 </div>
 
                 {/* Right Column: Tiers Selection or Checkout Forms */}
@@ -813,32 +866,36 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                   {!selectedTier ? (
                     /* Display Tiers list matching mockup */
                     <div className="space-y-4 text-left">
-                      {(["mp3", "mp3-wav", "premium", "exclusive"] as const).map((tierId) => {
-                        const info = getTierDetails(tierId);
-                        const isExpanded = expandedTiers[tierId] || false;
+                      {CONTRACT_TIERS.map((tier) => {
+                        const isExpanded = expandedTiers[tier.id] || false;
 
                         return (
                           <div
-                            key={tierId}
-                            className="bg-zinc-950/80 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-805 p-5 rounded-md flex flex-col transition-all duration-200"
+                            key={tier.id}
+                            className="bg-zinc-950/80 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-800 p-5 rounded-md flex flex-col transition-all duration-200"
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="space-y-1">
                                 <h4 className="font-bold text-[#D9D6CA] text-sm tracking-wide">
-                                  {info.title}
+                                  {tier.title}
                                 </h4>
-                                <span className="text-zinc-500 text-[9px] font-mono tracking-wider block uppercase">
-                                  {info.sub}
+                                <span className="text-zinc-500 text-[10px] font-mono tracking-wider block uppercase">
+                                  {tier.subtitle}
                                 </span>
                               </div>
 
                               {/* Price check out buttons */}
                               <button
-                                onClick={() => setSelectedTier(tierId)}
+                                onClick={() => {
+                                  if (onAddToCart) {
+                                    onAddToCart(fragment, tier.id, tier.title, tier.price);
+                                  }
+                                  setShowLicensePanel(false);
+                                }}
                                 className="bg-[#C5A059] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-4 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(197,160,89,0.2)] rounded-sm cursor-pointer shrink-0"
                               >
                                 <ShoppingBag size={10} className="fill-current text-current" />
-                                <span>+ {info.price}</span>
+                                <span>+ {tier.price}</span>
                               </button>
                             </div>
 
@@ -848,7 +905,7 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                                 onClick={() =>
                                   setExpandedTiers((prev) => ({
                                     ...prev,
-                                    [tierId]: !prev[tierId],
+                                    [tier.id]: !prev[tier.id],
                                   }))
                                 }
                                 className="flex items-center gap-1 text-[8.5px] font-mono tracking-widest text-[#C5A059]/80 hover:text-[#C5A059] cursor-pointer"
@@ -867,19 +924,41 @@ export default function FragmentDetailPage({ fragment, onBack }: FragmentDetailP
                                     transition={{ duration: 0.2 }}
                                     className="overflow-hidden"
                                   >
-                                    <div className="mt-3.5 pl-3 border-l border-zinc-900/80 space-y-2 py-0.5">
-                                      <p className="text-[10.5px] text-zinc-400 font-sans leading-relaxed font-light">
-                                        {info.usecase}
-                                      </p>
-                                      
-                                      <div className="space-y-1 text-left pt-1">
-                                        <span className="text-zinc-650 text-[8px] font-mono font-bold tracking-wider block uppercase">
-                                          SPECIFIC DELIVERABLES & RIGHTS:
-                                        </span>
-                                        <p className="text-zinc-500 text-[9.5px] font-mono leading-relaxed pl-1">
-                                          • {info.deliverables}
+                                    <div className="mt-4 pl-3 border-l border-[#C5A059]/35 space-y-3.5 py-0.5">
+                                      {/* Includes */}
+                                      {tier.includes.length > 0 && (
+                                        <div className="space-y-1">
+                                          <span className="text-[#C5A059] text-[8px] font-mono font-bold tracking-widest block uppercase">
+                                            INCLUDES:
+                                          </span>
+                                          <ul className="text-zinc-300 text-[10px] font-mono space-y-1 pl-1 list-disc list-inside">
+                                            {tier.includes.map((inc, i) => (
+                                              <li key={i}>{inc}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Restrictions */}
+                                      {tier.restrictions.length > 0 && (
+                                        <div className="space-y-1">
+                                          <span className="text-red-500/80 text-[8px] font-mono font-bold tracking-widest block uppercase">
+                                            RESTRICTIONS:
+                                          </span>
+                                          <ul className="text-zinc-400 text-[10px] font-mono space-y-1 pl-1 list-disc list-inside">
+                                            {tier.restrictions.map((rest, i) => (
+                                              <li key={i} className="text-zinc-400/90">{rest}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Extra Note */}
+                                      {tier.extraNote && (
+                                        <p className="text-[10px] text-zinc-500 font-sans italic leading-relaxed">
+                                          {tier.extraNote}
                                         </p>
-                                      </div>
+                                      )}
                                     </div>
                                   </motion.div>
                                 )}

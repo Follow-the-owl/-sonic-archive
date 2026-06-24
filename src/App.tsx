@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, ArrowUpRight, ShoppingBag, Vault } from "lucide-react";
+import { Menu, X, ArrowUpRight, ShoppingBag, Vault, Mail, Download, ChevronRight } from "lucide-react";
 
 // Components Imports
 import WelcomeScreen from "./components/WelcomeScreen";
@@ -11,6 +11,7 @@ import AudioControllerWidget from "./components/AudioControllerWidget";
 import { transitionAmbient, playOwlResonance } from "./audio";
 import OwlClock from "./components/OwlClock";
 import FragmentDetailPage from "./components/FragmentDetailPage";
+import CheckoutPage from "./components/CheckoutPage";
 import { Fragment } from "./data";
 
 
@@ -20,11 +21,74 @@ type NavigationTab =
   | "The Midnight Journal"
   | "The Signal Tower";
 
+export interface CartItem {
+  id: string; // `${fragmentId}-${tierId}`
+  fragmentId: string;
+  name: string;
+  timestamp: string;
+  artwork: string;
+  tierId: string;
+  tierTitle: string;
+  price: string;
+}
+
 export default function App() {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<NavigationTab>("The Owl Clock");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
+
+  // Cart States
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartOpen, setCartOpen] = useState<boolean>(false);
+  const [checkoutActive, setCheckoutActive] = useState<boolean>(false);
+  const [checkoutEmail, setCheckoutEmail] = useState<string>("evianaconcepts1@gmail.com");
+  const [checkoutSuccess, setCheckoutSuccess] = useState<boolean>(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState<boolean>(false);
+
+  const handleAddToCart = (fragment: Fragment, tierId: string, tierTitle: string, price: string) => {
+    const itemId = `${fragment.id}-${tierId}`;
+    if (cart.some((item) => item.id === itemId)) {
+      setCartOpen(true);
+      return;
+    }
+
+    const newItem: CartItem = {
+      id: itemId,
+      fragmentId: fragment.id,
+      name: fragment.name,
+      timestamp: fragment.timestamp,
+      artwork: "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg",
+      tierId,
+      tierTitle,
+      price,
+    };
+
+    setCart((prev) => [...prev, newItem]);
+    setCartOpen(true);
+  };
+
+  const handleRemoveFromCart = (itemId: string) => {
+    setCart((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
+  const handleConfirmCheckout = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkoutEmail) return;
+
+    setIsProcessingCheckout(true);
+    setTimeout(() => {
+      setIsProcessingCheckout(false);
+      setCheckoutSuccess(true);
+    }, 1500);
+  };
+
+  const handleCloseCheckout = () => {
+    setCart([]);
+    setCheckoutActive(false);
+    setCheckoutSuccess(false);
+    setCartOpen(false);
+  };
 
   // Auto-scroll to top when tab changes
   useEffect(() => {
@@ -64,27 +128,8 @@ export default function App() {
           >
             <WelcomeScreen onEnter={() => setHasEntered(true)} />
           </motion.div>
-        ) : selectedFragment ? (
-          // STEP 1.5: Detailed Immersive Fragment Page with customized design & Web Audio test beat
-          <motion.div
-            key="fragment-detail-view"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full relative z-10"
-          >
-            <FragmentDetailPage 
-              fragment={selectedFragment} 
-              onBack={() => {
-                setSelectedFragment(null);
-                // Also scroll top on return
-                window.scrollTo({ top: 0, behavior: "instant" });
-              }} 
-            />
-          </motion.div>
         ) : (
-          // STEP 2: Main Website Architecture with Guide Navigation
+          // STEP 2: Main Website Architecture with Guide Navigation (always contains global Header/Cart)
           <motion.div
             key="main-archive-view"
             initial={{ opacity: 0 }}
@@ -147,14 +192,18 @@ export default function App() {
 
                 {/* Mobile Menu & Auxiliary Controls */}
                 <div className="flex items-center gap-3">
-                  {/* Visual trigger to go back to welcome screen config / merch */}
+                  {/* Visual trigger to open Media & Bag cart */}
                   <button 
-                    onClick={() => setHasEntered(false)}
-                    className="flex items-center gap-1.5 border border-zinc-900 bg-neutral-950 px-3 py-1.5 text-[9px] uppercase tracking-widest text-[#D9D6CA] hover:border-[#D9D6CA] transition-colors cursor-pointer rounded-none"
-                    title="View Physical Media & Shop"
+                    onClick={() => setCartOpen(!cartOpen)}
+                    className={`flex items-center gap-1.5 border px-3 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none ${
+                      cartOpen 
+                        ? "border-[#C5A059] bg-zinc-950 text-white font-bold" 
+                        : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
+                    }`}
+                    title="View Media Bag / Cart"
                   >
-                    <ShoppingBag size={11} />
-                    <span className="hidden sm:inline">MEDIA & BAG</span>
+                    <ShoppingBag size={11} className={cart.length > 0 ? "text-[#C5A059]" : ""} />
+                    <span>MEDIA & BAG ({cart.length})</span>
                   </button>
 
                   <div className="md:hidden">
@@ -210,33 +259,54 @@ export default function App() {
             </header>
 
             {/* Active Content Stage */}
-            <main id="stage" className="flex-grow py-8 md:py-16 relative px-4 bg-black">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  {activeTab === "The Owl Clock" && (
-                    <OwlClock onSelectFragment={(frag) => setSelectedFragment(frag)} />
-                  )}
-                  {activeTab === "The Observatory" && (
-                    <ObservatorySection />
-                  )}
-                  {activeTab === "The Midnight Journal" && (
-                    <MidnightJournalSection />
-                  )}
-                  {activeTab === "The Signal Tower" && (
-                    <SignalTowerSection />
-                  )}
-                </motion.div>
-              </AnimatePresence>
-            </main>
+            {checkoutActive ? (
+              <CheckoutPage
+                cart={cart}
+                onRemoveItem={handleRemoveFromCart}
+                onClose={handleCloseCheckout}
+                onClearCart={() => setCart([])}
+              />
+            ) : selectedFragment ? (
+              <FragmentDetailPage 
+                fragment={selectedFragment} 
+                onBack={() => {
+                  setSelectedFragment(null);
+                  window.scrollTo({ top: 0, behavior: "instant" });
+                }} 
+                onAddToCart={handleAddToCart}
+              />
+            ) : (
+              <main id="stage" className="flex-grow py-8 md:py-16 relative px-4 bg-black">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    {activeTab === "The Owl Clock" && (
+                      <OwlClock 
+                        onSelectFragment={(frag) => setSelectedFragment(frag)} 
+                        onAddToCart={handleAddToCart}
+                      />
+                    )}
+                    {activeTab === "The Observatory" && (
+                      <ObservatorySection />
+                    )}
+                    {activeTab === "The Midnight Journal" && (
+                      <MidnightJournalSection />
+                    )}
+                    {activeTab === "The Signal Tower" && (
+                      <SignalTowerSection />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </main>
+            )}
 
-            {/* Audio Widget stays globally pinned to control playing state except on the Owl Clock page */}
-            {activeTab !== "The Owl Clock" && <AudioControllerWidget />}
+            {/* Audio Widget stays globally pinned to control playing state except on the Owl Clock page or fragment detail page */}
+            {activeTab !== "The Owl Clock" && !selectedFragment && <AudioControllerWidget />}
 
             {/* STEP 11: Minimal Footer */}
             <footer id="site-footer" className="bg-[#020202] border-t border-zinc-900 py-16 px-4 md:px-8 mt-12 select-none">
@@ -332,6 +402,93 @@ export default function App() {
                 <span className="tracking-[0.14em]">OWNERSHIP LICENSES SECURED BY GLOBAL CHRONOLOGY METRIC</span>
               </div>
             </footer>
+
+            {/* Cart Popover Dropdown (Matches user mockup design exactly) */}
+            <AnimatePresence>
+              {cartOpen && (
+                <motion.div
+                  id="media-bag-dropdown"
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="fixed top-24 right-4 md:right-8 z-50 w-full max-w-[360px] bg-[#050505] border border-zinc-900 text-white shadow-2xl p-5 font-mono select-none"
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
+                    <h4 className="text-[10px] font-bold tracking-widest uppercase text-zinc-400">
+                      YOUR CART ({cart.length}):
+                    </h4>
+                    <button
+                      onClick={() => setCartOpen(false)}
+                      className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {cart.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-650 text-[10px] uppercase tracking-widest">
+                      YOUR VAULT IS EMPTY
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4 max-h-[260px] overflow-y-auto mb-5 pr-1 scrollbar-thin">
+                        {cart.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between gap-3 border-b border-zinc-950/40 pb-3">
+                            <div className="w-12 h-12 bg-zinc-950 border border-zinc-900 overflow-hidden shrink-0 rounded-sm">
+                              <img
+                                src={item.artwork}
+                                alt={item.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover opacity-80"
+                              />
+                            </div>
+                            <div className="flex-grow min-w-0 flex flex-col justify-center text-left pl-1">
+                              <h5 className="text-white font-bold text-[11px] truncate leading-tight">
+                                {item.name} by Ozedikus
+                              </h5>
+                              <span className="text-zinc-500 text-[9px] font-mono tracking-widest mt-1 uppercase">
+                                TRACK — {item.tierTitle}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-zinc-300 font-sans font-bold text-[11.5px]">{item.price}</span>
+                              <button
+                                onClick={() => handleRemoveFromCart(item.id)}
+                                className="text-zinc-600 hover:text-red-400 p-1 cursor-pointer transition-colors"
+                                title="Remove item"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-3 pt-1">
+                        <button
+                          onClick={() => {
+                            setCheckoutActive(true);
+                            setCartOpen(false);
+                          }}
+                          className="w-full bg-[#C5A059] hover:bg-white text-black font-mono font-bold text-[10px] tracking-widest py-3.5 px-4 flex items-center justify-center gap-1.5 transition-all shadow-[0_4px_12px_rgba(197,160,89,0.15)] rounded-sm cursor-pointer"
+                        >
+                          <span>PROCEED TO CHECKOUT</span>
+                          <ChevronRight size={11} className="text-black" />
+                        </button>
+
+                        <button
+                          onClick={() => setCartOpen(false)}
+                          className="w-full text-zinc-500 hover:text-white font-mono text-[9px] tracking-widest uppercase text-center cursor-pointer py-1 block transition-colors"
+                        >
+                          CONTINUE SHOPPING &gt;
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>

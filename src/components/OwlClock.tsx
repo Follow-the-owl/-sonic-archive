@@ -18,6 +18,7 @@ interface ClockFragment {
 
 interface OwlClockProps {
   onSelectFragment?: (frag: Fragment) => void;
+  onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
 }
 
 const CLOCK_FRAGMENTS: ClockFragment[] = [
@@ -71,7 +72,7 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
   }
 ];
 
-export default function OwlClock({ onSelectFragment }: OwlClockProps) {
+export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProps) {
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -249,11 +250,6 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
         setPickedMinute(m);
         setPickedAMPM(ampm);
         setIsManual(true);
-
-        // Scroll to the recovered section below
-        setTimeout(() => {
-          recoveredSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 120);
       }
     }
   }, [searchQuery]);
@@ -746,26 +742,6 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
             });
           })()}
         </div>
-
-        {/* 4. HORIZONTAL RULE DIVIDER WITH INTEGRATED "REQUEST CLEARANCE →" LINK */}
-        <div className="w-full flex items-center justify-center gap-4 mt-8 px-2 sm:px-4 cursor-pointer">
-          <div className="h-[1px] flex-grow bg-[#D9D6CA]/10" />
-          
-          <button
-            onClick={() => setShowLicensePanel(true)}
-            className="flex items-center gap-2.5 bg-transparent border-0 py-1.5 px-3 cursor-pointer outline-none group text-[#D9D6CA]/70 hover:text-white transition-colors select-none whitespace-nowrap"
-            title="Open clearance contracts modal"
-          >
-            <span className="text-[11px] sm:text-[12px] font-bold tracking-[0.35em] uppercase font-serif">
-              REQUEST CLEARANCE
-            </span>
-            <span className="text-xs transform group-hover:translate-x-1.5 duration-300">
-              →
-            </span>
-          </button>
-
-          <div className="h-[1px] flex-grow bg-[#D9D6CA]/10" />
-        </div>
       </div>
 
       <AnimatePresence>
@@ -801,20 +777,23 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
 
               <div className="w-full flex flex-col items-center">
                 
-                {/* 2. Beautiful circular radioactive art representing fragment artwork */}
-                <div className="relative w-44 h-44 border border-zinc-900 bg-black/40 flex flex-col items-center justify-center p-4 rounded-2xl mb-4 group overflow-hidden shadow-xl">
-                  {/* Radioactive Icon from welcome screens */}
-                  <div className="w-16 h-16 text-[#D6C291] opacity-90 group-hover:scale-105 group-hover:rotate-45 transition-all duration-700">
-                    <RadioactiveIcon className="w-full h-full" />
-                  </div>
+                {/* 2. Beautiful owl artwork representing fragment artwork */}
+                <div className="relative w-44 h-44 border border-zinc-900 bg-black/40 flex flex-col items-center justify-center rounded-2xl mb-4 group overflow-hidden shadow-xl">
+                  <img
+                    src={owlBgImage}
+                    alt="The Sentinel Owl"
+                    referrerPolicy="no-referrer"
+                    className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700 pointer-events-none select-none"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
                   
-                  <span className="text-[8px] font-mono tracking-[0.25em] text-[#D6C291]/50 uppercase mt-4 select-none pointer-events-none">
+                  <span className="text-[8px] font-mono tracking-[0.25em] text-[#D6C291] absolute bottom-3 uppercase select-none pointer-events-none z-10 font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     FTO SECURE RECORDER
                   </span>
                   
                   {/* Subtle active / playing sound waves */}
                   {isPlayingBeat && (
-                    <div className="absolute inset-x-0 bottom-2 flex items-end justify-center gap-1">
+                    <div className="absolute inset-x-0 bottom-7 flex items-end justify-center gap-1 z-10">
                       <span className="w-[1.5px] h-3 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.1s" }} />
                       <span className="w-[1.5px] h-5 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.2s" }} />
                       <span className="w-[1.5px] h-2 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.3s" }} />
@@ -822,18 +801,8 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                   )}
                 </div>
 
-                {/* 3. Title & metadata */}
-                <h2 className="text-sm sm:text-base font-bold tracking-[0.25em] text-white uppercase mb-1 font-mono">
-                  {formattedTitle}
-                </h2>
-                
-                {/* 4. Classification state display */}
-                <div className="text-[9px] font-mono tracking-[0.22em] text-[#D9D6CA]/40 uppercase mb-5 select-none font-bold">
-                  {matchedFrag.classification || "OZEDIKUS"} // FOLLOW THE OWL
-                </div>
-
                 {/* 5. Decorative border */}
-                <div className="w-full h-[1px] bg-zinc-900/40 mb-5" />
+                <div className="w-full h-[1px] bg-zinc-900/40 mt-4 mb-5" />
 
                 {/* 6. MIDDLE CONTAINER: EITHER THE TIERS LIST OR SUCCESS CONTENT */}
                 <div className="w-full min-h-[140px] flex flex-col justify-center">
@@ -893,9 +862,14 @@ export default function OwlClock({ onSelectFragment }: OwlClockProps) {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedTier(tier.id);
+                                    if (onAddToCart) {
+                                      onAddToCart(matchedFrag, tier.id, tier.title, tier.price);
+                                    }
+                                    setShowLicensePanel(false);
+                                    setSelectedTier(null);
+                                    setClientEmail("");
                                   }}
-                                  className="bg-[#D6C291] hover:brightness-110 active:scale-95 text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-[0_0_8px_rgba(214,194,145,0.2)]"
+                                  className="bg-[#D6C291] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-[0_0_8px_rgba(214,194,145,0.2)]"
                                 >
                                   <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
                                   <span>{tier.price}</span>
