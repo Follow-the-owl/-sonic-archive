@@ -208,8 +208,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         const cleaned = activeFrag.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
         const [timeStr, ampmStr] = cleaned.split(" ");
         const [hStr, mStr] = timeStr.split(":");
-        let h = parseInt(hStr, 10);
-        if (h === 0) h = 12;
+        let h = parseInt(hStr, 10) % 12;
         setPickedHour(h);
         setPickedMinute(parseInt(mStr, 10));
         setPickedAMPM((ampmStr || "AM") as "AM" | "PM");
@@ -220,7 +219,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
       let h = currentTime.getHours();
       const am = h >= 12 ? "PM" : "AM";
       h = h % 12;
-      h = h ? h : 12;
       setPickedHour(h);
       setPickedMinute(currentTime.getMinutes());
       setPickedAMPM(am);
@@ -311,13 +309,13 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const activeFragment = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
 
   // Dynamic variables for Clock Wheel Selector Card
-  const displayHour = pickedHour !== null ? pickedHour : (activeFragment ? 2 : currentTime.getHours() % 12 || 12);
+  const displayHour = pickedHour !== null ? pickedHour : (activeFragment ? 2 : currentTime.getHours() % 12);
   const displayMinute = pickedMinute !== null ? pickedMinute : (activeFragment ? 17 : currentTime.getMinutes());
   const displayAMPM = pickedAMPM !== null ? pickedAMPM : (activeFragment ? "AM" : (currentTime.getHours() >= 12 ? "PM" : "AM"));
 
-  const prevHour = displayHour === 1 ? 12 : displayHour - 1;
+  const prevHour = displayHour === 0 ? 11 : displayHour - 1;
   const prevMinute = displayMinute === 0 ? 59 : displayMinute - 1;
-  const nextHour = displayHour === 12 ? 1 : displayHour + 1;
+  const nextHour = displayHour === 11 ? 0 : displayHour + 1;
   const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
   const fmt = (num: number) => String(num).padStart(2, "0");
 
@@ -328,8 +326,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setCalibrationState("idle");
     const step = e.deltaY > 0 ? 1 : -1;
     let next = displayHour + step;
-    if (next > 12) next = 1;
-    if (next < 1) next = 12;
+    if (next > 11) next = 0;
+    if (next < 0) next = 11;
     setPickedHour(next);
   };
 
@@ -401,8 +399,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
     const [timeStr, ampmStr] = cleaned.split(" ");
     const [hStr, mStr] = timeStr.split(":");
-    let itemH = parseInt(hStr, 10);
-    if (itemH === 0) itemH = 12; // Midnight is 12 in 12-hour
+    let itemH = parseInt(hStr, 10) % 12;
     const itemAMPM = (ampmStr || "AM") as "AM" | "PM";
     return itemH === displayHour && itemAMPM === displayAMPM;
   });

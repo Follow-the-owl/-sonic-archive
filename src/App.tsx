@@ -192,7 +192,7 @@ export default function App() {
 
                 {/* Mobile Menu & Auxiliary Controls */}
                 <div className="flex items-center gap-3">
-                  {/* Visual trigger to open Media & Bag cart */}
+                  {/* Visual trigger to open Collection drawer */}
                   <button 
                     onClick={() => setCartOpen(!cartOpen)}
                     className={`flex items-center gap-1.5 border px-3 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none ${
@@ -200,10 +200,10 @@ export default function App() {
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
                     }`}
-                    title="View Media Bag / Cart"
+                    title="View Collection"
                   >
                     <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>MEDIA & BAG ({cart.length})</span>
+                    <span>COLLECTION ({cart.length})</span>
                   </button>
 
                   <div className="md:hidden">
