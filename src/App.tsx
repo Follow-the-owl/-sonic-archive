@@ -197,12 +197,12 @@ export default function App() {
                     onClick={() => setCartOpen(!cartOpen)}
                     className={`flex items-center gap-1.5 border px-3 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none ${
                       cartOpen 
-                        ? "border-[#C5A059] bg-zinc-950 text-white font-bold" 
+                        ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
                     }`}
                     title="View Media Bag / Cart"
                   >
-                    <ShoppingBag size={11} className={cart.length > 0 ? "text-[#C5A059]" : ""} />
+                    <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
                     <span>MEDIA & BAG ({cart.length})</span>
                   </button>
 
@@ -445,7 +445,7 @@ export default function App() {
                             </div>
                             <div className="flex-grow min-w-0 flex flex-col justify-center text-left pl-1">
                               <h5 className="text-white font-bold text-[11px] truncate leading-tight">
-                                {item.name} by Ozedikus
+                                {item.name}
                               </h5>
                               <span className="text-zinc-500 text-[9px] font-mono tracking-widest mt-1 uppercase">
                                 TRACK — {item.tierTitle}
@@ -471,7 +471,7 @@ export default function App() {
                             setCheckoutActive(true);
                             setCartOpen(false);
                           }}
-                          className="w-full bg-[#C5A059] hover:bg-white text-black font-mono font-bold text-[10px] tracking-widest py-3.5 px-4 flex items-center justify-center gap-1.5 transition-all shadow-[0_4px_12px_rgba(197,160,89,0.15)] rounded-sm cursor-pointer"
+                          className="w-full bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[10px] tracking-widest py-3.5 px-4 flex items-center justify-center gap-1.5 transition-all shadow-[0_4px_12px_rgba(217,214,202,0.15)] rounded-sm cursor-pointer"
                         >
                           <span>PROCEED TO CHECKOUT</span>
                           <ChevronRight size={11} className="text-black" />

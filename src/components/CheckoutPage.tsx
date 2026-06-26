@@ -86,11 +86,11 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
     if (couponCode.toUpperCase() === "OWL20") {
       setDiscount(itemTotal * 0.20);
       setCouponApplied(true);
-    } else if (couponCode.toUpperCase() === "OZEDIKUS") {
+    } else if (couponCode.toUpperCase() === "SIGNAL15") {
       setDiscount(itemTotal * 0.15);
       setCouponApplied(true);
     } else {
-      alert("Invalid coupon code. Try 'OWL20' for 20% off or 'OZEDIKUS' for 15% off.");
+      alert("Invalid coupon code. Try 'OWL20' for 20% off or 'SIGNAL15' for 15% off.");
     }
   };
 
@@ -139,15 +139,15 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
             ARCHIVE
           </button>
           <ChevronRight size={10} />
-          <span className={step === "cart" ? "text-[#f4b43f] font-bold" : "text-zinc-500"}>
+          <span className={step === "cart" ? "text-[#D9D6CA] font-bold" : "text-zinc-500"}>
             01. MEDIA BAG
           </span>
           <ChevronRight size={10} />
-          <span className={step === "billing" ? "text-[#f4b43f] font-bold" : "text-zinc-500"}>
+          <span className={step === "billing" ? "text-[#D9D6CA] font-bold" : "text-zinc-500"}>
             02. BILLING INFO
           </span>
           <ChevronRight size={10} />
-          <span className={step === "paystack" ? "text-[#f4b43f] font-bold" : "text-zinc-500"}>
+          <span className={step === "paystack" ? "text-[#D9D6CA] font-bold" : "text-zinc-500"}>
             03. SECURE GATEWAY
           </span>
         </div>
@@ -168,7 +168,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                     exit={{ opacity: 0, y: -10 }}
                     className="space-y-6"
                   >
-                    <div className="flex justify-between items-end border-b border-zinc-900 pb-4">
+                    <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide font-sans">
                         Cart
                       </h1>
@@ -178,7 +178,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                           navigator.clipboard.writeText(shareUrl);
                           alert("Cart link copied to clipboard!");
                         }}
-                        className="bg-[#f4b43f] hover:bg-white text-black font-sans font-extrabold text-[10px] tracking-widest px-4 py-2 transition-all rounded-[4px] cursor-pointer uppercase"
+                        className="bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[10px] tracking-widest px-4 py-2.5 transition-all rounded-[4px] cursor-pointer uppercase"
                       >
                         SHARE CART
                       </button>
@@ -187,7 +187,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                     {/* Location bar */}
                     <div className="flex items-center justify-between border border-zinc-900/40 bg-zinc-950/20 px-4 py-3 text-[10.5px] text-zinc-400">
                       <span>Billing and licensing information</span>
-                      <span className="text-[#f4b43f] font-bold flex items-center gap-1">
+                      <span className="text-[#D9D6CA] font-bold flex items-center gap-1">
                         , Lagos <ChevronDown size={11} />
                       </span>
                     </div>
@@ -208,9 +208,10 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                     ) : (
                       <div className="space-y-4">
                         {/* Table Header Row */}
-                        <div className="flex justify-between border-b border-zinc-900 pb-2 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                        <div className="flex justify-between border-b border-zinc-900 pb-2 text-[10px] text-zinc-500 font-bold uppercase tracking-widest select-none">
                           <span>PRODUCT</span>
-                          <span className="pr-12">PRICE</span>
+                          <span className="pr-[230px] hidden md:inline">PRICE</span>
+                          <span className="md:hidden">PRICE</span>
                         </div>
 
                         {/* Items */}
@@ -221,49 +222,49 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                               className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-950 pb-4"
                             >
                               {/* Left details */}
-                              <div className="flex items-center gap-4">
-                                <div className="relative w-16 h-16 bg-zinc-950 border border-zinc-900 overflow-hidden rounded-sm shrink-0 flex-none group">
+                              <div className="flex items-center gap-4 min-w-0 flex-1">
+                                <div className="relative w-16 h-16 bg-zinc-950 border border-zinc-900 overflow-hidden rounded-md shrink-0 flex-none group">
                                   <img 
                                     src={item.artwork} 
                                     alt={item.name}
                                     referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                                    className="w-full h-full object-cover opacity-60 group-hover:opacity-85 transition-opacity"
                                   />
-                                  {/* Custom circular translucent Play overlay */}
+                                  {/* Custom circular Translucent play icon - solid bone/sand circle with black play triangle as in image */}
                                   <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-7 h-7 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
-                                      <span className="text-[#f4b43f] text-[9px] pl-0.5">▶</span>
+                                    <div className="w-8 h-8 bg-[#D9D6CA] rounded-full flex items-center justify-center shadow-lg">
+                                      <span className="text-black text-[11px] pl-0.5">▶</span>
                                     </div>
                                   </div>
                                 </div>
-                                <div className="text-left">
-                                  <h4 className="text-white font-extrabold text-[13px] tracking-wide leading-tight">
-                                    {item.name} by Ozedikus
+                                <div className="text-left min-w-0">
+                                  <h4 className="text-white font-extrabold text-[15px] tracking-wide leading-tight truncate font-sans">
+                                    {item.name}
                                   </h4>
-                                  <p className="text-zinc-500 text-[10px] mt-1 uppercase tracking-wider font-light">
-                                    TRACK • {item.tierId === "access" ? "MP3 License (MP3)" : item.tierId === "release" ? "Unlimited License (WAV, Track Stems, MP3)" : "Commercial License (WAV, Track Stems, MP3)"}
+                                  <p className="text-zinc-500 text-[10.5px] mt-1 uppercase tracking-wider font-normal font-sans">
+                                    TRACK • {item.tierId === "access" ? "MP3 License (MP3)" : item.tierId === "release" ? "Unlimited License (Track Stems,WAV,MP3)" : "Commercial License (Full WAV Stems,WAV,MP3)"}
                                   </p>
                                 </div>
                               </div>
 
                               {/* Right details */}
-                              <div className="flex items-center justify-between sm:justify-end gap-6">
-                                <span className="text-white font-sans font-black text-sm tracking-wide">
+                              <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0">
+                                <span className="text-white font-sans font-extrabold text-base sm:text-lg min-w-[80px] text-right">
                                   {item.price}
                                 </span>
                                 <div className="flex items-center gap-3">
                                   <button
                                     onClick={() => setReviewLicenseItem(item)}
-                                    className="bg-[#f4b43f] hover:bg-white text-black font-sans font-bold text-[10px] uppercase px-3 py-2 tracking-widest transition-all rounded-[4px] cursor-pointer"
+                                    className="bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[10px] uppercase px-4 py-2.5 tracking-widest transition-all rounded-[4px] cursor-pointer"
                                   >
                                     REVIEW LICENSE
                                   </button>
                                   <button
                                     onClick={() => onRemoveItem(item.id)}
-                                    className="text-zinc-700 hover:text-red-400 p-2 transition-colors cursor-pointer"
+                                    className="text-zinc-500 hover:text-white p-2 transition-colors cursor-pointer"
                                     title="Remove item"
                                   >
-                                    <X size={14} />
+                                    <X size={18} />
                                   </button>
                                 </div>
                               </div>
@@ -276,7 +277,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                           <button
                             type="button"
                             onClick={() => setBulkDealsOpen(!bulkDealsOpen)}
-                            className="w-full flex items-center justify-center gap-2 py-3.5 text-[10px] font-bold tracking-widest text-[#D9D6CA] uppercase hover:text-[#f4b43f] transition-colors cursor-pointer"
+                            className="w-full flex items-center justify-center gap-2 py-3.5 text-[10px] font-bold tracking-widest text-[#D9D6CA] uppercase hover:text-white transition-colors cursor-pointer"
                           >
                             <span>BULK DEALS</span>
                             <ChevronDown 
@@ -331,7 +332,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                           type="checkbox"
                           checked={isBusiness}
                           onChange={(e) => setIsBusiness(e.target.checked)}
-                          className="w-3.5 h-3.5 rounded-sm border border-zinc-800 bg-neutral-950 accent-[#f4b43f] cursor-pointer"
+                          className="w-3.5 h-3.5 rounded-sm border border-zinc-800 bg-neutral-950 accent-[#D9D6CA] cursor-pointer"
                         />
                         <span className="text-[10px] uppercase tracking-widest text-zinc-300 group-hover:text-white transition-colors">
                           I am purchasing as a business
@@ -347,10 +348,10 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                           <input 
                             type="text"
                             required
-                            placeholder="e.g. Ozedikus"
+                            placeholder="e.g. John"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -364,7 +365,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. Nwanne"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -379,7 +380,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="your.email@domain.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -392,7 +393,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. +234 800 000 0000"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -406,7 +407,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. Eviana Concepts Ltd"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -421,7 +422,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. 15 Ikoyi Road"
                             value={streetAddress}
                             onChange={(e) => setStreetAddress(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -434,7 +435,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. Suite 4B"
                             value={aptNumber}
                             onChange={(e) => setAptNumber(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -449,7 +450,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. Lagos"
                             value={city}
                             onChange={(e) => setCity(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -463,7 +464,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. 101233"
                             value={zipCode}
                             onChange={(e) => setZipCode(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
 
@@ -475,7 +476,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                           <select
                             value={country}
                             onChange={(e) => setCountry(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all appearance-none"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all appearance-none"
                           >
                             <option value="Nigeria (NG)">Nigeria (NG)</option>
                             <option value="United States (US)">United States (US)</option>
@@ -497,7 +498,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                             placeholder="e.g. Lagos"
                             value={stateProvince}
                             onChange={(e) => setStateProvince(e.target.value)}
-                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#f4b43f] transition-all"
+                            className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
                           />
                         </div>
                       </div>
@@ -730,7 +731,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
             </div>
 
             {/* RIGHT COLUMN: Order Summary Card (Matches Image 3 perfectly!) */}
-            <div className="lg:col-span-4 bg-[#050505] border border-zinc-900 text-left p-5 sm:p-6 font-sans rounded-[4px] select-none shadow-xl space-y-6">
+            <div className="lg:col-span-4 bg-[#0a0a0a] border border-zinc-900/60 text-left p-6 sm:p-7 font-sans rounded-[4px] select-none shadow-xl space-y-6">
               
               {/* Optional Coupon Code accordion (on Cart page) */}
               {step === "cart" && (
@@ -740,9 +741,9 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                       type="checkbox"
                       checked={couponChecked}
                       onChange={(e) => setCouponChecked(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded-sm border border-zinc-800 bg-neutral-950 accent-[#f4b43f] cursor-pointer"
+                      className="w-4 h-4 rounded-sm border border-zinc-800 bg-neutral-950 accent-[#D9D6CA] cursor-pointer"
                     />
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">
+                    <span className="text-[11px] text-zinc-500 group-hover:text-white transition-colors">
                       I have a Coupon Code
                     </span>
                   </label>
@@ -759,14 +760,14 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                         <input
                           type="text"
                           required
-                          placeholder="e.g. OWL20 or OZEDIKUS"
+                          placeholder="e.g. OWL20 or SIGNAL15"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value)}
-                          className="flex-grow bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-2 px-3 text-[10px] text-zinc-300 outline-none focus:border-[#f4b43f] uppercase"
+                          className="flex-grow bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-2 px-3 text-[10px] text-zinc-300 outline-none focus:border-[#D9D6CA] uppercase"
                         />
                         <button
                           type="submit"
-                          className="bg-zinc-800 hover:bg-[#f4b43f] hover:text-black font-sans font-bold text-[9px] uppercase px-3.5 py-2.5 transition-all rounded-[4px] cursor-pointer"
+                          className="bg-zinc-800 hover:bg-[#D9D6CA] hover:text-black font-sans font-bold text-[9px] uppercase px-3.5 py-2.5 transition-all rounded-[4px] cursor-pointer"
                         >
                           APPLY
                         </button>
@@ -775,7 +776,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                   </AnimatePresence>
                   
                   {couponApplied && (
-                    <span className="text-xs text-emerald-500 font-bold block mt-2">
+                    <span className="text-xs text-[#00E676] font-bold block mt-2">
                       ✓ Coupon Applied! {discount > 0 && `-$${discount.toFixed(2)}`}
                     </span>
                   )}
@@ -784,39 +785,39 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
 
               {/* Breakdown lines */}
               <div className="space-y-4 font-sans">
-                <div className="flex justify-between items-center text-[10.5px]">
-                  <span className="text-zinc-500 font-bold uppercase tracking-widest">
+                <div className="flex justify-between items-center text-sm sm:text-base">
+                  <span className="text-zinc-400 font-medium">
                     Item Total
                   </span>
-                  <span className="text-zinc-300 font-sans font-bold">
+                  <span className="text-zinc-200 font-bold">
                     ${itemTotal.toFixed(2)}
                   </span>
                 </div>
 
                 {discount > 0 && (
-                  <div className="flex justify-between items-center text-[10.5px] text-emerald-500">
-                    <span className="uppercase tracking-widest font-bold">
+                  <div className="flex justify-between items-center text-sm sm:text-base text-[#00E676]">
+                    <span className="font-medium">
                       Discount (Coupon)
                     </span>
-                    <span className="font-sans font-bold">
+                    <span className="font-bold">
                       -${discount.toFixed(2)}
                     </span>
                   </div>
                 )}
 
                 {/* Subtotal before taxes in neon green */}
-                <div className="flex justify-between items-center border-t border-zinc-900 pt-4 pb-2">
-                  <span className="text-[#00E676] text-xs font-black uppercase tracking-widest">
+                <div className="flex justify-between items-center border-t border-zinc-900 pt-5 pb-1">
+                  <span className="text-[#00E676] text-base font-bold">
                     Subtotal before taxes
                   </span>
-                  <span className="text-[#00E676] text-sm sm:text-base font-sans font-black tracking-wide">
+                  <span className="text-[#00E676] text-lg sm:text-xl font-black">
                     ${subtotal.toFixed(2)}
                   </span>
                 </div>
               </div>
 
               {/* Dynamic button & disclaimer based on current step */}
-              <div className="space-y-4 font-sans">
+              <div className="space-y-5 font-sans">
                 {step === "cart" && (
                   <button
                     onClick={() => {
@@ -826,10 +827,9 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                       }
                       setStep("billing");
                     }}
-                    className="w-full bg-[#f4b43f] hover:bg-white text-black font-sans font-extrabold text-[12px] tracking-[0.08em] py-3.5 px-4 flex items-center justify-center gap-1.5 transition-colors duration-200 shadow-md rounded-[4px] cursor-pointer"
+                    className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[12px] sm:text-[13px] tracking-widest py-4 flex items-center justify-center transition-colors duration-200 rounded-[4px] cursor-pointer shadow-lg"
                   >
-                    <span>PROCEED TO CHECKOUT</span>
-                    <ChevronRight size={12} className="text-black shrink-0" />
+                    PROCEED TO CHECKOUT
                   </button>
                 )}
 
@@ -840,10 +840,9 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                       const btn = document.getElementById("submit-billing-hidden");
                       if (btn) btn.click();
                     }}
-                    className="w-full bg-[#f4b43f] hover:bg-white text-black font-sans font-extrabold text-[12px] tracking-[0.08em] py-3.5 px-4 flex items-center justify-center gap-1.5 transition-colors duration-200 shadow-md rounded-[4px] cursor-pointer"
+                    className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[12px] sm:text-[13px] tracking-widest py-4 flex items-center justify-center transition-colors duration-200 rounded-[4px] cursor-pointer shadow-lg"
                   >
-                    <span>PROCEED TO PAYMENT OPTIONS</span>
-                    <ChevronRight size={12} className="text-black shrink-0" />
+                    PROCEED TO PAYMENT OPTIONS
                   </button>
                 )}
 
@@ -853,27 +852,26 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                   </div>
                 )}
 
-                {/* Small details text (from Image 3) */}
+                {/* Small details text (Matches screenshot perfectly) */}
                 {step === "cart" && (
-                  <p className="text-[8px] text-zinc-600 leading-relaxed font-sans font-light">
-                    By clicking the button you accept the product(s){" "}
-                    <span className="text-zinc-500 underline cursor-pointer hover:text-white">License Agreement(s)</span>,{" "}
-                    <span className="text-zinc-500 underline cursor-pointer hover:text-white">Terms of Service</span>,{" "}
-                    <span className="text-zinc-500 underline cursor-pointer hover:text-white">Privacy Policy</span> &amp;{" "}
-                    <span className="text-zinc-500 underline cursor-pointer hover:text-white">Refund Policy</span>
-                  </p>
-                )}
+                  <div className="space-y-4 pt-1 text-center text-[10px] text-zinc-500 leading-relaxed font-sans font-normal">
+                    <p>
+                      By clicking the button you accept the product(s){" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white">License Agreement(s)</span>,{" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white">Terms of Service</span>,{" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white">Privacy Policy</span> &amp;{" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white">Refund Policy</span>
+                    </p>
 
-                <p className="text-[8.5px] text-zinc-500 leading-relaxed font-sans font-light">
-                  Would you like to keep records of your transaction(s) for future download of your purchased files?{" "}
-                  <span className="text-[#f4b43f] underline cursor-pointer hover:text-white font-sans text-[10px] font-bold uppercase ml-1">Login</span>
-                </p>
+                    <p>
+                      Would you like to keep records of your transaction(s) for future download of your purchased files?{" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white font-semibold">Login</span>
+                    </p>
 
-                {step === "cart" && (
-                  <div className="text-center pt-2">
-                    <span className="text-[9px] text-zinc-600 hover:text-zinc-400 cursor-pointer underline transition-colors">
-                      Please read our Refund Policy.
-                    </span>
+                    <p>
+                      Please read our{" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white">Refund Policy</span>.
+                    </p>
                   </div>
                 )}
               </div>
@@ -894,7 +892,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
               <Check size={28} strokeWidth={3} />
             </div>
 
-            <h2 className="text-base sm:text-lg font-bold tracking-[0.25em] text-[#f4b43f] uppercase mb-3 font-sans">
+            <h2 className="text-base sm:text-lg font-bold tracking-[0.25em] text-[#D9D6CA] uppercase mb-3 font-sans">
               MASTER CONTRACTS &amp; STEMS DISPATCHED
             </h2>
 
@@ -916,7 +914,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
 
             <button
               onClick={handleCompleteAll}
-              className="text-[11px] font-sans font-extrabold text-black bg-[#f4b43f] hover:bg-white px-8 py-3.5 tracking-widest uppercase transition-all rounded-[4px] cursor-pointer shadow-lg"
+              className="text-[11px] font-sans font-extrabold text-black bg-[#D9D6CA] hover:bg-white px-8 py-3.5 tracking-widest uppercase transition-all rounded-[4px] cursor-pointer shadow-lg"
             >
               CLOSE SECURE PORTAL
             </button>
@@ -935,7 +933,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
               className="relative w-full max-w-[440px] bg-zinc-950 border border-zinc-900 p-6 rounded-[4px] flex flex-col text-left font-sans"
             >
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
-                <span className="text-[10.5px] font-bold text-[#f4b43f] tracking-widest uppercase">
+                <span className="text-[10.5px] font-bold text-[#D9D6CA] tracking-widest uppercase">
                   LICENSE REVIEW — {reviewLicenseItem.name}
                 </span>
                 <button
@@ -972,7 +970,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
 
               <button
                 onClick={() => setReviewLicenseItem(null)}
-                className="mt-6 w-full bg-[#f4b43f] text-black hover:bg-white transition-all font-sans font-bold text-[11px] py-3 tracking-wider uppercase rounded-[4px] cursor-pointer"
+                className="mt-6 w-full bg-[#D9D6CA] text-black hover:bg-white transition-all font-sans font-bold text-[11px] py-3 tracking-wider uppercase rounded-[4px] cursor-pointer"
               >
                 DISMISS TERMS
               </button>

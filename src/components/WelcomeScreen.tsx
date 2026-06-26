@@ -170,7 +170,7 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
 
         const progressPercent = isPlaying ? 0.72 : 0.6;
         if (i / numBars <= progressPercent) {
-          currentCtx.strokeStyle = "rgba(197, 160, 89, 0.9)"; // Signature Gold/Amber
+          currentCtx.strokeStyle = "rgba(217, 214, 202, 0.9)"; // Signature Premium Bone
         } else {
           currentCtx.strokeStyle = "rgba(100, 95, 85, 0.35)"; // Slate muted
         }
@@ -305,9 +305,9 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
                 animate={{
                   opacity: [0.35, 1, 0.35],
                   filter: [
-                    "drop-shadow(0 0 0px rgba(197, 160, 89, 0))",
-                    "drop-shadow(0 0 4px rgba(197, 160, 89, 0.85))",
-                    "drop-shadow(0 0 0px rgba(197, 160, 89, 0))"
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                    "drop-shadow(0 0 4px rgba(217, 214, 202, 0.85))",
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
                   ],
                   scale: [0.95, 1.08, 0.95]
                 }}

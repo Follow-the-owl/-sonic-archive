@@ -5,6 +5,7 @@ import { Fragment } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782454702/Owl_2_c5ebif.png";
+const fragmentPageBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782288126/687AC1B7-CB19-4A1D-A803-868DA5C606D3_4_chs8te.png";
 
 const waveHeights = [
   8, 14, 18, 10, 6, 12, 24, 32, 16, 20, 
@@ -595,9 +596,9 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
         const barFraction = i / numBars;
 
         if (barFraction <= progressLimit) {
-          innerCtx.strokeStyle = "rgba(197, 160, 89, 0.9)"; // Signature premium gold/amber
+          innerCtx.strokeStyle = "rgba(217, 214, 202, 0.9)"; // Signature Premium Bone
           innerCtx.shadowBlur = 4;
-          innerCtx.shadowColor = "rgba(197, 160, 89, 0.4)";
+          innerCtx.shadowColor = "rgba(217, 214, 202, 0.4)";
         } else {
           innerCtx.strokeStyle = "rgba(100, 95, 85, 0.35)"; // Muted gray-brown
           innerCtx.shadowBlur = 0;
@@ -647,7 +648,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     <div 
       id={`fragment-detail-${fragment.id}`} 
       className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 pb-3 sm:pb-5 relative select-none overflow-x-hidden bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${owlBackground})` }}
+      style={{ backgroundImage: `url(${fragmentPageBackground})` }}
     >
       {/* 1. Global CRT horizontal scanline texture overlay */}
       <div className="film-grain pointer-events-none opacity-20 z-[2]" />
@@ -674,9 +675,6 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
             {fragment.timestamp}
           </h2>
-          <p className="text-[10px] tracking-widest text-[#D9D6CA]/60 font-mono uppercase mt-0.5">
-            {fragment.name}
-          </p>
         </div>
 
         {/* PLAYBACK CONTROL BAR DIAL (Matches image play/pause widget block) */}
@@ -706,26 +704,27 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
               {formatTime(elapsedTime)}
             </span>
 
-            {/* Static Waveform visualization spikes */}
-            <div className="flex-grow flex items-center gap-[3px] h-8 justify-center min-w-0">
-              {waveHeights.map((h, i) => {
-                const progressLimit = (elapsedTime / 103);
-                const isPassed = (i / waveHeights.length) <= progressLimit;
-                // Add a highly responsive ripple if playing
-                const ripple = isPlayingBeat ? Math.sin((elapsedTime * 4) + i * 0.4) * (h * 0.25) : 0;
-                const finalH = Math.max(3, h + ripple);
-
-                return (
-                  <div
-                    key={i}
-                    className="w-[2px] rounded-sm transition-all duration-150"
-                    style={{
-                      height: `${finalH}px`,
-                      backgroundColor: isPassed ? '#D9D6CA' : 'rgba(217, 214, 202, 0.15)'
-                    }}
-                  />
-                );
-              })}
+            {/* Sleek Interactive Progress Bar */}
+            <div 
+              id="progress-bar-seeker"
+              className="flex-grow mx-4 h-1 bg-zinc-900 rounded-full relative cursor-pointer group"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const percentage = clickX / rect.width;
+                const targetTime = Math.floor(percentage * 103);
+                setElapsedTime(Math.max(0, Math.min(103, targetTime)));
+              }}
+            >
+              <div 
+                className="absolute top-0 left-0 h-full bg-[#D9D6CA] rounded-full transition-all duration-150"
+                style={{ width: `${(elapsedTime / 103) * 100}%` }}
+              />
+              {/* Little knob that appears on hover */}
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ left: `calc(${(elapsedTime / 103) * 100}% - 4px)` }}
+              />
             </div>
 
             {/* Total Duration Track length */}
@@ -753,26 +752,16 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             </div>
           </div>
 
-          {/* METADATA GRID SECTION (Matches screenshot grid table) */}
-          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex flex-row divide-x divide-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
-            
-            {/* Box 1: Recovered Artist */}
-            <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between h-[52px] sm:h-[58px]">
-              <span className="text-[7.5px] sm:text-[9px] font-mono text-zinc-500 tracking-[0.08em] sm:tracking-[0.12em] uppercase block font-medium leading-none truncate">
-                RECOVERED ARTIST:
-              </span>
-              <span className="text-[#D9D6CA] text-[10px] sm:text-[13px] font-mono font-medium truncate mt-1">
-                Unknown
-              </span>
-            </div>
-
-            {/* Box 2: Request Clearance */}
+          {/* METADATA GRID SECTION (No Recovered Artist, Full Width Request Clearance) */}
+          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            {/* Request Clearance Button */}
             <button
+              id="request-clearance-btn"
               onClick={() => setShowLicensePanel(true)}
-              className="flex-1 p-3 sm:px-4 bg-zinc-950/80 hover:bg-zinc-900/60 font-mono font-medium text-[8px] sm:text-[10px] tracking-wider sm:tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-1.5 h-[52px] sm:h-[58px] border-0 outline-none"
+              className="w-full p-4 bg-zinc-950/80 hover:bg-zinc-900/60 font-mono font-medium text-[9px] sm:text-[11px] tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-2 h-[52px] sm:h-[58px] border-0 outline-none"
             >
-              <span className="truncate">REQUEST CLEARANCE</span>
-              <span className="font-mono text-[9px] sm:text-xs shrink-0 select-none">→</span>
+              <span>REQUEST CLEARANCE</span>
+              <span className="font-mono text-[10px] sm:text-sm shrink-0 select-none">→</span>
             </button>
           </div>
 
@@ -797,7 +786,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-900 px-6 py-5 bg-[#050505]">
-                <h3 className="text-sm sm:text-base font-mono font-bold tracking-[0.15em] text-[#C5A059] uppercase">
+                <h3 className="text-sm sm:text-base font-mono font-bold tracking-[0.15em] text-[#D9D6CA] uppercase">
                   Choose contract type
                 </h3>
                 <button
@@ -817,7 +806,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
               <div className="flex flex-col md:flex-row p-6 md:p-8 gap-8 overflow-y-auto bg-gradient-to-b from-[#0b0b0b] to-[#040404]">
                 {/* Left Column: Track preview summary card */}
                 <div className="w-full md:w-1/4 flex flex-col items-center border-b md:border-b-0 md:border-r border-zinc-900/65 pb-6 md:pb-0 md:pr-8 shrink-0">
-                  <div className="relative group w-44 h-44 bg-zinc-950 border border-[#C5A059]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center">
+                  <div className="relative group w-44 h-44 bg-zinc-950 border border-[#D9D6CA]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center">
                     <img
                       src={owlBackground}
                       alt="The Sentinel Owl"
@@ -826,7 +815,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
 
-                    <span className="text-[7.5px] font-mono text-[#C5A059] absolute bottom-3.5 tracking-widest text-center uppercase font-bold z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">FTO SECURE RECORDER</span>
+                    <span className="text-[7.5px] font-mono text-[#D9D6CA] absolute bottom-3.5 tracking-widest text-center uppercase font-bold z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">FTO SECURE RECORDER</span>
 
                     {/* Circular Interactive Play Trigger Button Overlay */}
                     <button
@@ -839,11 +828,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                       }}
                       className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer z-20"
                     >
-                      <div className="w-12 h-12 rounded-full border border-[#C5A059] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(197,160,89,0.35)] transform hover:scale-105 transition-transform">
+                      <div className="w-12 h-12 rounded-full border border-[#D9D6CA] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(217,214,202,0.35)] transform hover:scale-105 transition-transform">
                         {isPlayingBeat ? (
-                          <Pause size={14} className="fill-[#C5A059] text-[#C5A059] ml-0" />
+                          <Pause size={14} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0" />
                         ) : (
-                          <Play size={14} className="fill-[#C5A059] text-[#C5A059] ml-0.5" />
+                          <Play size={14} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0.5" />
                         )}
                       </div>
                     </button>
@@ -851,9 +840,9 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                     {/* Static visual audio player microindicator */}
                     {isPlayingBeat && (
                       <div className="absolute bottom-2.5 right-2.5 flex items-end gap-1 px-1.5 py-1 bg-black/80 rounded-sm border border-zinc-900 w-auto z-10">
-                        <span className="w-1 h-3.5 bg-[#C5A059] origin-bottom animate-bounce animate-duration-1000" style={{ animationDelay: "0.1s" }} />
-                        <span className="w-1 h-2 bg-[#C5A059] origin-bottom animate-bounce animate-duration-750" style={{ animationDelay: "0.3s" }} />
-                        <span className="w-1 h-3 bg-[#C5A059] origin-bottom animate-bounce animate-duration-1200" style={{ animationDelay: "0.2s" }} />
+                        <span className="w-1 h-3.5 bg-[#D9D6CA] origin-bottom animate-bounce animate-duration-1000" style={{ animationDelay: "0.1s" }} />
+                        <span className="w-1 h-2 bg-[#D9D6CA] origin-bottom animate-bounce animate-duration-750" style={{ animationDelay: "0.3s" }} />
+                        <span className="w-1 h-3 bg-[#D9D6CA] origin-bottom animate-bounce animate-duration-1200" style={{ animationDelay: "0.2s" }} />
                       </div>
                     )}
                   </div>
@@ -892,7 +881,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                   }
                                   setShowLicensePanel(false);
                                 }}
-                                className="bg-[#C5A059] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-4 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(197,160,89,0.2)] rounded-sm cursor-pointer shrink-0"
+                                className="bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-4 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0"
                               >
                                 <ShoppingBag size={10} className="fill-current text-current" />
                                 <span>+ {tier.price}</span>
@@ -908,7 +897,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                     [tier.id]: !prev[tier.id],
                                   }))
                                 }
-                                className="flex items-center gap-1 text-[8.5px] font-mono tracking-widest text-[#C5A059]/80 hover:text-[#C5A059] cursor-pointer"
+                                className="flex items-center gap-1 text-[8.5px] font-mono tracking-widest text-[#D9D6CA]/80 hover:text-[#D9D6CA] cursor-pointer"
                               >
                                 {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                                 <span className="uppercase">{isExpanded ? "Hide usage terms" : "Show usage terms"}</span>
@@ -924,11 +913,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                     transition={{ duration: 0.2 }}
                                     className="overflow-hidden"
                                   >
-                                    <div className="mt-4 pl-3 border-l border-[#C5A059]/35 space-y-3.5 py-0.5">
+                                    <div className="mt-4 pl-3 border-l border-[#D9D6CA]/35 space-y-3.5 py-0.5">
                                       {/* Includes */}
                                       {tier.includes.length > 0 && (
                                         <div className="space-y-1">
-                                          <span className="text-[#C5A059] text-[8px] font-mono font-bold tracking-widest block uppercase">
+                                          <span className="text-[#D9D6CA] text-[8px] font-mono font-bold tracking-widest block uppercase">
                                             INCLUDES:
                                           </span>
                                           <ul className="text-zinc-300 text-[10px] font-mono space-y-1 pl-1 list-disc list-inside">
@@ -981,7 +970,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                             setSelectedTier(null);
                             setLicenseSuccess(false);
                           }}
-                          className="text-[9px] font-mono text-[#C5A059] hover:underline uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                          className="text-[9px] font-mono text-[#D9D6CA] hover:underline uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                         >
                           ← Select another contract
                         </button>
@@ -992,7 +981,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
 
                       {licenseSuccess ? (
                         <div className="text-center py-6 space-y-3 font-mono">
-                          <span className="text-xs font-bold text-[#C5A059] tracking-widest block">
+                          <span className="text-xs font-bold text-[#D9D6CA] tracking-widest block">
                             ✓ TRANSACTION SECURED & DISPATCHED
                           </span>
                           <p className="text-[11px] text-zinc-400 font-sans font-light leading-relaxed">
@@ -1004,7 +993,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                               setLicenseSuccess(false);
                               setShowLicensePanel(false);
                             }}
-                            className="text-[10px] font-mono text-black bg-[#C5A059] px-4 py-2 tracking-widest uppercase hover:bg-white transition-colors cursor-pointer mt-3"
+                            className="text-[10px] font-mono text-black bg-[#D9D6CA] px-4 py-2 tracking-widest uppercase hover:bg-white transition-colors cursor-pointer mt-3"
                           >
                             Close Port
                           </button>
@@ -1024,7 +1013,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                             <label className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block">
                               Client Credentials Email Address *
                             </label>
-                            <div className="relative flex items-center bg-zinc-950 border border-zinc-900 px-3 py-2.5 rounded-sm focus-within:border-[#C5A059]">
+                            <div className="relative flex items-center bg-zinc-950 border border-zinc-900 px-3 py-2.5 rounded-sm focus-within:border-[#D9D6CA]">
                               <Mail size={12} className="text-zinc-600 mr-2 shrink-0" />
                               <input
                                 type="email"
@@ -1049,7 +1038,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                           <button
                             type="submit"
                             disabled={isProcessingLicense}
-                            className="w-full py-3.5 bg-[#C5A059] hover:bg-white text-black font-semibold tracking-widest uppercase transition-colors rounded-none cursor-pointer flex items-center justify-center gap-2 text-[10px] font-mono shadow-[0_4px_12px_rgba(197,160,89,0.15)]"
+                            className="w-full py-3.5 bg-[#D9D6CA] hover:bg-white text-black font-semibold tracking-widest uppercase transition-colors rounded-none cursor-pointer flex items-center justify-center gap-2 text-[10px] font-mono shadow-[0_4px_12px_rgba(217,214,202,0.15)]"
                           >
                             <Download size={11} className="text-black" />
                             <span>
@@ -1068,9 +1057,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       </AnimatePresence>
 
       {/* FOOTER BAR */}
-      <div className="w-full max-w-4xl text-center text-[8.5px] font-mono tracking-[0.38em] text-zinc-700 uppercase z-10 select-none pt-12">
-        <span>FOLLOW THE OWL SECURED CORE // CALIBRATION METRICS ONLINE</span>
-      </div>
+   
     </div>
   );
 }

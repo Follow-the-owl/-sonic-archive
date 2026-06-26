@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
-import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause, Search, Lock } from "lucide-react";
+import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
-import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance } from "../audio";
+import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance, playCalibrationDenied, playCalibrationSuccess } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
@@ -172,13 +172,12 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     }
   ] as const;
 
-  // Search & scroll wheel states
+  // Scroll wheel states
   const [pickedHour, setPickedHour] = useState<number | null>(null);
   const [pickedMinute, setPickedMinute] = useState<number | null>(null);
   const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(null);
   const [isManual, setIsManual] = useState<boolean>(false);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("idle");
 
   const handleAcquireLicense = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,20 +202,19 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
 
   // Sync picked values with current active signal or real time if user hasn't gone manual
   useEffect(() => {
-    if (searchQuery.trim() !== "") {
-      // Direct focus on search results, do not overwrite with real time or unrelated active play cues
-      return;
-    }
     if (activePlayId) {
       const activeFrag = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
       if (activeFrag) {
         const cleaned = activeFrag.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
         const [timeStr, ampmStr] = cleaned.split(" ");
         const [hStr, mStr] = timeStr.split(":");
-        setPickedHour(parseInt(hStr, 10));
+        let h = parseInt(hStr, 10);
+        if (h === 0) h = 12;
+        setPickedHour(h);
         setPickedMinute(parseInt(mStr, 10));
         setPickedAMPM((ampmStr || "AM") as "AM" | "PM");
         setIsManual(false); // reset manual if user switched to playing a different signal row
+        setCalibrationState("available");
       }
     } else if (!isManual) {
       let h = currentTime.getHours();
@@ -227,32 +225,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
       setPickedMinute(currentTime.getMinutes());
       setPickedAMPM(am);
     }
-  }, [activePlayId, currentTime, isManual, searchQuery]);
-
-  // Set picked clock scroll wheel values dynamically based on search matches
-  useEffect(() => {
-    if (searchQuery.trim() !== "") {
-      const queryLower = searchQuery.toLowerCase();
-      const matches = CLOCK_FRAGMENTS.filter(frag => {
-        const rawVal = `${frag.label} ${frag.description} ${frag.synthType}`.toLowerCase();
-        return rawVal.includes(queryLower);
-      });
-      if (matches.length > 0) {
-        const firstMatch = matches[0];
-        const cleaned = firstMatch.label.replace("FRAGMENT", "").trim(); // e.g. "02:17 AM"
-        const [timePart, ampmPart] = cleaned.split(" ");
-        const [hourStr, minStr] = timePart.split(":");
-        const h = parseInt(hourStr, 10);
-        const m = parseInt(minStr, 10);
-        const ampm = (ampmPart || "AM") as "AM" | "PM";
-
-        setPickedHour(h);
-        setPickedMinute(m);
-        setPickedAMPM(ampm);
-        setIsManual(true);
-      }
-    }
-  }, [searchQuery]);
+  }, [activePlayId, currentTime, isManual]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -352,6 +325,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const handleScrollHour = (e: React.WheelEvent) => {
     e.preventDefault();
     setIsManual(true);
+    setCalibrationState("idle");
     const step = e.deltaY > 0 ? 1 : -1;
     let next = displayHour + step;
     if (next > 12) next = 1;
@@ -362,6 +336,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const handleScrollMinute = (e: React.WheelEvent) => {
     e.preventDefault();
     setIsManual(true);
+    setCalibrationState("idle");
     const step = e.deltaY > 0 ? 1 : -1;
     let next = displayMinute + step;
     if (next > 59) next = 0;
@@ -372,21 +347,28 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const handleScrollAMPM = (e: React.WheelEvent) => {
     e.preventDefault();
     setIsManual(true);
+    setCalibrationState("idle");
     setPickedAMPM(displayAMPM === "AM" ? "PM" : "AM");
   };
 
-  const handleHourClick = (h: number) => {
+  const handleHourClick = (h: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setIsManual(true);
+    setCalibrationState("idle");
     setPickedHour(h);
   };
 
-  const handleMinuteClick = (m: number) => {
+  const handleMinuteClick = (m: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setIsManual(true);
+    setCalibrationState("idle");
     setPickedMinute(m);
   };
 
-  const handleAMPMClick = (ampm: "AM" | "PM") => {
+  const handleAMPMClick = (ampm: "AM" | "PM", e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setIsManual(true);
+    setCalibrationState("idle");
     setPickedAMPM(ampm);
   };
 
@@ -415,26 +397,48 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     return diff;
   };
 
-  // Filtered fragments based on user typing
-  const filteredClockFragments = CLOCK_FRAGMENTS.filter(frag => {
-    const rawVal = `${frag.label} ${frag.description} ${frag.synthType}`.toLowerCase();
-    return rawVal.includes(searchQuery.toLowerCase());
-  });
-
   const exactClockFragment = CLOCK_FRAGMENTS.find(item => {
     const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
     const [timeStr, ampmStr] = cleaned.split(" ");
     const [hStr, mStr] = timeStr.split(":");
     let itemH = parseInt(hStr, 10);
     if (itemH === 0) itemH = 12; // Midnight is 12 in 12-hour
-    const itemM = parseInt(mStr, 10);
     const itemAMPM = (ampmStr || "AM") as "AM" | "PM";
-    return itemH === displayHour && itemM === displayMinute && itemAMPM === displayAMPM;
+    return itemH === displayHour && itemAMPM === displayAMPM;
   });
 
   const exactActualFrag = exactClockFragment
     ? (FRAGMENTS.find(f => f.id === exactClockFragment.mappedId) || null)
     : null;
+
+  const handleImmediateCheck = () => {
+    if (exactClockFragment) {
+      setCalibrationState("available");
+      playCalibrationSuccess();
+    } else {
+      setCalibrationState("restricted");
+      playCalibrationDenied();
+    }
+  };
+
+  // Automatically search and calibrate when user stops interacting (finishes interaction)
+  useEffect(() => {
+    if (!isManual) return;
+
+    setCalibrationState("idle");
+
+    const timer = setTimeout(() => {
+      if (exactClockFragment) {
+        setCalibrationState("available");
+        playCalibrationSuccess();
+      } else {
+        setCalibrationState("restricted");
+        playCalibrationDenied();
+      }
+    }, 750); // 750ms of inactivity represents finishing interaction
+
+    return () => clearTimeout(timer);
+  }, [displayHour, displayMinute, displayAMPM, isManual, exactClockFragment]);
 
   const handleTransmit = () => {
     if (exactActualFrag && onSelectFragment) {
@@ -468,189 +472,133 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
       {/* 2. THE MAIN WRAPPER */}
       <div className="relative w-full max-w-xl z-10 mx-auto flex flex-col items-center">
         
-        {/* CLOCK WHEEL SELECTOR CARD */}
-        <div className="w-full bg-[#101010]/50 border border-zinc-900 rounded-2xl py-5 sm:py-6 px-6 sm:px-10 flex flex-col items-center justify-between mb-8 relative shadow-2xl z-20">
+        {/* CLOCK WHEEL SELECTOR SECTION - EXACTLY LIKE ATTACHED IMAGE */}
+        <div className="w-full flex flex-col items-center mb-6 relative z-20">
           
-          <div className="w-full flex items-center justify-between">
-            {/* Left: Search with Input */}
-            <div className="flex items-center gap-2 flex-grow max-w-[140px] sm:max-w-[220px]">
-              <Search 
-                size={18} 
-                strokeWidth={1.5} 
-                className="text-[#D9D6CA]/40 hover:text-white cursor-pointer shrink-0 transition-colors" 
-                onClick={() => setIsSearching(!isSearching)} 
-              />
-              {isSearching ? (
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Filter fragments..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-b border-zinc-800 text-xs text-[#D9D6CA] focus:border-[#D9D6CA]/50 outline-none w-full tracking-widest font-mono py-0.5"
-                />
-              ) : (
-                <button
-                  onClick={() => setIsSearching(true)}
-                  className="text-[9px] sm:text-[10px] tracking-[0.2em] text-[#D9D6CA]/30 font-mono hover:text-[#D9D6CA]/60 transition-colors cursor-pointer bg-transparent border-0 select-none pb-0.5"
-                >
-               SIGNAL FREQUENCY
-                </button>
-              )}
+          <div 
+            onClick={handleImmediateCheck}
+            className="relative w-full max-w-[260px] flex items-center justify-center gap-4 sm:gap-6 font-mono select-none overflow-hidden py-3 cursor-pointer"
+          >
+            {/* Column 1: HOUR */}
+            <div 
+              onWheel={handleScrollHour}
+              className="flex flex-col items-center justify-center h-24 text-center cursor-ns-resize z-10 w-12"
+            >
+              {/* Prev Hour */}
+              <button
+                type="button"
+                onClick={(e) => handleHourClick(prevHour, e)}
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+              >
+                {fmt(prevHour)}
+              </button>
+              {/* Target Hour */}
+              <div
+                className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center tracking-wide select-none font-mono"
+              >
+                {fmt(displayHour)}
+              </div>
+              {/* Next Hour */}
+              <button
+                type="button"
+                onClick={(e) => handleHourClick(nextHour, e)}
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+              >
+                {fmt(nextHour)}
+              </button>
             </div>
 
-            {/* Right/Center: Time Picker Wheels Column */}
-            <div className="flex items-center gap-5 sm:gap-7 pr-2 font-mono select-none">
-              {!searchQuery || searchQuery.trim() === "" ? (
-                <div className="text-[#D9D6CA]/20 text-[10px] sm:text-xs tracking-widest uppercase font-mono py-6 pr-4">
-                  &mdash; &mdash;
-                </div>
-              ) : filteredClockFragments.length === 0 ? (
-                <div className="text-red-500/90 text-[10px] sm:text-xs tracking-widest uppercase font-mono font-bold border border-red-950/40 bg-red-950/10 px-3 py-1.5 rounded-lg whitespace-nowrap">
-                  it is restricted
-                </div>
-              ) : (
-                <>
-                  {/* Column 1: HOUR */}
-                  <div 
-                    onWheel={handleScrollHour}
-                    className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
-                    title="Scroll wheel or click to select hour"
-                  >
-                    {/* Prev Hour */}
-                    <button
-                      type="button"
-                      onClick={() => handleHourClick(prevHour)}
-                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                    >
-                      {fmt(prevHour)}
-                    </button>
-                    {/* Target Hour */}
-                    <button
-                      type="button"
-                      onClick={handleTransmit}
-                      className={`${
-                        exactClockFragment 
-                          ? "text-white hover:scale-110 active:scale-95 cursor-pointer" 
-                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
-                      } font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 bg-transparent border-0 outline-none`}
-                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
-                    >
-                      {fmt(displayHour)}
-                    </button>
-                    {/* Next Hour */}
-                    <button
-                      type="button"
-                      onClick={() => handleHourClick(nextHour)}
-                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                    >
-                      {fmt(nextHour)}
-                    </button>
-                  </div>
+            {/* Separator: Colon */}
+            <div className="flex flex-col items-center justify-center h-24 text-center z-10 select-none w-4">
+              <div className="text-transparent h-7 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
+              <div className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center">
+                :
+              </div>
+              <div className="text-transparent h-7 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
+            </div>
 
-                  {/* Separator: Colons */}
-                  <div className="flex flex-col items-center justify-center h-20 text-center">
-                    <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
-                    <button 
-                      type="button"
-                      onClick={handleTransmit}
-                      className={`${
-                        exactClockFragment 
-                          ? "text-white animate-pulse hover:scale-115 active:scale-95 cursor-pointer" 
-                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
-                      } font-bold text-base sm:text-lg h-8 flex items-center justify-center transition-all duration-300 bg-transparent border-0 outline-none`}
-                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
-                    >
-                      :
-                    </button>
-                    <div className="text-transparent h-6 flex items-center justify-center select-none">:</div>
-                  </div>
+            {/* Column 2: MINUTE */}
+            <div 
+              onWheel={handleScrollMinute}
+              className="flex flex-col items-center justify-center h-24 text-center cursor-ns-resize z-10 w-12"
+            >
+              {/* Prev Minute */}
+              <button
+                type="button"
+                onClick={(e) => handleMinuteClick(prevMinute, e)}
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+              >
+                {fmt(prevMinute)}
+              </button>
+              {/* Target Minute */}
+              <div
+                className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center tracking-wide select-none font-mono"
+              >
+                {fmt(displayMinute)}
+              </div>
+              {/* Next Minute */}
+              <button
+                type="button"
+                onClick={(e) => handleMinuteClick(nextMinute, e)}
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+              >
+                {fmt(nextMinute)}
+              </button>
+            </div>
 
-                  {/* Column 2: MINUTE */}
-                  <div 
-                    onWheel={handleScrollMinute}
-                    className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize"
-                    title="Scroll wheel or click to select minute"
-                  >
-                    {/* Prev Minute */}
-                    <button
-                      type="button"
-                      onClick={() => handleMinuteClick(prevMinute)}
-                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                    >
-                      {fmt(prevMinute)}
-                    </button>
-                    {/* Target Minute */}
-                    <button
-                      type="button"
-                      onClick={handleTransmit}
-                      className={`${
-                        exactClockFragment 
-                          ? "text-white hover:scale-110 active:scale-95 cursor-pointer" 
-                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
-                      } font-bold text-base sm:text-lg h-8 flex items-center justify-center tracking-widest transition-all duration-300 bg-transparent border-0 outline-none`}
-                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
-                    >
-                      {fmt(displayMinute)}
-                    </button>
-                    {/* Next Minute */}
-                    <button
-                      type="button"
-                      onClick={() => handleMinuteClick(nextMinute)}
-                      className="text-[#D9D6CA]/20 text-xs sm:text-sm h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/60 bg-transparent border-0 outline-none cursor-pointer"
-                    >
-                      {fmt(nextMinute)}
-                    </button>
-                  </div>
-
-                  {/* Column 3: MERIDIEM (AM/PM) */}
-                  <div 
-                    onWheel={handleScrollAMPM}
-                    className="flex flex-col items-center justify-center h-20 text-center min-w-[32px] cursor-ns-resize"
-                    title="Scroll wheel or click to toggle AM/PM"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
-                      className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
-                    >
-                      {displayAMPM === "AM" ? "PM" : "AM"}
-                    </button>
-                    {/* Target Meridiem */}
-                    <button
-                      type="button"
-                      onClick={handleTransmit}
-                      className={`${
-                        exactClockFragment 
-                          ? "text-white hover:scale-110 active:scale-95 cursor-pointer" 
-                          : "text-zinc-600 cursor-not-allowed opacity-40 inline-block pointer-events-none"
-                      } font-bold text-xs sm:text-sm h-8 flex items-center justify-center tracking-wider transition-all duration-300 bg-transparent border-0 outline-none`}
-                      title={exactClockFragment ? "Click to transmit signal" : "No fragment available at this time"}
-                    >
-                      {displayAMPM}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM")}
-                      className="text-[#D9D6CA]/20 text-[10px] sm:text-xs h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer"
-                    >
-                      {displayAMPM === "AM" ? "PM" : "AM"}
-                    </button>
-                  </div>
-                </>
-              )}
+            {/* Column 3: MERIDIEM (AM/PM) */}
+            <div 
+              onWheel={handleScrollAMPM}
+              className="flex flex-col items-center justify-center h-24 text-center cursor-ns-resize z-10 w-16"
+            >
+              {/* Prev AM/PM */}
+              <button
+                type="button"
+                onClick={(e) => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM", e)}
+                className="text-[#D9D6CA]/15 text-sm sm:text-base h-7 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+              >
+                {displayAMPM === "AM" ? "PM" : "AM"}
+              </button>
+              {/* Target AM/PM */}
+              <div
+                className="text-white font-bold text-xl sm:text-2xl h-10 flex items-center justify-center tracking-wider select-none font-mono"
+              >
+                {displayAMPM}
+              </div>
+              {/* Next AM/PM */}
+              <button
+                type="button"
+                onClick={(e) => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM", e)}
+                className="text-[#D9D6CA]/15 text-sm sm:text-base h-7 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+              >
+                {displayAMPM === "AM" ? "PM" : "AM"}
+              </button>
             </div>
           </div>
-          {searchQuery.trim() !== "" && !exactClockFragment && (
-            <div className="w-full text-center mt-3 pt-2 border-t border-zinc-900/40 text-red-500/80 text-[10px] sm:text-xs tracking-widest uppercase font-mono font-bold animate-pulse">
-              it is restricted
-            </div>
-          )}
+
+          {/* Action indicator - extremely minimal */}
+          <div className="mt-2 w-full max-w-[280px] h-[48px] flex items-center justify-center">
+            {calibrationState === "available" && (
+              <button
+                onClick={handleTransmit}
+                className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2.5 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(217,214,202,0.35)] flex items-center justify-center gap-1.5"
+              >
+                <span>TRANSMIT SIGNAL</span>
+                <span className="font-mono text-[9px]">&gt;</span>
+              </button>
+            )}
+
+            {calibrationState === "restricted" && (
+              <div className="text-red-500/90 text-xs tracking-[0.2em] uppercase font-mono font-bold animate-pulse">
+                it is restricted
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Parallax / Interactive Owl Body Background that encompasses head and buttons */}
         <motion.div 
-          className="absolute top-28 left-1/2 -translate-x-1/2 w-[340px] sm:w-[460px] md:w-[485px] h-[360px] sm:h-[480px] md:h-[510px] pointer-events-none z-0 overflow-hidden"
+          className="absolute top-44 sm:top-52 md:top-56 left-1/2 -translate-x-1/2 w-[340px] sm:w-[460px] md:w-[485px] h-[360px] sm:h-[480px] md:h-[510px] pointer-events-none z-0 overflow-hidden"
           style={{
             rotateX,
             rotateY,
@@ -678,29 +626,16 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         {/* 2a. Interactive trigger box covering the upper section where the owl's head resides (placed with z-index behind cards) */}
         <div
           onClick={handleOwlCall}
-          className="absolute top-[160px] sm:top-[200px] left-1/2 -translate-x-1/2 w-[240px] h-[160px] cursor-pointer z-10"
-          title="Click the Sentinel Owl"
+          className="absolute top-[220px] sm:top-[280px] left-1/2 -translate-x-1/2 w-[240px] h-[160px] cursor-pointer z-10"
         />
 
-        {/* RECOVERED SIGNALS Section Header */}
-        <div className="w-full text-center z-10 mt-[260px] sm:mt-[320px] mb-4">
-          <h2 className="text-[10px] sm:text-xs leading-none tracking-[0.3em] text-[#D9D6CA]/40 font-bold uppercase select-none">
-            RECOVERED FRAGMENTS
-          </h2>
-        </div>
+        {/* Clean Spacing */}
+        <div className="w-full z-10 mt-[260px] sm:mt-[320px]" />
 
         {/* 3. VERTICAL STACK OF HORIZONTAL TIMESTAMPS */}
         <div ref={recoveredSectionRef} className="w-full space-y-3 sm:space-y-4 px-2 sm:px-4 z-10">
           {(() => {
-            let displayedFragments = [...CLOCK_FRAGMENTS.slice(0, 5)];
-            if (searchQuery.trim() !== "" && filteredClockFragments.length > 0) {
-              const matched = filteredClockFragments[0];
-              // Prepend matching search signal as the first recovered signal, slice to limit top 5
-              displayedFragments = [
-                matched,
-                ...displayedFragments.filter(f => f.id !== matched.id)
-              ].slice(0, 5);
-            }
+            const displayedFragments = [...CLOCK_FRAGMENTS];
 
             return displayedFragments.map((item, index) => {
               const reqActive = activePlayId === item.id;
@@ -769,7 +704,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                     setClientEmail("");
                   }}
                   className="text-[#D9D6CA]/40 hover:text-white font-mono text-base cursor-pointer border-0 bg-transparent p-1 transition-colors outline-none"
-                  title="Exit clearance state"
                 >
                   ✕
                 </button>
@@ -786,10 +720,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                     className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700 pointer-events-none select-none"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
-                  
-                  <span className="text-[8px] font-mono tracking-[0.25em] text-[#D6C291] absolute bottom-3 uppercase select-none pointer-events-none z-10 font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                    FTO SECURE RECORDER
-                  </span>
                   
                   {/* Subtle active / playing sound waves */}
                   {isPlayingBeat && (

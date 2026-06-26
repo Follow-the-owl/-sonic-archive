@@ -1086,3 +1086,75 @@ export function playOwlResonance() {
   hootee(now + 0.52, 0.62, 160, 0.18);
 }
 
+export function playCalibrationDenied() {
+  try {
+    initAudio();
+  } catch (e) {
+    return;
+  }
+  if (!audioCtx || !masterGain) return;
+  const now = audioCtx.currentTime;
+
+  const osc1 = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const filter = audioCtx.createBiquadFilter();
+  const gainNode = audioCtx.createGain();
+
+  osc1.type = "sawtooth";
+  osc1.frequency.setValueAtTime(110, now);
+  osc1.frequency.linearRampToValueAtTime(70, now + 0.35);
+
+  osc2.type = "triangle";
+  osc2.frequency.setValueAtTime(115, now);
+  osc2.frequency.linearRampToValueAtTime(75, now + 0.35);
+
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(280, now);
+
+  gainNode.gain.setValueAtTime(0.001, now);
+  gainNode.gain.linearRampToValueAtTime(0.18, now + 0.05);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(masterGain);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + 0.4);
+  osc2.stop(now + 0.4);
+}
+
+export function playCalibrationSuccess() {
+  try {
+    initAudio();
+  } catch (e) {
+    return;
+  }
+  if (!audioCtx || !masterGain) return;
+  const now = audioCtx.currentTime;
+
+  const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+  freqs.forEach((freq, idx) => {
+    if (!audioCtx || !masterGain) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const t = now + idx * 0.12;
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, t);
+
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.08, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.7);
+  });
+}
+
+
