@@ -494,7 +494,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   onClick={() => setIsSearching(true)}
                   className="text-[9px] sm:text-[10px] tracking-[0.2em] text-[#D9D6CA]/30 font-mono hover:text-[#D9D6CA]/60 transition-colors cursor-pointer bg-transparent border-0 select-none pb-0.5"
                 >
-                  SEARCH SIGNALS
+               SIGNAL FREQUENCY
                 </button>
               )}
             </div>
@@ -685,7 +685,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         {/* RECOVERED SIGNALS Section Header */}
         <div className="w-full text-center z-10 mt-[260px] sm:mt-[320px] mb-4">
           <h2 className="text-[10px] sm:text-xs leading-none tracking-[0.3em] text-[#D9D6CA]/40 font-bold uppercase select-none">
-            RECOVERED SIGNALS
+            RECOVERED FRAGMENTS
           </h2>
         </div>
 

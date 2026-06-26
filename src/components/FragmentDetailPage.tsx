@@ -4,7 +4,7 @@ import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, V
 import { Fragment } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
-const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782288126/687AC1B7-CB19-4A1D-A803-868DA5C606D3_4_chs8te.png";
+const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782454702/Owl_2_c5ebif.png";
 
 const waveHeights = [
   8, 14, 18, 10, 6, 12, 24, 32, 16, 20, 
