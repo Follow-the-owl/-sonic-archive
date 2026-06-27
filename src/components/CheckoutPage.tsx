@@ -172,16 +172,6 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide font-sans">
                         Cart
                       </h1>
-                      <button 
-                        onClick={() => {
-                          const shareUrl = window.location.href;
-                          navigator.clipboard.writeText(shareUrl);
-                          alert("Cart link copied to clipboard!");
-                        }}
-                        className="bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[10px] tracking-widest px-4 py-2.5 transition-all rounded-[4px] cursor-pointer uppercase"
-                      >
-                        SHARE CART
-                      </button>
                     </div>
 
                     {/* Location bar */}
@@ -272,38 +262,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                           ))}
                         </div>
 
-                        {/* Bulk deals accordion bar */}
-                        <div className="border border-zinc-900 bg-zinc-950/20 overflow-hidden rounded-none">
-                          <button
-                            type="button"
-                            onClick={() => setBulkDealsOpen(!bulkDealsOpen)}
-                            className="w-full flex items-center justify-center gap-2 py-3.5 text-[10px] font-bold tracking-widest text-[#D9D6CA] uppercase hover:text-white transition-colors cursor-pointer"
-                          >
-                            <span>BULK DEALS</span>
-                            <ChevronDown 
-                              size={12} 
-                              className={`transition-transform duration-300 ${bulkDealsOpen ? "rotate-180" : ""}`} 
-                            />
-                          </button>
-                          
-                          <AnimatePresence>
-                            {bulkDealsOpen && (
-                              <motion.div
-                                initial={{ height: 0 }}
-                                animate={{ height: "auto" }}
-                                exit={{ height: 0 }}
-                                className="border-t border-zinc-900 px-4 py-4 text-left text-[10px] text-zinc-500 leading-relaxed space-y-2.5 font-light"
-                              >
-                                <p className="text-zinc-400 font-bold tracking-wider">ACTIVE AUTOMATED OFFERS:</p>
-                                <ul className="list-disc pl-4 space-y-1">
-                                  <li>Buy 2 licenses, get 1 standard release license free.</li>
-                                  <li>15% automatic discount on commercial bundle acquisition contracts.</li>
-                                </ul>
-                                <p>Apply coupon code <strong className="text-white">OWL20</strong> for an additional 20% validation contract clearance!</p>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
+
                       </div>
                     )}
                   </motion.div>
@@ -733,55 +692,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
             {/* RIGHT COLUMN: Order Summary Card (Matches Image 3 perfectly!) */}
             <div className="lg:col-span-4 bg-[#0a0a0a] border border-zinc-900/60 text-left p-6 sm:p-7 font-sans rounded-[4px] select-none shadow-xl space-y-6">
               
-              {/* Optional Coupon Code accordion (on Cart page) */}
-              {step === "cart" && (
-                <div className="border-b border-zinc-900 pb-4">
-                  <label className="flex items-center gap-2.5 cursor-pointer group select-none py-1">
-                    <input 
-                      type="checkbox"
-                      checked={couponChecked}
-                      onChange={(e) => setCouponChecked(e.target.checked)}
-                      className="w-4 h-4 rounded-sm border border-zinc-800 bg-neutral-950 accent-[#D9D6CA] cursor-pointer"
-                    />
-                    <span className="text-[11px] text-zinc-500 group-hover:text-white transition-colors">
-                      I have a Coupon Code
-                    </span>
-                  </label>
 
-                  <AnimatePresence>
-                    {couponChecked && (
-                      <motion.form
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        onSubmit={handleApplyCoupon}
-                        className="mt-3 flex items-center gap-2"
-                      >
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. OWL20 or SIGNAL15"
-                          value={couponCode}
-                          onChange={(e) => setCouponCode(e.target.value)}
-                          className="flex-grow bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-2 px-3 text-[10px] text-zinc-300 outline-none focus:border-[#D9D6CA] uppercase"
-                        />
-                        <button
-                          type="submit"
-                          className="bg-zinc-800 hover:bg-[#D9D6CA] hover:text-black font-sans font-bold text-[9px] uppercase px-3.5 py-2.5 transition-all rounded-[4px] cursor-pointer"
-                        >
-                          APPLY
-                        </button>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
-                  
-                  {couponApplied && (
-                    <span className="text-xs text-[#00E676] font-bold block mt-2">
-                      ✓ Coupon Applied! {discount > 0 && `-$${discount.toFixed(2)}`}
-                    </span>
-                  )}
-                </div>
-              )}
 
               {/* Breakdown lines */}
               <div className="space-y-4 font-sans">

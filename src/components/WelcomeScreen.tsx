@@ -285,7 +285,7 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
               transition={{ duration: 1.5, delay: 0.2 }}
               className="text-[12px] sm:text-[13px] md:text-[14px] font-bold tracking-[0.75em] text-[#D9D6CA] uppercase font-mono text-center select-none"
             >
-              THE OWL CLOCK
+              FOLLOW THE OWL
             </motion.h1>
 
             {/* Hairline spacer with central hollow ring target */}

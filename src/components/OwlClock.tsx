@@ -490,11 +490,25 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                 {fmt(prevHour)}
               </button>
               {/* Target Hour */}
-              <div
+              <motion.div
+                animate={{
+                  opacity: [0.65, 1, 0.65],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                  ],
+                  scale: [0.98, 1.04, 0.98]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
                 className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center tracking-wide select-none font-mono"
               >
                 {fmt(displayHour)}
-              </div>
+              </motion.div>
               {/* Next Hour */}
               <button
                 type="button"
@@ -508,9 +522,25 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             {/* Separator: Colon */}
             <div className="flex flex-col items-center justify-center h-24 text-center z-10 select-none w-4">
               <div className="text-transparent h-7 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
-              <div className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center">
+              <motion.div
+                animate={{
+                  opacity: [0.65, 1, 0.65],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                  ],
+                  scale: [0.98, 1.04, 0.98]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center"
+              >
                 :
-              </div>
+              </motion.div>
               <div className="text-transparent h-7 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
             </div>
 
@@ -528,11 +558,25 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                 {fmt(prevMinute)}
               </button>
               {/* Target Minute */}
-              <div
+              <motion.div
+                animate={{
+                  opacity: [0.65, 1, 0.65],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                  ],
+                  scale: [0.98, 1.04, 0.98]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
                 className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center tracking-wide select-none font-mono"
               >
                 {fmt(displayMinute)}
-              </div>
+              </motion.div>
               {/* Next Minute */}
               <button
                 type="button"
@@ -557,11 +601,25 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                 {displayAMPM === "AM" ? "PM" : "AM"}
               </button>
               {/* Target AM/PM */}
-              <div
+              <motion.div
+                animate={{
+                  opacity: [0.65, 1, 0.65],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                  ],
+                  scale: [0.98, 1.04, 0.98]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
                 className="text-white font-bold text-xl sm:text-2xl h-10 flex items-center justify-center tracking-wider select-none font-mono"
               >
                 {displayAMPM}
-              </div>
+              </motion.div>
               {/* Next AM/PM */}
               <button
                 type="button"
@@ -629,50 +687,50 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         {/* Clean Spacing */}
         <div className="w-full z-10 mt-[260px] sm:mt-[320px]" />
 
-        {/* 3. VERTICAL STACK OF HORIZONTAL TIMESTAMPS */}
-        <div ref={recoveredSectionRef} className="w-full space-y-3 sm:space-y-4 px-2 sm:px-4 z-10">
-          {(() => {
-            const displayedFragments = [...CLOCK_FRAGMENTS];
+        {/* 3. ELEGANT WRITEUP: RECOVER A FRAGMENT FROM TIME */}
+        <div className="w-full flex flex-col items-center gap-4 z-20 mb-12 pointer-events-none">
+          <motion.h2
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.5, delay: 0.2 }}
+            className="text-[12px] sm:text-[13px] md:text-[14px] font-bold tracking-[0.65em] text-[#D9D6CA] uppercase font-mono text-center select-none"
+          >
+            RECOVER A FRAGMENT FROM TIME
+          </motion.h2>
 
-            return displayedFragments.map((item, index) => {
-              const reqActive = activePlayId === item.id;
-              const cleanLabel = item.label.replace("FRAGMENT ", "").trim();
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleRowClick(item)}
-                  onMouseEnter={() => setHoveredIndex(index)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  className={`w-full py-5 sm:py-6 px-6 sm:px-8 border transition-all duration-300 flex items-center justify-between cursor-pointer outline-none rounded-none text-left select-none relative group ${
-                    reqActive
-                      ? "bg-zinc-950/90 border-[#D9D6CA]/50 text-white shadow-[0_0_15px_rgba(217,214,202,0.12)]"
-                      : "bg-black/20 border-zinc-900 hover:border-[#D9D6CA]/30 text-[#D9D6CA]/60 hover:text-white"
-                  }`}
-                >
-                  {/* Subtle active state green/red/bone pulse dot on left edge inside the box if active */}
-                  {reqActive && (
-                    <motion.span
-                      initial={{ scale: 0.6, opacity: 0.5 }}
-                      animate={{ scale: [0.6, 1.1, 0.6], opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute left-4 w-1.5 h-1.5 rounded-full bg-[#D9D6CA]"
-                    />
-                  )}
-
-                  {/* Centered Large Typewriter text */}
-                  <span className="flex-grow text-center font-normal tracking-[0.35em] text-sm sm:text-base md:text-lg pl-4 select-none">
-                    {cleanLabel}
-                  </span>
-
-                  {/* Fine horizontal chevron arrow symbol on right margin */}
-                  <span className="text-[#D9D6CA]/30 group-hover:text-white group-hover:translate-x-1 duration-300 font-mono text-sm sm:text-base select-none pointer-events-none">
-                    &gt;
-                  </span>
-                </button>
-              );
-            });
-          })()}
+          {/* Hairline spacer with central hollow ring target */}
+          <motion.div 
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 0.5, scaleX: 1 }}
+            transition={{ duration: 1.8, delay: 0.5 }}
+            className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
+          >
+            <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-[#D9D6CA]/30" />
+            {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing */}
+            <motion.svg
+              viewBox="0 0 12 12"
+              className="w-[11px] h-[11px] text-[#D9D6CA] flex-shrink-0"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              animate={{
+                opacity: [0.35, 1, 0.35],
+                filter: [
+                  "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                  "drop-shadow(0 0 4px rgba(217, 214, 202, 0.85))",
+                  "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                ],
+                scale: [0.95, 1.08, 0.95]
+              }}
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
+            </motion.svg>
+            <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-[#D9D6CA]/30" />
+          </motion.div>
         </div>
       </div>
 
