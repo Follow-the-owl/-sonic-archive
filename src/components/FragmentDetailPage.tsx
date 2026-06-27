@@ -815,8 +815,6 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
 
-                    <span className="text-[7.5px] font-mono text-[#D9D6CA] absolute bottom-3.5 tracking-widest text-center uppercase font-bold z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">FTO SECURE RECORDER</span>
-
                     {/* Circular Interactive Play Trigger Button Overlay */}
                     <button
                       onClick={() => {
@@ -836,15 +834,6 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                         )}
                       </div>
                     </button>
-
-                    {/* Static visual audio player microindicator */}
-                    {isPlayingBeat && (
-                      <div className="absolute bottom-2.5 right-2.5 flex items-end gap-1 px-1.5 py-1 bg-black/80 rounded-sm border border-zinc-900 w-auto z-10">
-                        <span className="w-1 h-3.5 bg-[#D9D6CA] origin-bottom animate-bounce animate-duration-1000" style={{ animationDelay: "0.1s" }} />
-                        <span className="w-1 h-2 bg-[#D9D6CA] origin-bottom animate-bounce animate-duration-750" style={{ animationDelay: "0.3s" }} />
-                        <span className="w-1 h-3 bg-[#D9D6CA] origin-bottom animate-bounce animate-duration-1200" style={{ animationDelay: "0.2s" }} />
-                      </div>
-                    )}
                   </div>
 
                   {/* Empty space after image */}
