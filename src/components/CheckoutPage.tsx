@@ -131,25 +131,36 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
       <div className="max-w-6xl mx-auto">
         
         {/* Breadcrumb Indicator */}
-        <div className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-8 border-b border-zinc-950 pb-4">
-          <button 
-            onClick={onClose} 
-            className="hover:text-white transition-colors cursor-pointer"
-          >
-            ARCHIVE
-          </button>
-          <ChevronRight size={10} />
-          <span className={step === "cart" ? "text-[#D9D6CA] font-bold" : "text-zinc-500"}>
-            01. MEDIA BAG
-          </span>
-          <ChevronRight size={10} />
-          <span className={step === "billing" ? "text-[#D9D6CA] font-bold" : "text-zinc-500"}>
-            02. BILLING INFO
-          </span>
-          <ChevronRight size={10} />
-          <span className={step === "paystack" ? "text-[#D9D6CA] font-bold" : "text-zinc-500"}>
-            03. SECURE GATEWAY
-          </span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-8 border-b border-zinc-950 pb-4">
+          <div className="flex items-center gap-2 shrink-0">
+            <button 
+              onClick={onClose} 
+              className="hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+            >
+              ARCHIVE
+            </button>
+            <ChevronRight size={10} className="text-zinc-650 shrink-0" />
+          </div>
+          
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`whitespace-nowrap ${step === "cart" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
+              01. MEDIA BAG
+            </span>
+            <ChevronRight size={10} className="text-zinc-650 shrink-0" />
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`whitespace-nowrap ${step === "billing" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
+              02. BILLING INFO
+            </span>
+            <ChevronRight size={10} className="text-zinc-650 shrink-0" />
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`whitespace-nowrap ${step === "paystack" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
+              03. SECURE GATEWAY
+            </span>
+          </div>
         </div>
 
         {step !== "success" && (

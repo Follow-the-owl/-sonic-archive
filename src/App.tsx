@@ -49,7 +49,12 @@ export default function App() {
   const handleAddToCart = (fragment: Fragment, tierId: string, tierTitle: string, price: string) => {
     const itemId = `${fragment.id}-${tierId}`;
     if (cart.some((item) => item.id === itemId)) {
-      setCartOpen(true);
+      if (window.innerWidth < 768) {
+        setCheckoutActive(true);
+        setCartOpen(false);
+      } else {
+        setCartOpen(true);
+      }
       return;
     }
 
@@ -65,7 +70,12 @@ export default function App() {
     };
 
     setCart((prev) => [...prev, newItem]);
-    setCartOpen(true);
+    if (window.innerWidth < 768) {
+      setCheckoutActive(true);
+      setCartOpen(false);
+    } else {
+      setCartOpen(true);
+    }
   };
 
   const handleRemoveFromCart = (itemId: string) => {
@@ -199,7 +209,14 @@ export default function App() {
                 <div className="flex items-center gap-3">
                   {/* Visual trigger to open Collection drawer */}
                   <button 
-                    onClick={() => setCartOpen(!cartOpen)}
+                    onClick={() => {
+                      if (window.innerWidth < 768) {
+                        setCheckoutActive(true);
+                        setCartOpen(false);
+                      } else {
+                        setCartOpen(!cartOpen);
+                      }
+                    }}
                     className={`flex items-center gap-1.5 border px-3 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none ${
                       cartOpen 
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
@@ -375,7 +392,7 @@ export default function App() {
 
             {/* Cart Popover Dropdown (Matches user mockup design exactly) */}
             <AnimatePresence>
-              {cartOpen && (
+              {cartOpen && typeof window !== "undefined" && window.innerWidth >= 768 && (
                 <motion.div
                   id="media-bag-dropdown"
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}

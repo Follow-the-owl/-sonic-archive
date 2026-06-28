@@ -647,8 +647,12 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   return (
     <div 
       id={`fragment-detail-${fragment.id}`} 
-      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 pb-3 sm:pb-5 relative select-none overflow-x-hidden bg-contain bg-top bg-no-repeat"
-      style={{ backgroundImage: `linear-gradient(to bottom, rgba(3, 3, 3, 0.1) 0%, rgba(3, 3, 3, 0.85) 60%, #030303 100%), url(${fragmentPageBackground})` }}
+      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-start items-center p-4 sm:p-8 pb-12 relative select-none overflow-x-hidden bg-no-repeat"
+      style={{ 
+        backgroundImage: `linear-gradient(to bottom, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.5) 50%, rgba(3, 3, 3, 0.95) 90%, #030303 100%), url(${fragmentPageBackground})`,
+        backgroundPosition: "center 60px",
+        backgroundSize: "min(100%, 850px) auto"
+      }}
     >
       {/* 1. Global CRT horizontal scanline texture overlay */}
       <div className="film-grain pointer-events-none opacity-20 z-[2]" />
@@ -664,8 +668,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
         ← EXIT
       </button>
 
-      {/* Widened content container aligned bottom and constrained to 850px */}
-      <div className="w-full max-w-[850px] px-2 sm:px-5 pb-0 z-[3] flex flex-col space-y-4 text-left relative mt-auto">
+      {/* Widened content container aligned directly under the background image */}
+      <div 
+        className="w-full max-w-[850px] px-2 sm:px-5 pb-0 z-[3] flex flex-col space-y-4 text-left relative"
+        style={{ marginTop: "calc(60px + min(56.25vw, 478px))" }}
+      >
         
         {/* Title block */}
         <div className="space-y-1 text-left pl-0.5">
