@@ -96,6 +96,158 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
   }
 ];
 
+interface WheelDrumProps {
+  value: any;
+  options: any[];
+  onChange: (val: any) => void;
+  format?: (val: any) => string;
+  loop?: boolean;
+}
+
+function WheelDrum({ value, options, onChange, format = (v) => String(v), loop = true }: WheelDrumProps) {
+  const selectedIndex = options.indexOf(value);
+  const currentIdx = selectedIndex === -1 ? 0 : selectedIndex;
+  const itemHeight = 36;
+  const radius = 55;
+
+  const [localOffset, setLocalOffset] = useState(0);
+  const dragStartY = useRef(0);
+  const isDragging = useRef(false);
+  const currentIdxRef = useRef(currentIdx);
+  currentIdxRef.current = currentIdx;
+  const lastTickIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setLocalOffset(0);
+    lastTickIndexRef.current = null;
+  }, [value]);
+
+  const startDrag = (clientY: number) => {
+    isDragging.current = true;
+    dragStartY.current = clientY;
+    lastTickIndexRef.current = currentIdx;
+  };
+
+  const moveDrag = (clientY: number) => {
+    if (!isDragging.current) return;
+    const deltaY = clientY - dragStartY.current;
+    setLocalOffset(deltaY);
+
+    const indexOffset = Math.round(-deltaY / itemHeight);
+    const rawTarget = currentIdxRef.current + indexOffset;
+    let targetIdx = rawTarget % options.length;
+    if (targetIdx < 0) targetIdx += options.length;
+
+    if (lastTickIndexRef.current !== targetIdx) {
+      playTickSound(targetIdx % 5 === 0 ? "low" : "high");
+      lastTickIndexRef.current = targetIdx;
+    }
+  };
+
+  const endDrag = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    
+    const indexOffset = Math.round(-localOffset / itemHeight);
+    let targetIdx = (currentIdxRef.current + indexOffset) % options.length;
+    if (targetIdx < 0) targetIdx += options.length;
+
+    setLocalOffset(0);
+    onChange(options[targetIdx]);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const direction = e.deltaY > 0 ? 1 : -1;
+    let targetIdx = (currentIdx + direction) % options.length;
+    if (targetIdx < 0) targetIdx += options.length;
+    playTickSound(targetIdx % 5 === 0 ? "low" : "high");
+    onChange(options[targetIdx]);
+  };
+
+  const handleItemClick = (idx: number) => {
+    if (idx !== currentIdx) {
+      playTickSound(idx % 5 === 0 ? "low" : "high");
+      onChange(options[idx]);
+    }
+  };
+
+  const virtualScrollPos = currentIdx - (localOffset / itemHeight);
+
+  return (
+    <div 
+      onWheel={handleWheel}
+      onTouchStart={(e) => startDrag(e.touches[0].clientY)}
+      onTouchMove={(e) => moveDrag(e.touches[0].clientY)}
+      onTouchEnd={endDrag}
+      onMouseDown={(e) => startDrag(e.clientY)}
+      onMouseMove={(e) => {
+        if (isDragging.current) {
+          moveDrag(e.clientY);
+        }
+      }}
+      onMouseUp={endDrag}
+      onMouseLeave={endDrag}
+      className="relative h-32 w-14 flex items-center justify-center overflow-hidden cursor-ns-resize select-none touch-none"
+      style={{ perspective: "1000px" }}
+    >
+      {/* Visual top and bottom gradient shading */}
+      <div className="absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none z-20" />
+      <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-20" />
+      
+      {/* Target focus selection frame */}
+      <div className="absolute top-[46px] bottom-[46px] inset-x-0 border-y border-[#D9D6CA]/20 pointer-events-none z-10 bg-[#D9D6CA]/5" />
+
+      {/* Rotating drum list */}
+      <div 
+        className="relative w-full h-full flex items-center justify-center"
+        style={{ transformStyle: "preserve-3d" }}
+      >
+        {options.map((option, idx) => {
+          let diff = idx - virtualScrollPos;
+          const len = options.length;
+
+          if (loop) {
+            const half = len / 2;
+            while (diff > half) diff -= len;
+            while (diff < -half) diff += len;
+          }
+
+          if (Math.abs(diff) > 2.5) return null;
+
+          const angle = diff * 26;
+          const opacity = Math.max(0.12, 1 - Math.abs(diff) * 0.4);
+          const scale = 1 - Math.abs(diff) * 0.08;
+
+          return (
+            <div
+              key={idx}
+              onClick={() => handleItemClick(idx)}
+              className={`absolute text-center select-none font-mono cursor-pointer transition-colors duration-150 ${
+                Math.abs(diff) < 0.4 
+                  ? "text-white font-bold text-2xl sm:text-3xl drop-shadow-[0_0_6px_rgba(217,214,202,0.4)]" 
+                  : "text-[#D9D6CA]/25 text-lg sm:text-xl"
+              }`}
+              style={{
+                transform: `rotateX(${-angle}deg) translateZ(${radius}px)`,
+                opacity,
+                scale,
+                transformStyle: "preserve-3d",
+                backfaceVisibility: "hidden",
+                height: `${itemHeight}px`,
+                lineHeight: `${itemHeight}px`,
+              }}
+            >
+              {format(option)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProps) {
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
@@ -204,7 +356,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("idle");
 
   // Tactile drag calibration state
-  const dragStartRef = useRef<{ y: number; val: number } | null>(null);
   const ribbonDragStartRef = useRef<{ x: number; totalMinutes: number } | null>(null);
 
   const handleAcquireLicense = (e: React.FormEvent) => {
@@ -347,36 +498,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
   const fmt = (num: number) => String(num).padStart(2, "0");
 
-  // Wheel interaction event handlers
-  const handleScrollHour = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setIsManual(true);
-    setCalibrationState("idle");
-    const step = e.deltaY > 0 ? 1 : -1;
-    let next = displayHour + step;
-    if (next > 11) next = 0;
-    if (next < 0) next = 11;
-    setPickedHour(next);
-  };
-
-  const handleScrollMinute = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setIsManual(true);
-    setCalibrationState("idle");
-    const step = e.deltaY > 0 ? 1 : -1;
-    let next = displayMinute + step;
-    if (next > 59) next = 0;
-    if (next < 0) next = 59;
-    setPickedMinute(next);
-  };
-
-  const handleScrollAMPM = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setIsManual(true);
-    setCalibrationState("idle");
-    setPickedAMPM(displayAMPM === "AM" ? "PM" : "AM");
-  };
-
   const handleHourClick = (h: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setIsManual(true);
@@ -399,46 +520,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setCalibrationState("idle");
     setPickedAMPM(ampm);
     playTickSound("high");
-  };
-
-  // Tactile Direct Digit Drag Handlers
-  const handleDigitTouchStart = (e: React.TouchEvent | React.MouseEvent, type: "hour" | "minute") => {
-    setIsManual(true);
-    setCalibrationState("idle");
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    const startVal = type === "hour" ? displayHour : displayMinute;
-    dragStartRef.current = { y: clientY, val: startVal };
-  };
-
-  const handleDigitTouchMove = (e: React.TouchEvent | React.MouseEvent, type: "hour" | "minute") => {
-    if (!dragStartRef.current) return;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    const deltaY = dragStartRef.current.y - clientY;
-    const stepSize = 12; // pixels per increment
-    const steps = Math.round(deltaY / stepSize);
-    if (steps !== 0) {
-      if (type === "hour") {
-        let next = (dragStartRef.current.val + steps) % 12;
-        if (next < 0) next += 12;
-        if (next !== displayHour) {
-          setPickedHour(next);
-          playTickSound(next % 3 === 0 ? "low" : "high");
-          dragStartRef.current.y -= steps * stepSize;
-        }
-      } else {
-        let next = (dragStartRef.current.val + steps) % 60;
-        if (next < 0) next += 60;
-        if (next !== displayMinute) {
-          setPickedMinute(next);
-          playTickSound(next % 5 === 0 ? "low" : "high");
-          dragStartRef.current.y -= steps * stepSize;
-        }
-      }
-    }
-  };
-
-  const handleDigitTouchEnd = () => {
-    dragStartRef.current = null;
   };
 
   // Tactile Ribbon Scroll Handlers (Apple Crown / Bezel Simulation)
@@ -581,175 +662,39 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           
           <div 
             onClick={handleImmediateCheck}
-            className="relative w-full max-w-[260px] flex items-center justify-center gap-4 sm:gap-6 font-mono select-none overflow-hidden py-1.5 cursor-pointer"
+            className="relative w-full max-w-[260px] flex items-center justify-center gap-1 sm:gap-2 font-mono select-none overflow-hidden py-1.5 cursor-pointer"
           >
-            {/* Column 1: HOUR */}
-            <div 
-              onWheel={handleScrollHour}
-              onMouseDown={(e) => handleDigitTouchStart(e, "hour")}
-              onMouseMove={(e) => handleDigitTouchMove(e, "hour")}
-              onMouseUp={handleDigitTouchEnd}
-              onMouseLeave={handleDigitTouchEnd}
-              onTouchStart={(e) => handleDigitTouchStart(e, "hour")}
-              onTouchMove={(e) => handleDigitTouchMove(e, "hour")}
-              onTouchEnd={handleDigitTouchEnd}
-              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12 select-none"
-            >
-              {/* Prev Hour */}
-              <button
-                type="button"
-                onClick={(e) => handleHourClick(prevHour, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
-              >
-                {fmt(prevHour)}
-              </button>
-              {/* Target Hour */}
-              <motion.div
-                animate={{
-                  opacity: [0.65, 1, 0.65],
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
-                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
-                  ],
-                  scale: [0.98, 1.04, 0.98]
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono pointer-events-none"
-              >
-                {fmt(displayHour)}
-              </motion.div>
-              {/* Next Hour */}
-              <button
-                type="button"
-                onClick={(e) => handleHourClick(nextHour, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
-              >
-                {fmt(nextHour)}
-              </button>
-            </div>
+            {/* Column 1: HOUR WHEEL DRUM */}
+            <WheelDrum 
+              value={displayHour}
+              options={Array.from({ length: 12 }, (_, i) => i)}
+              onChange={(h) => handleHourClick(h)}
+              format={fmt}
+              loop={true}
+            />
 
             {/* Separator: Colon */}
-            <div className="flex flex-col items-center justify-center h-20 text-center z-10 select-none w-4">
-              <div className="text-transparent h-6 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
-              <motion.div
-                animate={{
-                  opacity: [0.65, 1, 0.65],
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
-                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
-                  ],
-                  scale: [0.98, 1.04, 0.98]
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center"
-              >
-                :
-              </motion.div>
-              <div className="text-transparent h-6 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
+            <div className="flex flex-col items-center justify-center h-32 text-center select-none w-4 z-10">
+              <div className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center">:</div>
             </div>
 
-            {/* Column 2: MINUTE */}
-            <div 
-              onWheel={handleScrollMinute}
-              onMouseDown={(e) => handleDigitTouchStart(e, "minute")}
-              onMouseMove={(e) => handleDigitTouchMove(e, "minute")}
-              onMouseUp={handleDigitTouchEnd}
-              onMouseLeave={handleDigitTouchEnd}
-              onTouchStart={(e) => handleDigitTouchStart(e, "minute")}
-              onTouchMove={(e) => handleDigitTouchMove(e, "minute")}
-              onTouchEnd={handleDigitTouchEnd}
-              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12 select-none"
-            >
-              {/* Prev Minute */}
-              <button
-                type="button"
-                onClick={(e) => handleMinuteClick(prevMinute, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
-              >
-                {fmt(prevMinute)}
-              </button>
-              {/* Target Minute */}
-              <motion.div
-                animate={{
-                  opacity: [0.65, 1, 0.65],
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
-                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
-                  ],
-                  scale: [0.98, 1.04, 0.98]
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono pointer-events-none"
-              >
-                {fmt(displayMinute)}
-              </motion.div>
-              {/* Next Minute */}
-              <button
-                type="button"
-                onClick={(e) => handleMinuteClick(nextMinute, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
-              >
-                {fmt(nextMinute)}
-              </button>
-            </div>
+            {/* Column 2: MINUTE WHEEL DRUM */}
+            <WheelDrum 
+              value={displayMinute}
+              options={Array.from({ length: 60 }, (_, i) => i)}
+              onChange={(m) => handleMinuteClick(m)}
+              format={fmt}
+              loop={true}
+            />
 
-            {/* Column 3: MERIDIEM (AM/PM) */}
-            <div 
-              onWheel={handleScrollAMPM}
-              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-16"
-            >
-              {/* Prev AM/PM */}
-              <button
-                type="button"
-                onClick={(e) => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM", e)}
-                className="text-[#D9D6CA]/15 text-sm sm:text-base h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
-              >
-                {displayAMPM === "AM" ? "PM" : "AM"}
-              </button>
-              {/* Target AM/PM */}
-              <motion.div
-                animate={{
-                  opacity: [0.65, 1, 0.65],
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
-                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
-                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
-                  ],
-                  scale: [0.98, 1.04, 0.98]
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="text-white font-bold text-xl sm:text-2xl h-8 flex items-center justify-center tracking-wider select-none font-mono"
-              >
-                {displayAMPM}
-              </motion.div>
-              {/* Next AM/PM */}
-              <button
-                type="button"
-                onClick={(e) => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM", e)}
-                className="text-[#D9D6CA]/15 text-sm sm:text-base h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
-              >
-                {displayAMPM === "AM" ? "PM" : "AM"}
-              </button>
-            </div>
+            {/* Column 3: AM/PM WHEEL DRUM */}
+            <WheelDrum 
+              value={displayAMPM}
+              options={["AM", "PM"]}
+              onChange={(ampm) => handleAMPMClick(ampm)}
+              format={(v) => v}
+              loop={false}
+            />
           </div>
 
           {/* TACTILE BEZEL CALIBRATION RIBBON (Apple Crown / Ruler Simulation) */}
