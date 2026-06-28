@@ -446,14 +446,44 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     };
   }, [x, y]);
 
-  // Plays signature hoot and triggers physical eye flares
+  // Plays signature hoot and triggers automatic timestamp shuffle to an available fragment
   const handleOwlCall = () => {
     if (isHooting) return;
     setIsHooting(true);
     playOwlResonance();
-    setTimeout(() => {
-      setIsHooting(false);
-    }, 1200);
+
+    // Settle into manual adjustment mode and clear current temporary state
+    setIsManual(true);
+    setCalibrationState("idle");
+
+    let count = 0;
+    const maxShuffles = 8;
+    const interval = setInterval(() => {
+      count++;
+      // Choose a random available fragment from CLOCK_FRAGMENTS
+      const randomFrag = CLOCK_FRAGMENTS[Math.floor(Math.random() * CLOCK_FRAGMENTS.length)];
+      const cleaned = randomFrag.label.replace("FRAGMENT ", "").trim(); // e.g. "02:17 AM"
+      const [timeStr, ampmStr] = cleaned.split(" ");
+      const [hStr, mStr] = timeStr.split(":");
+      const h = parseInt(hStr, 10) % 12;
+      const m = parseInt(mStr, 10);
+      const ampm = (ampmStr || "AM") as "AM" | "PM";
+
+      setPickedHour(h);
+      setPickedMinute(m);
+      setPickedAMPM(ampm);
+
+      if (count >= maxShuffles) {
+        clearInterval(interval);
+        setIsHooting(false);
+        // Play success tone and unlock transmission
+        playCalibrationSuccess();
+        setCalibrationState("available");
+      } else {
+        // High-speed tick sounds
+        playTickSound(count % 2 === 0 ? "low" : "high");
+      }
+    }, 100);
   };
 
   const handleRowClick = (item: ClockFragment) => {
@@ -671,10 +701,10 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           </div>
         </div>
 
-        {/* Beautiful framed Owl image in standard layout flow - no timer overlay! */}
-        <div className="flex-grow w-full max-w-[340px] sm:max-w-[420px] md:max-w-[480px] flex items-center justify-center py-2 min-h-0 relative z-10">
+        {/* Beautiful full-bleed, organic Owl image, blended seamlessly to the dark background */}
+        <div className="flex-grow w-full max-w-[480px] sm:max-w-[560px] md:max-w-[620px] flex items-center justify-center py-2 min-h-0 relative z-10">
           <motion.div 
-            className="w-full aspect-[16/10] relative rounded-xl border border-zinc-900/60 overflow-hidden cursor-pointer bg-black/40 group shadow-2xl flex items-center justify-center"
+            className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-transparent group flex items-center justify-center"
             style={{
               rotateX,
               rotateY,
@@ -694,10 +724,10 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               className="w-full h-full object-cover opacity-85 pointer-events-none select-none animate-fade-in"
             />
             {/* Gradients to blend seamless with black background on all sides */}
-            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black via-black/50 to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black via-black/50 to-transparent pointer-events-none" />
           </motion.div>
         </div>
 
