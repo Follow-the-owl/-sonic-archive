@@ -702,7 +702,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         </div>
 
         {/* Beautiful full-bleed, organic Owl image, blended seamlessly to the dark background */}
-        <div className="flex-grow w-full max-w-[280px] sm:max-w-[340px] md:max-w-[360px] flex items-center justify-center mt-2 sm:mt-4 md:mt-6 mb-2 min-h-0 relative z-10">
+        <div className="flex-grow w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center mt-2 sm:mt-4 md:mt-6 mb-2 min-h-0 relative z-10">
           <motion.div 
             className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-transparent group flex items-center justify-center"
             style={{
