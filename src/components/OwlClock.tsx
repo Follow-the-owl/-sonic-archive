@@ -733,14 +733,16 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
 
         {/* 3. ELEGANT WRITEUP: RECOVER A FRAGMENT FROM TIME */}
         <div className="w-full flex flex-col items-center gap-2 z-20 pb-2 pointer-events-none">
-          <motion.h2
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.5, delay: 0.2 }}
-            className="text-[10px] sm:text-[11px] md:text-[12px] font-bold tracking-[0.35em] sm:tracking-[0.45em] text-[#D9D6CA] uppercase font-mono text-center select-none whitespace-nowrap"
+            className="w-full flex items-center justify-center"
           >
-            RECOVER A FRAGMENT FROM TIME
-          </motion.h2>
+            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] font-bold tracking-[0.35em] sm:tracking-[0.45em] text-white uppercase font-mono text-center select-none whitespace-nowrap">
+              RECOVER A FRAGMENT FROM TIME
+            </h2>
+          </motion.div>
 
           {/* Hairline spacer with central hollow ring target */}
           <motion.div 
@@ -749,19 +751,19 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             transition={{ duration: 1.8, delay: 0.5 }}
             className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
           >
-            <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-[#D9D6CA]/30" />
-            {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing */}
+            <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-white/20" />
+            {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing in vivid red */}
             <motion.svg
               viewBox="0 0 12 12"
-              className="w-[11px] h-[11px] text-[#D9D6CA] flex-shrink-0"
+              className="w-[11px] h-[11px] text-red-500 flex-shrink-0"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
               animate={{
                 opacity: [0.35, 1, 0.35],
                 filter: [
-                  "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
-                  "drop-shadow(0 0 4px rgba(217, 214, 202, 0.85))",
-                  "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                  "drop-shadow(0 0 0px rgba(239, 68, 68, 0))",
+                  "drop-shadow(0 0 5px rgba(239, 68, 68, 0.85))",
+                  "drop-shadow(0 0 0px rgba(239, 68, 68, 0))"
                 ],
                 scale: [0.95, 1.08, 0.95]
               }}
@@ -773,7 +775,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             >
               <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
             </motion.svg>
-            <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-[#D9D6CA]/30" />
+            <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-white/20" />
           </motion.div>
         </div>
       </div>

@@ -323,99 +323,61 @@ export default function App() {
 
             {/* STEP 11: Minimal Footer */}
             {!(activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive) && (
-              <footer id="site-footer" className="bg-[#020202] border-t border-zinc-900 py-16 px-4 md:px-8 mt-12 select-none">
-              <div className="max-w-6xl mx-auto grid md:grid-cols-12 gap-10">
-                
-                {/* Left logo identity column */}
-                <div id="footer-branding" className="md:col-span-5 space-y-4 text-center md:text-left">
-                  <div className="relative group inline-block select-none cursor-pointer" onClick={() => {
-                    setActiveTab("The Owl Clock");
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}>
-                    <div className="absolute inset-0 blur-[2px] opacity-20 text-white font-display text-xl tracking-[0.25em]">THE OWL CLOCK</div>
-                    <h3 className="text-xl font-display font-bold tracking-[0.25em] text-white uppercase leading-none">
-                      THE OWL CLOCK
-                    </h3>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-zinc-400 font-sans tracking-wide font-light">
-                      A Cinematic Sonic Archive
-                    </p>
-                    <p className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase">
-                      Guarded By The Owl
-                    </p>
-                  </div>
-                  <button 
-                    id="footer-owl-motive" 
-                    onClick={playOwlResonance}
-                    className="text-[10px] font-mono text-zinc-500 hover:text-white hover:border-[#D9D6CA] tracking-[0.3em] uppercase flex items-center justify-center md:justify-start gap-2 pt-2 transition-colors cursor-pointer border border-zinc-900 bg-neutral-950 px-3.5 py-2 rounded-none max-w-fit mx-auto md:mx-0 duration-300"
-                    title="Emit Sentinel Call"
-                  >
-                    <span>🦉 Follow the Owl</span>
-                  </button>
+              <footer id="site-footer" className="bg-black py-16 px-4 select-none flex flex-col items-center justify-center">
+                {/* Upper line decoration */}
+                <div className="flex items-center justify-center gap-3 w-full max-w-[320px] sm:max-w-[420px] mx-auto opacity-20 mb-8">
+                  <div className="h-[1px] flex-grow bg-zinc-650" />
+                  <div className="h-[1px] w-5 bg-zinc-500" />
+                  <div className="h-[1px] flex-grow bg-zinc-650" />
                 </div>
 
-                {/* Right Links Directory */}
-                <div className="md:col-span-7 grid grid-cols-2 gap-8 text-[10px] font-mono text-center sm:text-left">
-                  {/* Local Directory */}
-                  <div className="space-y-4">
-                    <span className="text-neutral-600 uppercase tracking-widest block font-bold">ARCHIVE SECTIONS</span>
-                    <ul className="space-y-2 uppercase tracking-wide text-zinc-500">
-                      <li>
-                        <button onClick={() => setActiveTab("The Owl Clock")} className="hover:text-[#D9D6CA] cursor-pointer transition-colors">THE OWL CLOCK</button>
-                      </li>
-                      <li>
-                        <button onClick={() => setActiveTab("The Observatory")} className="hover:text-[#D9D6CA] cursor-pointer transition-colors">THE OBSERVATORY</button>
-                      </li>
-                      <li>
-                        <button onClick={() => setActiveTab("The Midnight Journal")} className="hover:text-[#D9D6CA] cursor-pointer transition-colors">MIDNIGHT JOURNAL</button>
-                      </li>
-                      <li>
-                        <button onClick={() => setActiveTab("The Signal Tower")} className="hover:text-[#D9D6CA] cursor-pointer transition-colors">SIGNAL TOWER</button>
-                      </li>
-                    </ul>
-                  </div>
+                {/* Main Content: TRANSMISSIONS */}
+                <div className="text-center font-mono space-y-4 tracking-[0.25em]">
+                  <span className="text-zinc-500 uppercase font-bold text-[10px] sm:text-[11px] block select-none">
+                    TRANSMISSIONS
+                  </span>
+                  
+                  <div className="flex flex-col items-center gap-4 text-[10.5px] sm:text-[11.5px] font-bold text-zinc-400">
+                    <a 
+                      id="link-instagram"
+                      href="https://instagram.com" 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1.5 cursor-pointer uppercase"
+                    >
+                      <span>INSTAGRAM</span>
+                      <span className="text-zinc-600 text-[9px]">↗</span>
+                    </a>
 
-                  {/* External socials / links directory */}
-                  <div className="space-y-4 col-span-2 sm:col-span-1">
-                    <span className="text-neutral-600 uppercase tracking-widest block font-bold">CONNECTIONS</span>
-                    <ul className="space-y-2 tracking-widest text-neutral-400 flex flex-col items-center sm:items-start text-zinc-500">
-                      <li>
-                        <a 
-                          id="link-tiktok"
-                          href="https://tiktok.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>TIKTOK</span>
-                          <ArrowUpRight size={10} className="text-neutral-800" />
-                        </a>
-                      </li>
-                      <li>
-                        <a 
-                          id="link-instagram"
-                          href="https://instagram.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>INSTAGRAM</span>
-                          <ArrowUpRight size={10} className="text-neutral-800" />
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
+                    <a 
+                      id="link-tiktok"
+                      href="https://tiktok.com" 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1.5 cursor-pointer uppercase"
+                    >
+                      <span>TIKTOK</span>
+                      <span className="text-zinc-600 text-[9px]">↗</span>
+                    </a>
 
+                    <a 
+                      id="link-email"
+                      href="mailto:vault@credentials.local" 
+                      className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1.5 cursor-pointer uppercase"
+                    >
+                      <span>EMAIL</span>
+                      <span className="text-zinc-600 text-[9px]">↗</span>
+                    </a>
+                  </div>
                 </div>
-              </div>
 
-              {/* Bottom Copyright stamp */}
-              <div className="max-w-6xl mx-auto border-t border-zinc-950 mt-16 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[9px] text-zinc-700">
-                <span>© {new Date().getFullYear()} FOLLOW THE OWL. ALL CHRONOLOGIES SECURED.</span>
-                <span className="tracking-[0.14em]">OWNERSHIP LICENSES SECURED BY GLOBAL CHRONOLOGY METRIC</span>
-              </div>
-            </footer>
+                {/* Lower line decoration */}
+                <div className="flex items-center justify-center gap-3 w-full max-w-[320px] sm:max-w-[420px] mx-auto opacity-20 mt-10">
+                  <div className="h-[1px] flex-grow bg-zinc-650" />
+                  <div className="h-[1px] w-5 bg-zinc-500" />
+                  <div className="h-[1px] flex-grow bg-zinc-650" />
+                </div>
+              </footer>
             )}
 
             {/* Cart Popover Dropdown (Matches user mockup design exactly) */}
