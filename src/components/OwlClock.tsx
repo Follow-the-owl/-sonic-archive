@@ -702,7 +702,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         </div>
 
         {/* Beautiful full-bleed, organic Owl image, blended seamlessly to the dark background */}
-        <div className="flex-grow w-full max-w-[480px] sm:max-w-[560px] md:max-w-[620px] flex items-center justify-center py-2 min-h-0 relative z-10">
+        <div className="flex-grow w-full max-w-[480px] sm:max-w-[560px] md:max-w-[620px] flex items-center justify-center -mt-16 sm:-mt-26 md:-mt-32 mb-1 min-h-0 relative z-10">
           <motion.div 
             className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-transparent group flex items-center justify-center"
             style={{
@@ -737,7 +737,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.5, delay: 0.2 }}
-            className="text-[12px] sm:text-[13px] md:text-[14px] font-bold tracking-[0.65em] text-[#D9D6CA] uppercase font-mono text-center select-none"
+            className="text-[10px] sm:text-[11px] md:text-[12px] font-bold tracking-[0.35em] sm:tracking-[0.45em] text-[#D9D6CA] uppercase font-mono text-center select-none whitespace-nowrap"
           >
             RECOVER A FRAGMENT FROM TIME
           </motion.h2>
