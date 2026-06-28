@@ -107,8 +107,8 @@ interface WheelDrumProps {
 function WheelDrum({ value, options, onChange, format = (v) => String(v), loop = true }: WheelDrumProps) {
   const selectedIndex = options.indexOf(value);
   const currentIdx = selectedIndex === -1 ? 0 : selectedIndex;
-  const itemHeight = 36;
-  const radius = 55;
+  const itemHeight = 44;
+  const radius = 70;
 
   const [localOffset, setLocalOffset] = useState(0);
   const dragStartY = useRef(0);
@@ -189,16 +189,9 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
       }}
       onMouseUp={endDrag}
       onMouseLeave={endDrag}
-      className="relative h-32 w-14 flex items-center justify-center overflow-hidden cursor-ns-resize select-none touch-none"
+      className="relative h-44 w-20 sm:w-24 flex items-center justify-center overflow-hidden cursor-ns-resize select-none touch-none"
       style={{ perspective: "1000px" }}
     >
-      {/* Visual top and bottom gradient shading */}
-      <div className="absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none z-20" />
-      <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-20" />
-      
-      {/* Target focus selection frame */}
-      <div className="absolute top-[46px] bottom-[46px] inset-x-0 border-y border-[#D9D6CA]/20 pointer-events-none z-10 bg-[#D9D6CA]/5" />
-
       {/* Rotating drum list */}
       <div 
         className="relative w-full h-full flex items-center justify-center"
@@ -216,8 +209,8 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
 
           if (Math.abs(diff) > 2.5) return null;
 
-          const angle = diff * 26;
-          const opacity = Math.max(0.12, 1 - Math.abs(diff) * 0.4);
+          const angle = diff * 28;
+          const opacity = Math.max(0.12, 1 - Math.abs(diff) * 0.42);
           const scale = 1 - Math.abs(diff) * 0.08;
 
           return (
@@ -226,8 +219,8 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
               onClick={() => handleItemClick(idx)}
               className={`absolute text-center select-none font-mono cursor-pointer transition-colors duration-150 ${
                 Math.abs(diff) < 0.4 
-                  ? "text-white font-bold text-2xl sm:text-3xl drop-shadow-[0_0_6px_rgba(217,214,202,0.4)]" 
-                  : "text-[#D9D6CA]/25 text-lg sm:text-xl"
+                  ? "text-white font-bold text-3xl sm:text-4xl drop-shadow-[0_0_8px_rgba(217,214,202,0.5)]" 
+                  : "text-[#D9D6CA]/15 text-xl sm:text-2xl"
               }`}
               style={{
                 transform: `rotateX(${-angle}deg) translateZ(${radius}px)`,
@@ -354,9 +347,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(null);
   const [isManual, setIsManual] = useState<boolean>(false);
   const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("idle");
-
-  // Tactile drag calibration state
-  const ribbonDragStartRef = useRef<{ x: number; totalMinutes: number } | null>(null);
 
   const handleAcquireLicense = (e: React.FormEvent) => {
     e.preventDefault();
@@ -522,42 +512,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     playTickSound("high");
   };
 
-  // Tactile Ribbon Scroll Handlers (Apple Crown / Bezel Simulation)
-  const handleRibbonTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    setIsManual(true);
-    setCalibrationState("idle");
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const currentTotalMinutes = displayHour * 60 + displayMinute + (displayAMPM === "PM" ? 720 : 0);
-    ribbonDragStartRef.current = { x: clientX, totalMinutes: currentTotalMinutes };
-  };
-
-  const handleRibbonTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!ribbonDragStartRef.current) return;
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const deltaX = clientX - ribbonDragStartRef.current.x;
-    const stepSize = 8; // 8 pixels of horizontal swipe equals 1 minute shift
-    const steps = Math.round(deltaX / stepSize);
-    if (steps !== 0) {
-      const nextTotalMinutes = (ribbonDragStartRef.current.totalMinutes + steps + 1440) % 1440;
-      const newHour24 = Math.floor(nextTotalMinutes / 60);
-      const newMin = nextTotalMinutes % 60;
-      const ampm = newHour24 >= 12 ? "PM" : "AM";
-      const h12 = newHour24 % 12;
-
-      if (h12 !== displayHour || newMin !== displayMinute || ampm !== displayAMPM) {
-        setPickedHour(h12);
-        setPickedMinute(newMin);
-        setPickedAMPM(ampm);
-        playTickSound(newMin % 5 === 0 ? "low" : "high");
-        ribbonDragStartRef.current.x += steps * stepSize;
-      }
-    }
-  };
-
-  const handleRibbonTouchEnd = () => {
-    ribbonDragStartRef.current = null;
-  };
-
   // Find the closest fragment circular in time (1440 minutes)
   const getFragmentCloseness = (item: ClockFragment, h: number, m: number, ampm: "AM" | "PM") => {
     const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
@@ -662,7 +616,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           
           <div 
             onClick={handleImmediateCheck}
-            className="relative w-full max-w-[260px] flex items-center justify-center gap-1 sm:gap-2 font-mono select-none overflow-hidden py-1.5 cursor-pointer"
+            className="relative w-full max-w-[320px] sm:max-w-[380px] flex items-center justify-center gap-2 sm:gap-4 font-mono select-none overflow-hidden py-1.5 cursor-pointer"
           >
             {/* Column 1: HOUR WHEEL DRUM */}
             <WheelDrum 
@@ -674,8 +628,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             />
 
             {/* Separator: Colon */}
-            <div className="flex flex-col items-center justify-center h-32 text-center select-none w-4 z-10">
-              <div className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center">:</div>
+            <div className="flex flex-col items-center justify-center h-44 text-center select-none w-4 z-10">
+              <div className="text-white font-bold text-3xl sm:text-4xl h-8 flex items-center justify-center drop-shadow-[0_0_8px_rgba(217,214,202,0.5)] animate-pulse">:</div>
             </div>
 
             {/* Column 2: MINUTE WHEEL DRUM */}
@@ -697,56 +651,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             />
           </div>
 
-          {/* TACTILE BEZEL CALIBRATION RIBBON (Apple Crown / Ruler Simulation) */}
-          <div className="w-full max-w-[280px] mt-1 mb-2.5 flex flex-col items-center select-none relative z-30">
-            <span className="text-[8px] font-mono tracking-[0.25em] text-[#D9D6CA]/30 uppercase mb-1.5">BEZEL CALIBRATION DIAL</span>
-            <div 
-              onMouseDown={(e) => handleRibbonTouchStart(e)}
-              onMouseMove={(e) => handleRibbonTouchMove(e)}
-              onMouseUp={handleRibbonTouchEnd}
-              onMouseLeave={handleRibbonTouchEnd}
-              onTouchStart={(e) => handleRibbonTouchStart(e)}
-              onTouchMove={(e) => handleRibbonTouchMove(e)}
-              onTouchEnd={handleRibbonTouchEnd}
-              className="relative w-full h-9 border border-zinc-900/80 bg-zinc-950/60 rounded-md flex items-center justify-center cursor-ew-resize overflow-hidden shadow-inner"
-            >
-              {/* Left/Right ambient fades */}
-              <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none z-10" />
-              <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black via-black/60 to-transparent pointer-events-none z-10" />
-              
-              {/* Sliding notch ticks */}
-              <div className="flex gap-[6px] items-center justify-center h-full opacity-65 pointer-events-none">
-                {Array.from({ length: 27 }).map((_, idx) => {
-                  const tickOffset = idx - 13;
-                  const currentTickMin = (displayMinute + tickOffset + 60) % 60;
-                  const isMajor = currentTickMin % 5 === 0;
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`w-[1px] transition-all duration-100 ${
-                        tickOffset === 0 
-                          ? "h-5 bg-[#D9D6CA] w-[1.5px] shadow-[0_0_8px_rgba(217,214,202,0.8)]" 
-                          : isMajor 
-                            ? "h-3.5 bg-[#D9D6CA]/45" 
-                            : "h-2 bg-zinc-800"
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Center target cursor */}
-              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] bg-[#D9D6CA] shadow-[0_0_6px_rgba(217,214,202,0.9)] pointer-events-none z-20" />
-            </div>
-            <div className="w-full flex justify-between text-[7px] font-mono text-[#D9D6CA]/30 px-1 mt-1">
-              <span>- SUB 15M</span>
-              <span className="text-[#D9D6CA]/40 font-bold tracking-widest uppercase">DRAG LEFT OR RIGHT TO ADJUST</span>
-              <span>+ ADD 15M</span>
-            </div>
-          </div>
-
           {/* Action indicator - extremely minimal */}
-          <div className="mt-1 w-full max-w-[280px] h-[36px] flex items-center justify-center">
+          <div className="mt-2 w-full max-w-[280px] h-[36px] flex items-center justify-center">
             {calibrationState === "available" && (
               <button
                 onClick={handleTransmit}
