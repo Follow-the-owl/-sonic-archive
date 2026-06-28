@@ -461,31 +461,31 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   return (
     <div
       id="owl-clock-stage"
-      className="relative w-full min-h-screen bg-black text-[#D9D6CA] flex flex-col justify-start items-center pt-8 pb-16 sm:pt-12 px-4 select-none overflow-hidden"
+      className="relative w-full h-full bg-black text-[#D9D6CA] flex flex-col justify-between items-center px-4 py-2 select-none overflow-hidden"
     >
       {/* 1. Subtle global focus vignette */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,10,12,0.15)_0%,rgba(0,0,0,1)_80%)] pointer-events-none z-0" />
 
       {/* 2. THE MAIN WRAPPER */}
-      <div className="relative w-full max-w-xl z-10 mx-auto flex flex-col items-center">
+      <div className="relative w-full max-w-xl h-full z-10 mx-auto flex flex-col items-center justify-between min-h-0 py-1">
         
         {/* CLOCK WHEEL SELECTOR SECTION - EXACTLY LIKE ATTACHED IMAGE */}
-        <div className="w-full flex flex-col items-center mb-6 relative z-20">
+        <div className="w-full flex flex-col items-center relative z-20">
           
           <div 
             onClick={handleImmediateCheck}
-            className="relative w-full max-w-[260px] flex items-center justify-center gap-4 sm:gap-6 font-mono select-none overflow-hidden py-3 cursor-pointer"
+            className="relative w-full max-w-[260px] flex items-center justify-center gap-4 sm:gap-6 font-mono select-none overflow-hidden py-1.5 cursor-pointer"
           >
             {/* Column 1: HOUR */}
             <div 
               onWheel={handleScrollHour}
-              className="flex flex-col items-center justify-center h-24 text-center cursor-ns-resize z-10 w-12"
+              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12"
             >
               {/* Prev Hour */}
               <button
                 type="button"
                 onClick={(e) => handleHourClick(prevHour, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
               >
                 {fmt(prevHour)}
               </button>
@@ -505,7 +505,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center tracking-wide select-none font-mono"
+                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono"
               >
                 {fmt(displayHour)}
               </motion.div>
@@ -513,15 +513,15 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               <button
                 type="button"
                 onClick={(e) => handleHourClick(nextHour, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
               >
                 {fmt(nextHour)}
               </button>
             </div>
 
             {/* Separator: Colon */}
-            <div className="flex flex-col items-center justify-center h-24 text-center z-10 select-none w-4">
-              <div className="text-transparent h-7 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
+            <div className="flex flex-col items-center justify-center h-20 text-center z-10 select-none w-4">
+              <div className="text-transparent h-6 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
               <motion.div
                 animate={{
                   opacity: [0.65, 1, 0.65],
@@ -537,23 +537,23 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center"
+                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center"
               >
                 :
               </motion.div>
-              <div className="text-transparent h-7 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
+              <div className="text-transparent h-6 flex items-center justify-center select-none text-lg sm:text-xl">:</div>
             </div>
 
             {/* Column 2: MINUTE */}
             <div 
               onWheel={handleScrollMinute}
-              className="flex flex-col items-center justify-center h-24 text-center cursor-ns-resize z-10 w-12"
+              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12"
             >
               {/* Prev Minute */}
               <button
                 type="button"
                 onClick={(e) => handleMinuteClick(prevMinute, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
               >
                 {fmt(prevMinute)}
               </button>
@@ -573,7 +573,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="text-white font-bold text-2xl sm:text-3xl h-10 flex items-center justify-center tracking-wide select-none font-mono"
+                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono"
               >
                 {fmt(displayMinute)}
               </motion.div>
@@ -581,7 +581,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               <button
                 type="button"
                 onClick={(e) => handleMinuteClick(nextMinute, e)}
-                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-7 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+                className="text-[#D9D6CA]/15 text-lg sm:text-xl h-6 flex items-center justify-center transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
               >
                 {fmt(nextMinute)}
               </button>
@@ -590,13 +590,13 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             {/* Column 3: MERIDIEM (AM/PM) */}
             <div 
               onWheel={handleScrollAMPM}
-              className="flex flex-col items-center justify-center h-24 text-center cursor-ns-resize z-10 w-16"
+              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-16"
             >
               {/* Prev AM/PM */}
               <button
                 type="button"
                 onClick={(e) => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM", e)}
-                className="text-[#D9D6CA]/15 text-sm sm:text-base h-7 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+                className="text-[#D9D6CA]/15 text-sm sm:text-base h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
               >
                 {displayAMPM === "AM" ? "PM" : "AM"}
               </button>
@@ -616,7 +616,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="text-white font-bold text-xl sm:text-2xl h-10 flex items-center justify-center tracking-wider select-none font-mono"
+                className="text-white font-bold text-xl sm:text-2xl h-8 flex items-center justify-center tracking-wider select-none font-mono"
               >
                 {displayAMPM}
               </motion.div>
@@ -624,7 +624,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               <button
                 type="button"
                 onClick={(e) => handleAMPMClick(displayAMPM === "AM" ? "PM" : "AM", e)}
-                className="text-[#D9D6CA]/15 text-sm sm:text-base h-7 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
+                className="text-[#D9D6CA]/15 text-sm sm:text-base h-6 flex items-center justify-center tracking-wider transition-all duration-300 hover:text-[#D9D6CA]/50 bg-transparent border-0 outline-none cursor-pointer select-none font-mono"
               >
                 {displayAMPM === "AM" ? "PM" : "AM"}
               </button>
@@ -632,11 +632,11 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           </div>
 
           {/* Action indicator - extremely minimal */}
-          <div className="mt-2 w-full max-w-[280px] h-[48px] flex items-center justify-center">
+          <div className="mt-1 w-full max-w-[280px] h-[36px] flex items-center justify-center">
             {calibrationState === "available" && (
               <button
                 onClick={handleTransmit}
-                className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2.5 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(217,214,202,0.35)] flex items-center justify-center gap-1.5"
+                className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(217,214,202,0.35)] flex items-center justify-center gap-1.5"
               >
                 <span>TRANSMIT SIGNAL</span>
                 <span className="font-mono text-[9px]">&gt;</span>
@@ -651,44 +651,38 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           </div>
         </div>
 
-        {/* Parallax / Interactive Owl Body Background that encompasses head and buttons */}
-        <motion.div 
-          className="absolute top-44 sm:top-52 md:top-56 left-1/2 -translate-x-1/2 w-[340px] sm:w-[460px] md:w-[485px] h-[360px] sm:h-[480px] md:h-[510px] pointer-events-none z-0 overflow-hidden"
-          style={{
-            rotateX,
-            rotateY,
-            perspective: 1200
-          }}
-          animate={isHooting ? {
-            scale: [1, 1.02, 0.99, 1],
-            filter: ["brightness(1)", "brightness(1.15)", "brightness(1)"]
-          } : {}}
-          transition={{ duration: 0.8 }}
-        >
-          <img
-            src={owlBgImage}
-            alt="The Sentinel Owl"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover opacity-85 pointer-events-none select-none"
-          />
-          {/* Gradients to blend seamless with black background on all sides */}
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
-          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black to-transparent pointer-events-none" />
-          <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-black to-transparent pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-black to-transparent pointer-events-none" />
-        </motion.div>
-
-        {/* 2a. Interactive trigger box covering the upper section where the owl's head resides (placed with z-index behind cards) */}
-        <div
-          onClick={handleOwlCall}
-          className="absolute top-[220px] sm:top-[280px] left-1/2 -translate-x-1/2 w-[240px] h-[160px] cursor-pointer z-10"
-        />
-
-        {/* Clean Spacing */}
-        <div className="w-full z-10 mt-[260px] sm:mt-[320px]" />
+        {/* Beautiful framed Owl image in standard layout flow - no timer overlay! */}
+        <div className="flex-grow w-full max-w-[340px] sm:max-w-[420px] md:max-w-[480px] flex items-center justify-center py-2 min-h-0 relative z-10">
+          <motion.div 
+            className="w-full aspect-[16/10] relative rounded-xl border border-zinc-900/60 overflow-hidden cursor-pointer bg-black/40 group shadow-2xl flex items-center justify-center"
+            style={{
+              rotateX,
+              rotateY,
+              perspective: 1200
+            }}
+            onClick={handleOwlCall}
+            animate={isHooting ? {
+              scale: [1, 1.02, 0.99, 1],
+              filter: ["brightness(1)", "brightness(1.15)", "brightness(1)"]
+            } : {}}
+            transition={{ duration: 0.8 }}
+          >
+            <img
+              src={owlBgImage}
+              alt="The Sentinel Owl"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover opacity-85 pointer-events-none select-none animate-fade-in"
+            />
+            {/* Gradients to blend seamless with black background on all sides */}
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
+          </motion.div>
+        </div>
 
         {/* 3. ELEGANT WRITEUP: RECOVER A FRAGMENT FROM TIME */}
-        <div className="w-full flex flex-col items-center gap-4 z-20 mb-12 pointer-events-none">
+        <div className="w-full flex flex-col items-center gap-2 z-20 pb-2 pointer-events-none">
           <motion.h2
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

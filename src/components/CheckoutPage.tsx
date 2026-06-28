@@ -46,15 +46,15 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
 
   // Billing states
   const [isBusiness, setIsBusiness] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [firstName, setFirstName] = useState("John");
+  const [lastName, setLastName] = useState("Nwanne");
   const [email, setEmail] = useState("evianaconcepts1@gmail.com");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+234 803 123 4567");
   const [companyName, setCompanyName] = useState("");
-  const [streetAddress, setStreetAddress] = useState("");
-  const [aptNumber, setAptNumber] = useState("");
+  const [streetAddress, setStreetAddress] = useState("12 Broad Street");
+  const [aptNumber, setAptNumber] = useState("Suite 4B");
   const [city, setCity] = useState("Lagos");
-  const [zipCode, setZipCode] = useState("");
+  const [zipCode, setZipCode] = useState("100001");
   const [country, setCountry] = useState("Nigeria (NG)");
   const [stateProvince, setStateProvince] = useState("Lagos");
 
@@ -174,13 +174,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                       </h1>
                     </div>
 
-                    {/* Location bar */}
-                    <div className="flex items-center justify-between border border-zinc-900/40 bg-zinc-950/20 px-4 py-3 text-[10.5px] text-zinc-400">
-                      <span>Billing and licensing information</span>
-                      <span className="text-[#D9D6CA] font-bold flex items-center gap-1">
-                        , Lagos <ChevronDown size={11} />
-                      </span>
-                    </div>
+
 
                     {/* Cart Items list */}
                     {cart.length === 0 ? (
@@ -753,7 +747,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                     }}
                     className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[12px] sm:text-[13px] tracking-widest py-4 flex items-center justify-center transition-colors duration-200 rounded-[4px] cursor-pointer shadow-lg"
                   >
-                    PROCEED TO PAYMENT OPTIONS
+                    CHOOSE PAYMENT OPTIONS
                   </button>
                 )}
 

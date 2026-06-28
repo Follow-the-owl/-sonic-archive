@@ -143,7 +143,12 @@ export default function App() {
                 {/* Brand Logo & guide state */}
                 <div 
                   id="brand" 
-                  onClick={() => setActiveTab("The Owl Clock")}
+                  onClick={() => {
+                    setHasEntered(false);
+                    setSelectedFragment(null);
+                    setCheckoutActive(false);
+                    setActiveTab("The Owl Clock");
+                  }}
                   className="cursor-pointer space-y-1 group relative select-none"
                 >
                   <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-sm sm:text-lg tracking-[0.25em]">
@@ -276,7 +281,14 @@ export default function App() {
                 onAddToCart={handleAddToCart}
               />
             ) : (
-              <main id="stage" className="flex-grow py-8 md:py-16 relative px-4 bg-black">
+              <main 
+                id="stage" 
+                className={`flex-grow relative px-4 bg-black transition-all duration-300 ${
+                  activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive
+                    ? "py-2 sm:py-4 h-[calc(100vh-84px)] md:h-[calc(100vh-92px)] overflow-hidden flex flex-col justify-center items-center"
+                    : "py-8 md:py-16"
+                }`}
+              >
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeTab}
@@ -284,6 +296,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    className={activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive ? "w-full h-full flex flex-col justify-center items-center min-h-0" : ""}
                   >
                     {activeTab === "The Owl Clock" && (
                       <OwlClock 
@@ -309,7 +322,8 @@ export default function App() {
             {activeTab !== "The Owl Clock" && !selectedFragment && <AudioControllerWidget />}
 
             {/* STEP 11: Minimal Footer */}
-            <footer id="site-footer" className="bg-[#020202] border-t border-zinc-900 py-16 px-4 md:px-8 mt-12 select-none">
+            {!(activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive) && (
+              <footer id="site-footer" className="bg-[#020202] border-t border-zinc-900 py-16 px-4 md:px-8 mt-12 select-none">
               <div className="max-w-6xl mx-auto grid md:grid-cols-12 gap-10">
                 
                 {/* Left logo identity column */}
@@ -402,6 +416,7 @@ export default function App() {
                 <span className="tracking-[0.14em]">OWNERSHIP LICENSES SECURED BY GLOBAL CHRONOLOGY METRIC</span>
               </div>
             </footer>
+            )}
 
             {/* Cart Popover Dropdown (Matches user mockup design exactly) */}
             <AnimatePresence>
