@@ -107,8 +107,8 @@ interface WheelDrumProps {
 function WheelDrum({ value, options, onChange, format = (v) => String(v), loop = true }: WheelDrumProps) {
   const selectedIndex = options.indexOf(value);
   const currentIdx = selectedIndex === -1 ? 0 : selectedIndex;
-  const itemHeight = 44;
-  const radius = 70;
+  const itemHeight = 36;
+  const radius = 56;
 
   const [localOffset, setLocalOffset] = useState(0);
   const dragStartY = useRef(0);
@@ -189,7 +189,7 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
       }}
       onMouseUp={endDrag}
       onMouseLeave={endDrag}
-      className="relative h-44 w-20 sm:w-24 flex items-center justify-center overflow-hidden cursor-ns-resize select-none touch-none"
+      className="relative h-32 w-20 sm:w-24 flex items-center justify-center overflow-hidden cursor-ns-resize select-none touch-none"
       style={{ perspective: "1000px" }}
     >
       {/* Rotating drum list */}
@@ -219,8 +219,8 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
               onClick={() => handleItemClick(idx)}
               className={`absolute text-center select-none font-mono cursor-pointer transition-colors duration-150 ${
                 Math.abs(diff) < 0.4 
-                  ? "text-white font-bold text-3xl sm:text-4xl drop-shadow-[0_0_8px_rgba(217,214,202,0.5)]" 
-                  : "text-[#D9D6CA]/15 text-xl sm:text-2xl"
+                  ? "text-white font-bold text-2xl sm:text-3xl drop-shadow-[0_0_8px_rgba(217,214,202,0.5)]" 
+                  : "text-[#D9D6CA]/15 text-lg sm:text-xl"
               }`}
               style={{
                 transform: `rotateX(${-angle}deg) translateZ(${radius}px)`,
@@ -642,11 +642,11 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
       <div className="relative w-full max-w-xl h-full z-10 mx-auto flex flex-col items-center justify-between min-h-0 py-1">
         
         {/* CLOCK WHEEL SELECTOR SECTION - EXACTLY LIKE ATTACHED IMAGE */}
-        <div className="w-full flex flex-col items-center relative z-20">
+        <div className="w-full flex flex-col items-center relative z-20 pt-2 sm:pt-4 md:pt-6">
           
           <div 
             onClick={handleImmediateCheck}
-            className="relative w-full max-w-[320px] sm:max-w-[380px] flex items-center justify-center gap-2 sm:gap-4 font-mono select-none overflow-hidden py-1.5 cursor-pointer"
+            className="relative w-full max-w-[320px] sm:max-w-[380px] flex items-center justify-center gap-2 sm:gap-4 font-mono select-none overflow-hidden py-1 cursor-pointer"
           >
             {/* Column 1: HOUR WHEEL DRUM */}
             <WheelDrum 
@@ -658,8 +658,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             />
 
             {/* Separator: Colon */}
-            <div className="flex flex-col items-center justify-center h-44 text-center select-none w-4 z-10">
-              <div className="text-white font-bold text-3xl sm:text-4xl h-8 flex items-center justify-center drop-shadow-[0_0_8px_rgba(217,214,202,0.5)] animate-pulse">:</div>
+            <div className="flex flex-col items-center justify-center h-32 text-center select-none w-4 z-10">
+              <div className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center drop-shadow-[0_0_8px_rgba(217,214,202,0.5)] animate-pulse">:</div>
             </div>
 
             {/* Column 2: MINUTE WHEEL DRUM */}
@@ -682,7 +682,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           </div>
 
           {/* Action indicator - extremely minimal */}
-          <div className="mt-2 w-full max-w-[280px] h-[36px] flex items-center justify-center">
+          <div className="mt-1 w-full max-w-[280px] h-[36px] flex items-center justify-center">
             {calibrationState === "available" && (
               <button
                 onClick={handleTransmit}
@@ -702,7 +702,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         </div>
 
         {/* Beautiful full-bleed, organic Owl image, blended seamlessly to the dark background */}
-        <div className="flex-grow w-full max-w-[480px] sm:max-w-[560px] md:max-w-[620px] flex items-center justify-center -mt-16 sm:-mt-26 md:-mt-32 mb-1 min-h-0 relative z-10">
+        <div className="flex-grow w-full max-w-[280px] sm:max-w-[340px] md:max-w-[360px] flex items-center justify-center mt-2 sm:mt-4 md:mt-6 mb-2 min-h-0 relative z-10">
           <motion.div 
             className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-transparent group flex items-center justify-center"
             style={{
