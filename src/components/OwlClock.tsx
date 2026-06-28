@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
-import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance, playCalibrationDenied, playCalibrationSuccess } from "../audio";
+import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance, playCalibrationDenied, playCalibrationSuccess, playTickSound } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
@@ -203,6 +203,10 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const [isManual, setIsManual] = useState<boolean>(false);
   const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("idle");
 
+  // Tactile drag calibration state
+  const dragStartRef = useRef<{ y: number; val: number } | null>(null);
+  const ribbonDragStartRef = useRef<{ x: number; totalMinutes: number } | null>(null);
+
   const handleAcquireLicense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientEmail) return;
@@ -378,6 +382,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setIsManual(true);
     setCalibrationState("idle");
     setPickedHour(h);
+    playTickSound("high");
   };
 
   const handleMinuteClick = (m: number, e?: React.MouseEvent) => {
@@ -385,6 +390,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setIsManual(true);
     setCalibrationState("idle");
     setPickedMinute(m);
+    playTickSound("low");
   };
 
   const handleAMPMClick = (ampm: "AM" | "PM", e?: React.MouseEvent) => {
@@ -392,6 +398,83 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setIsManual(true);
     setCalibrationState("idle");
     setPickedAMPM(ampm);
+    playTickSound("high");
+  };
+
+  // Tactile Direct Digit Drag Handlers
+  const handleDigitTouchStart = (e: React.TouchEvent | React.MouseEvent, type: "hour" | "minute") => {
+    setIsManual(true);
+    setCalibrationState("idle");
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const startVal = type === "hour" ? displayHour : displayMinute;
+    dragStartRef.current = { y: clientY, val: startVal };
+  };
+
+  const handleDigitTouchMove = (e: React.TouchEvent | React.MouseEvent, type: "hour" | "minute") => {
+    if (!dragStartRef.current) return;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const deltaY = dragStartRef.current.y - clientY;
+    const stepSize = 12; // pixels per increment
+    const steps = Math.round(deltaY / stepSize);
+    if (steps !== 0) {
+      if (type === "hour") {
+        let next = (dragStartRef.current.val + steps) % 12;
+        if (next < 0) next += 12;
+        if (next !== displayHour) {
+          setPickedHour(next);
+          playTickSound(next % 3 === 0 ? "low" : "high");
+          dragStartRef.current.y -= steps * stepSize;
+        }
+      } else {
+        let next = (dragStartRef.current.val + steps) % 60;
+        if (next < 0) next += 60;
+        if (next !== displayMinute) {
+          setPickedMinute(next);
+          playTickSound(next % 5 === 0 ? "low" : "high");
+          dragStartRef.current.y -= steps * stepSize;
+        }
+      }
+    }
+  };
+
+  const handleDigitTouchEnd = () => {
+    dragStartRef.current = null;
+  };
+
+  // Tactile Ribbon Scroll Handlers (Apple Crown / Bezel Simulation)
+  const handleRibbonTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    setIsManual(true);
+    setCalibrationState("idle");
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const currentTotalMinutes = displayHour * 60 + displayMinute + (displayAMPM === "PM" ? 720 : 0);
+    ribbonDragStartRef.current = { x: clientX, totalMinutes: currentTotalMinutes };
+  };
+
+  const handleRibbonTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!ribbonDragStartRef.current) return;
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const deltaX = clientX - ribbonDragStartRef.current.x;
+    const stepSize = 8; // 8 pixels of horizontal swipe equals 1 minute shift
+    const steps = Math.round(deltaX / stepSize);
+    if (steps !== 0) {
+      const nextTotalMinutes = (ribbonDragStartRef.current.totalMinutes + steps + 1440) % 1440;
+      const newHour24 = Math.floor(nextTotalMinutes / 60);
+      const newMin = nextTotalMinutes % 60;
+      const ampm = newHour24 >= 12 ? "PM" : "AM";
+      const h12 = newHour24 % 12;
+
+      if (h12 !== displayHour || newMin !== displayMinute || ampm !== displayAMPM) {
+        setPickedHour(h12);
+        setPickedMinute(newMin);
+        setPickedAMPM(ampm);
+        playTickSound(newMin % 5 === 0 ? "low" : "high");
+        ribbonDragStartRef.current.x += steps * stepSize;
+      }
+    }
+  };
+
+  const handleRibbonTouchEnd = () => {
+    ribbonDragStartRef.current = null;
   };
 
   // Find the closest fragment circular in time (1440 minutes)
@@ -503,7 +586,14 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             {/* Column 1: HOUR */}
             <div 
               onWheel={handleScrollHour}
-              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12"
+              onMouseDown={(e) => handleDigitTouchStart(e, "hour")}
+              onMouseMove={(e) => handleDigitTouchMove(e, "hour")}
+              onMouseUp={handleDigitTouchEnd}
+              onMouseLeave={handleDigitTouchEnd}
+              onTouchStart={(e) => handleDigitTouchStart(e, "hour")}
+              onTouchMove={(e) => handleDigitTouchMove(e, "hour")}
+              onTouchEnd={handleDigitTouchEnd}
+              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12 select-none"
             >
               {/* Prev Hour */}
               <button
@@ -529,7 +619,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono"
+                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono pointer-events-none"
               >
                 {fmt(displayHour)}
               </motion.div>
@@ -571,7 +661,14 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             {/* Column 2: MINUTE */}
             <div 
               onWheel={handleScrollMinute}
-              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12"
+              onMouseDown={(e) => handleDigitTouchStart(e, "minute")}
+              onMouseMove={(e) => handleDigitTouchMove(e, "minute")}
+              onMouseUp={handleDigitTouchEnd}
+              onMouseLeave={handleDigitTouchEnd}
+              onTouchStart={(e) => handleDigitTouchStart(e, "minute")}
+              onTouchMove={(e) => handleDigitTouchMove(e, "minute")}
+              onTouchEnd={handleDigitTouchEnd}
+              className="flex flex-col items-center justify-center h-20 text-center cursor-ns-resize z-10 w-12 select-none"
             >
               {/* Prev Minute */}
               <button
@@ -597,7 +694,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono"
+                className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center tracking-wide select-none font-mono pointer-events-none"
               >
                 {fmt(displayMinute)}
               </motion.div>
@@ -652,6 +749,54 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               >
                 {displayAMPM === "AM" ? "PM" : "AM"}
               </button>
+            </div>
+          </div>
+
+          {/* TACTILE BEZEL CALIBRATION RIBBON (Apple Crown / Ruler Simulation) */}
+          <div className="w-full max-w-[280px] mt-1 mb-2.5 flex flex-col items-center select-none relative z-30">
+            <span className="text-[8px] font-mono tracking-[0.25em] text-[#D9D6CA]/30 uppercase mb-1.5">BEZEL CALIBRATION DIAL</span>
+            <div 
+              onMouseDown={(e) => handleRibbonTouchStart(e)}
+              onMouseMove={(e) => handleRibbonTouchMove(e)}
+              onMouseUp={handleRibbonTouchEnd}
+              onMouseLeave={handleRibbonTouchEnd}
+              onTouchStart={(e) => handleRibbonTouchStart(e)}
+              onTouchMove={(e) => handleRibbonTouchMove(e)}
+              onTouchEnd={handleRibbonTouchEnd}
+              className="relative w-full h-9 border border-zinc-900/80 bg-zinc-950/60 rounded-md flex items-center justify-center cursor-ew-resize overflow-hidden shadow-inner"
+            >
+              {/* Left/Right ambient fades */}
+              <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none z-10" />
+              <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black via-black/60 to-transparent pointer-events-none z-10" />
+              
+              {/* Sliding notch ticks */}
+              <div className="flex gap-[6px] items-center justify-center h-full opacity-65 pointer-events-none">
+                {Array.from({ length: 27 }).map((_, idx) => {
+                  const tickOffset = idx - 13;
+                  const currentTickMin = (displayMinute + tickOffset + 60) % 60;
+                  const isMajor = currentTickMin % 5 === 0;
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`w-[1px] transition-all duration-100 ${
+                        tickOffset === 0 
+                          ? "h-5 bg-[#D9D6CA] w-[1.5px] shadow-[0_0_8px_rgba(217,214,202,0.8)]" 
+                          : isMajor 
+                            ? "h-3.5 bg-[#D9D6CA]/45" 
+                            : "h-2 bg-zinc-800"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Center target cursor */}
+              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] bg-[#D9D6CA] shadow-[0_0_6px_rgba(217,214,202,0.9)] pointer-events-none z-20" />
+            </div>
+            <div className="w-full flex justify-between text-[7px] font-mono text-[#D9D6CA]/30 px-1 mt-1">
+              <span>- SUB 15M</span>
+              <span className="text-[#D9D6CA]/40 font-bold tracking-widest uppercase">DRAG LEFT OR RIGHT TO ADJUST</span>
+              <span>+ ADD 15M</span>
             </div>
           </div>
 

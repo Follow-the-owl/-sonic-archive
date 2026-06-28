@@ -1157,4 +1157,30 @@ export function playCalibrationSuccess() {
   });
 }
 
+export function playTickSound(type: "high" | "low" = "high") {
+  try {
+    initAudio();
+  } catch (e) {
+    return;
+  }
+  if (!audioCtx || !masterGain) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  
+  osc.type = "sine";
+  const freq = type === "high" ? 1800 : 1200;
+  osc.frequency.setValueAtTime(freq, now);
+  
+  gain.gain.setValueAtTime(0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+  
+  osc.connect(gain);
+  gain.connect(masterGain);
+  
+  osc.start(now);
+  osc.stop(now + 0.05);
+}
+
+
 
