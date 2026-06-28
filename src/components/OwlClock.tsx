@@ -32,19 +32,19 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
   },
   {
     id: "frag-2",
+    label: "FRAGMENT 07:46 AM",
+    mappedId: "07:46",
+    synthType: "pulse",
+    frequency: 329.63,
+    description: "Radioactive forest canopies. Outlaw radio transmission oscillating through early fog."
+  },
+  {
+    id: "frag-3",
     label: "FRAGMENT 02:17 AM",
     mappedId: "02:17",
     synthType: "keys",
     frequency: 293.66,
     description: "Cold copper shortwave signals found floating under the concrete radio tower shadow."
-  },
-  {
-    id: "frag-3",
-    label: "FRAGMENT 03:33 AM",
-    mappedId: "03:33",
-    synthType: "bell",
-    frequency: 220,
-    description: "High-energy industrial watch hour. Dark machine rumbles and hollow metal tolls."
   },
   {
     id: "frag-4",
@@ -56,19 +56,43 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
   },
   {
     id: "frag-5",
+    label: "FRAGMENT 03:33 AM",
+    mappedId: "03:33",
+    synthType: "bell",
+    frequency: 220,
+    description: "High-energy industrial watch hour. Dark machine rumbles and hollow metal tolls."
+  },
+  {
+    id: "frag-6",
+    label: "FRAGMENT 10:14 PM",
+    mappedId: "10:14",
+    synthType: "drone",
+    frequency: 98.0,
+    description: "Dark ambient sub-harmonic landscape reflecting security chambers and chrome steel finishes."
+  },
+  {
+    id: "frag-7",
     label: "FRAGMENT 11:28 PM",
-    mappedId: "12:00",
+    mappedId: "11:28",
     synthType: "drone",
     frequency: 196.0,
     description: "Chrono motorcycle anthem. Majestic tape-saturated synthesizer spanning miles of empty road."
   },
   {
-    id: "frag-6",
-    label: "FRAGMENT 01:44 AM",
-    mappedId: "09:05",
+    id: "frag-8",
+    label: "FRAGMENT 11:59 PM",
+    mappedId: "11:59",
+    synthType: "keys",
+    frequency: 440,
+    description: "A beautiful, decaying celestial chord sequence played on vintage magnetic tape reels."
+  },
+  {
+    id: "frag-9",
+    label: "FRAGMENT 11:28 PM",
+    mappedId: "11:28-alt",
     synthType: "noise",
     frequency: 164.81,
-    description: "Outlaw leather frequencies. Saturated analog tape-static pulsing like an idle engine hum."
+    description: "Saturated analog tape-static pulsing like a dark motorcycle rev. Raw and heavy."
   }
 ];
 
@@ -443,8 +467,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     }
   };
 
-  const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[1]; // fallback to 02:17 AM
-  const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS[1];
+  const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[2]; // fallback to 02:17 AM
+  const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS[2];
   const formattedTitle = matchedFrag.name.toUpperCase();
   const isPlayingBeat = !!activePlayId;
 

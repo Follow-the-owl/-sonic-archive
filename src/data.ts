@@ -60,15 +60,28 @@ export const FRAGMENTS: Fragment[] = [
   {
     id: "00:50",
     name: "DEEP IN THE WATER",
-    timestamp: "12:50 AM",
+    timestamp: "00:50 AM",
     classification: "THRESHOLD COIL",
     observation: "Registered in a submerged concrete chamber with heavy hydrostatic filters.",
     duration: "4:12",
-    description: "A slow, breathing analog sub-drone layered with tape dust and a recurring minor two-note theme, capturing the dark wet highway energy of Don's deep-space records.",
+    description: "A slow, breathing analog sub-drone layered with tape dust and a recurring minor two-note theme, capturing the dark wet highway energy of Don't Care deep-space records.",
     isExclusive: false,
     frequency: 110, // A2 (deep drone)
     synthType: "drone",
     bpm: 78
+  },
+  {
+    id: "07:46",
+    name: "BANDIT",
+    timestamp: "07:46 AM",
+    classification: "MOONLIT RUN",
+    observation: "Traced on empty Houston freeways. Motorcycle exhaust heat waves visible.",
+    duration: "3:50",
+    description: "A hyper-distorted analog tape-loop pulse that sounds like tires peeling on cold concrete. Brutal, rhythmic, and high-contrast.",
+    isExclusive: true,
+    frequency: 329.63, // E4
+    synthType: "pulse",
+    bpm: 160
   },
   {
     id: "02:17",
@@ -84,19 +97,6 @@ export const FRAGMENTS: Fragment[] = [
     bpm: 92
   },
   {
-    id: "03:33",
-    name: "OCTANE",
-    timestamp: "03:33 AM",
-    classification: "WATCH CORE",
-    observation: "The watch-owl guide is fully alert. Low-frequency exhaust vibrations recorded.",
-    duration: "5:45",
-    description: "High-energy, industrial-trap sub-bass synthetic grit combined with isolated hollow metal bell strikes. Mastered at 03:33 AM in cold vacuum chambers.",
-    isExclusive: false,
-    frequency: 220, // A3 (haunting bell)
-    synthType: "bell",
-    bpm: 140
-  },
-  {
     id: "05:58",
     name: "TORE UP",
     timestamp: "05:58 AM",
@@ -110,35 +110,22 @@ export const FRAGMENTS: Fragment[] = [
     bpm: 128
   },
   {
-    id: "07:44",
-    name: "BANDIT",
-    timestamp: "11:11 PM",
-    classification: "MOONLIT RUN",
-    observation: "Traced on empty Houston freeways. Motorcycle exhaust heat waves visible.",
-    duration: "3:50",
-    description: "A hyper-distorted analog tape-loop pulse that sounds like tires peeling on cold concrete. Brutal, rhythmic, and high-contrast.",
-    isExclusive: true,
-    frequency: 329.63, // E4
-    synthType: "pulse",
-    bpm: 160
-  },
-  {
-    id: "09:05",
-    name: "ATTITUDE",
-    timestamp: "01:05 AM",
-    classification: "SHADOW HARMONY",
-    observation: "Eerie low-RPM engine hum detected from the local Hardstone MC clubhouse.",
-    duration: "5:10",
-    description: "Saturated analog tape-static pulsing like a dark motorcycle rev, layered with a warning-buzz major fifth chord. Raw and heavy.",
-    isExclusive: false,
-    frequency: 164.81, // E3
-    synthType: "noise",
-    bpm: 85
-  },
-  {
-    id: "10:40",
-    name: "GLOCK",
+    id: "03:33",
+    name: "OCTANE",
     timestamp: "03:33 AM",
+    classification: "WATCH CORE",
+    observation: "The watch-owl guide is fully alert. Low-frequency exhaust vibrations recorded.",
+    duration: "5:45",
+    description: "High-energy, industrial-trap sub-bass synthetic grit combined with isolated hollow metal bell strikes. Mastered at 03:33 AM in cold vacuum chambers.",
+    isExclusive: false,
+    frequency: 220, // A3 (haunting bell)
+    synthType: "bell",
+    bpm: 140
+  },
+  {
+    id: "10:14",
+    name: "GLOCK",
+    timestamp: "10:14 PM",
     classification: "RESTLESS COID",
     observation: "Dynamic chamber echoes registered during heavy storm conditions.",
     duration: "4:32",
@@ -149,9 +136,22 @@ export const FRAGMENTS: Fragment[] = [
     bpm: 120
   },
   {
-    id: "11:11",
+    id: "11:28",
+    name: "HARDSTONE NATIONAL",
+    timestamp: "11:28 PM",
+    classification: "CHRONO ANTHEM",
+    observation: "Simultaneous signal broadcasted to all active members of the watch.",
+    duration: "5:00",
+    description: "A heavy, majestic ambient motorcycle synth-chorus spanning miles of empty asphalt. Cinematic, grand, and forever bound to the asphalt.",
+    isExclusive: true,
+    frequency: 196.0, // G3
+    synthType: "drone",
+    bpm: 120
+  },
+  {
+    id: "11:59",
     name: "LAST LAUGH",
-    timestamp: "11:11 AM",
+    timestamp: "11:59 PM",
     classification: "DEVIANT KEYS",
     observation: "Recorded during a temporary electrical blackout across the main signal tower.",
     duration: "8:11",
@@ -162,17 +162,17 @@ export const FRAGMENTS: Fragment[] = [
     bpm: 105
   },
   {
-    id: "12:00",
-    name: "HARDSTONE NATIONAL",
-    timestamp: "12:00 AM",
-    classification: "CHRONO ANTHEM",
-    observation: "Simultaneous signal broadcasted to all active members of the watch.",
-    duration: "5:00",
-    description: "A heavy, majestic ambient motorcycle synth-chorus spanning miles of empty asphalt. Cinematic, grand, and forever bound to the asphalt.",
-    isExclusive: true,
-    frequency: 196.0, // G3
-    synthType: "drone",
-    bpm: 120
+    id: "11:28-alt",
+    name: "LAST LAUGH ECHOES",
+    timestamp: "11:28 PM",
+    classification: "SHADOW HARMONY",
+    observation: "Eerie low-RPM engine hum detected from the local Hardstone MC clubhouse.",
+    duration: "5:10",
+    description: "Saturated analog tape-static pulsing like a dark motorcycle rev, layered with a warning-buzz major fifth chord. Raw and heavy.",
+    isExclusive: false,
+    frequency: 164.81, // E3
+    synthType: "noise",
+    bpm: 85
   }
 ];
 
