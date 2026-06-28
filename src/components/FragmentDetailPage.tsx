@@ -5,7 +5,7 @@ import { Fragment } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782454702/Owl_2_c5ebif.png";
-const fragmentPageBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782288126/687AC1B7-CB19-4A1D-A803-868DA5C606D3_4_chs8te.png";
+const fragmentPageBackground = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
 
 const waveHeights = [
   8, 14, 18, 10, 6, 12, 24, 32, 16, 20, 
@@ -647,8 +647,8 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   return (
     <div 
       id={`fragment-detail-${fragment.id}`} 
-      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 pb-3 sm:pb-5 relative select-none overflow-x-hidden bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${fragmentPageBackground})` }}
+      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-end items-center p-4 sm:p-8 pb-3 sm:pb-5 relative select-none overflow-x-hidden bg-contain bg-top bg-no-repeat"
+      style={{ backgroundImage: `linear-gradient(to bottom, rgba(3, 3, 3, 0.1) 0%, rgba(3, 3, 3, 0.85) 60%, #030303 100%), url(${fragmentPageBackground})` }}
     >
       {/* 1. Global CRT horizontal scanline texture overlay */}
       <div className="film-grain pointer-events-none opacity-20 z-[2]" />

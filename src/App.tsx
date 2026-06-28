@@ -325,10 +325,10 @@ export default function App() {
             {!(activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive) && (
               <footer id="site-footer" className="bg-black py-16 px-4 select-none flex flex-col items-center justify-center">
                 {/* Upper line decoration */}
-                <div className="flex items-center justify-center gap-3 w-full max-w-[320px] sm:max-w-[420px] mx-auto opacity-20 mb-8">
-                  <div className="h-[1px] flex-grow bg-zinc-650" />
-                  <div className="h-[1px] w-5 bg-zinc-500" />
-                  <div className="h-[1px] flex-grow bg-zinc-650" />
+                <div className="flex items-center justify-center gap-3 w-full max-w-6xl sm:max-w-7xl mx-auto opacity-25 mb-8">
+                  <div className="h-[1px] flex-grow bg-zinc-600" />
+                  <div className="h-[1px] w-5 bg-zinc-400" />
+                  <div className="h-[1px] flex-grow bg-zinc-600" />
                 </div>
 
                 {/* Main Content: TRANSMISSIONS */}
@@ -369,13 +369,6 @@ export default function App() {
                       <span className="text-zinc-600 text-[9px]">↗</span>
                     </a>
                   </div>
-                </div>
-
-                {/* Lower line decoration */}
-                <div className="flex items-center justify-center gap-3 w-full max-w-[320px] sm:max-w-[420px] mx-auto opacity-20 mt-10">
-                  <div className="h-[1px] flex-grow bg-zinc-650" />
-                  <div className="h-[1px] w-5 bg-zinc-500" />
-                  <div className="h-[1px] flex-grow bg-zinc-650" />
                 </div>
               </footer>
             )}
