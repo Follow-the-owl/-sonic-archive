@@ -288,13 +288,39 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
               FOLLOW THE OWL
             </motion.h1>
 
-            {/* Hairline spacer */}
+            {/* Hairline spacer with central geometric arrow divider */}
             <motion.div 
               initial={{ opacity: 0, scaleX: 0 }}
               animate={{ opacity: 0.5, scaleX: 1 }}
               transition={{ duration: 1.8, delay: 0.5 }}
-              className="h-[1.2px] w-[160px] sm:w-[200px] bg-gradient-to-r from-transparent via-[#D9D6CA]/30 to-transparent"
-            />
+              className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
+            >
+              <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent to-[#D9D6CA]/30" />
+              {/* Perfect matching geometric miter-joined triangle that glows and pulses slowly */}
+              <motion.svg
+                viewBox="0 0 12 12"
+                className="w-[11px] h-[11px] text-[#D9D6CA] flex-shrink-0"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                animate={{
+                  opacity: [0.35, 1, 0.35],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))",
+                    "drop-shadow(0 0 5px rgba(217, 214, 202, 0.85))",
+                    "drop-shadow(0 0 0px rgba(217, 214, 202, 0))"
+                  ],
+                  scale: [0.95, 1.08, 0.95]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
+              </motion.svg>
+              <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent to-[#D9D6CA]/30" />
+            </motion.div>
           </div>
         </motion.div>
       </div>
