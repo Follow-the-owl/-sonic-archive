@@ -119,6 +119,28 @@ export default function App() {
     "The Signal Tower"
   ];
 
+  const [infoOverlay, setInfoOverlay] = useState<{ title: string; subtitle: string; body: string } | null>(null);
+  const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
+    ARCHIVE: false,
+    RIGHTS: false,
+    COMPANY: false,
+    POLICIES: false,
+    TRANSMISSIONS: false
+  });
+
+  const toggleMobileFooterSection = (section: string) => {
+    setMobileFooterExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleLinkClick = (title: string, subtitle: string = "TRANSMISSION") => {
+    setMobileMenuOpen(false);
+    setInfoOverlay({
+      title,
+      subtitle,
+      body: `ACCESS TO "${title}" IS CURRENTLY UNREACHABLE OR DEMANDS HIGHER CRYPTOGRAPHIC CLEARANCE. CONTACT TRANSMISSIONS ADMIN.`
+    });
+  };
+
   return (
     <div id="unknown-app-canvas" className="min-h-screen bg-black text-[#d1d1d1] font-mono relative overflow-x-hidden selection:bg-gold-muted/30 selection:text-white">
       {/* 1. Global Film Grain effect overlay */}
@@ -148,9 +170,10 @@ export default function App() {
             className="flex flex-col min-h-screen justify-between relative z-10"
           >
             {/* Header / Guide Navigation segment */}
-            <header id="site-header" className="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-zinc-900 px-4 md:px-8 py-5">
-              <div className="max-w-7xl mx-auto flex items-center justify-between">
-                {/* Brand Logo & guide state */}
+            <header id="site-header" className="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-zinc-900 px-4 lg:px-6 xl:px-8 py-4 xl:py-5">
+              {/* Desktop Header: 3 columns layout (Left, Center, Right) */}
+              <div className="max-w-7xl mx-auto hidden lg:grid grid-cols-3 items-center">
+                {/* Left Column: Brand Logo */}
                 <div 
                   id="brand" 
                   onClick={() => {
@@ -159,29 +182,33 @@ export default function App() {
                     setCheckoutActive(false);
                     setActiveTab("The Owl Clock");
                   }}
-                  className="cursor-pointer space-y-1 group relative select-none"
+                  className="cursor-pointer space-y-0.5 xl:space-y-1 group relative select-none justify-self-start"
                 >
-                  <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-sm sm:text-lg tracking-[0.25em]">
+                  <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-xs xl:text-lg tracking-[0.2em] xl:tracking-[0.25em]">
                     THE OWL CLOCK
                   </div>
-                  <h1 className="text-sm sm:text-lg tracking-[0.25em] font-display font-bold text-white group-hover:text-gold-muted transition-colors uppercase leading-none">
+                  <h1 className="text-xs xl:text-lg tracking-[0.2em] xl:tracking-[0.25em] font-display font-bold text-white group-hover:text-gold-muted transition-colors uppercase leading-none">
                     THE OWL CLOCK
                   </h1>
-                  <span className="text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-500 block leading-none">
+                  <span className="text-[7px] xl:text-[8px] tracking-[0.25em] xl:tracking-[0.3em] uppercase font-mono text-zinc-500 block leading-none">
                     SONIC ARCHIVE
                   </span>
                 </div>
 
-                {/* Desktop Menu Guide Navbar - completely flat brutalist tab elements */}
-                <nav id="desktop-nav" className="hidden md:flex items-center gap-1.5">
+                {/* Center Column: Minimal Desktop Navigation tabs */}
+                <nav id="desktop-nav" className="flex items-center gap-1 xl:gap-1.5 justify-self-center">
                   {tabsList.map((tab) => {
-                    const isSelected = activeTab === tab;
+                    const isSelected = activeTab === tab && !selectedFragment && !checkoutActive;
                     return (
                       <button
                         id={`nav-item-${tab.replace(/\s+/g, '-').toLowerCase()}`}
                         key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 py-2 text-[10px] font-mono uppercase tracking-[0.22em] transition-all duration-300 rounded-none relative flex items-center gap-1.5 cursor-pointer border ${
+                        onClick={() => {
+                          setActiveTab(tab);
+                          setSelectedFragment(null);
+                          setCheckoutActive(false);
+                        }}
+                        className={`px-2 xl:px-3 py-1.5 xl:py-2 text-[9px] xl:text-[10px] font-mono uppercase tracking-[0.12em] xl:tracking-[0.22em] transition-all duration-300 rounded-none relative flex items-center gap-1 xl:gap-1.5 cursor-pointer border ${
                           isSelected 
                             ? "text-black bg-[#D9D6CA] border-[#D9D6CA] font-bold" 
                             : "text-zinc-400 border-transparent hover:text-white hover:border-[#D9D6CA]/20"
@@ -205,19 +232,14 @@ export default function App() {
                   })}
                 </nav>
 
-                {/* Mobile Menu & Auxiliary Controls */}
-                <div className="flex items-center gap-3">
-                  {/* Visual trigger to open Collection drawer */}
+                {/* Right Column: Collection / Media Bag + Archive Access */}
+                <div className="flex items-center gap-2 xl:gap-3 justify-self-end">
+                  {/* Collection / Media Bag button */}
                   <button 
                     onClick={() => {
-                      if (window.innerWidth < 768) {
-                        setCheckoutActive(true);
-                        setCartOpen(false);
-                      } else {
-                        setCartOpen(!cartOpen);
-                      }
+                      setCartOpen(!cartOpen);
                     }}
-                    className={`flex items-center gap-1.5 border px-3 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none ${
+                    className={`flex items-center gap-1 xl:gap-1.5 border px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none ${
                       cartOpen 
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
@@ -225,56 +247,233 @@ export default function App() {
                     title="View Collection"
                   >
                     <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>COLLECTION ({cart.length})</span>
+                    <span className="hidden xl:inline">COLLECTION / MEDIA BAG ({cart.length})</span>
+                    <span className="xl:hidden">BAG ({cart.length})</span>
                   </button>
 
-                  <div className="md:hidden">
-                    <button
-                      id="mobile-menu-toggle"
-                      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                      className="p-2 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:text-white cursor-pointer rounded-none"
-                    >
-                      {mobileMenuOpen ? <X size={15} /> : <Menu size={15} />}
-                    </button>
-                  </div>
+                  {/* Archive Access button */}
+                  <button 
+                    onClick={() => {
+                      setHasEntered(false);
+                      setSelectedFragment(null);
+                      setCheckoutActive(false);
+                    }}
+                    className="border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
+                  >
+                    <span className="hidden xl:inline">ARCHIVE ACCESS</span>
+                    <span className="xl:hidden">ARCHIVE</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Drawer Navigation overlay */}
+              {/* Mobile Header (Left and Right flex layout) */}
+              <div className="max-w-7xl mx-auto flex lg:hidden items-center justify-between w-full">
+                {/* Left: Brand logo */}
+                <div 
+                  id="brand-mobile" 
+                  onClick={() => {
+                    setHasEntered(false);
+                    setSelectedFragment(null);
+                    setCheckoutActive(false);
+                    setActiveTab("The Owl Clock");
+                  }}
+                  className="cursor-pointer space-y-1 select-none"
+                >
+                  <h1 className="text-sm tracking-[0.25em] font-display font-bold text-white uppercase leading-none">
+                    THE OWL CLOCK
+                  </h1>
+                  <span className="text-[8px] tracking-[0.3em] uppercase font-mono text-zinc-500 block leading-none">
+                    SONIC ARCHIVE
+                  </span>
+                </div>
+
+                {/* Right: Collection / Media Bag & Menu Icon */}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      setCheckoutActive(true);
+                      setCartOpen(false);
+                    }}
+                    className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2.5 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none"
+                  >
+                    <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
+                    <span>COLLECTION ({cart.length})</span>
+                  </button>
+
+                  <button
+                    id="mobile-menu-toggle"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="p-1.5 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:text-white cursor-pointer rounded-none"
+                  >
+                    {mobileMenuOpen ? <X size={15} /> : <Menu size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Drawer Navigation overlay */}
               <AnimatePresence>
                 {mobileMenuOpen && (
                   <motion.div
                     id="mobile-nav-panel"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "80vh" }}
+                    exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="absolute top-full left-0 right-0 bg-black border-b border-zinc-900 p-6 flex flex-col gap-2.5 md:hidden shadow-2xl z-50"
+                    className="absolute top-full left-0 right-0 bg-black border-b border-zinc-900 flex flex-col lg:hidden shadow-2xl z-50 overflow-y-auto"
                   >
-                    {tabsList.map((tab) => {
-                      const isSelected = activeTab === tab;
-                      return (
-                        <button
-                          id={`mob-nav-item-${tab.replace(/\s+/g, '-').toLowerCase()}`}
-                          key={tab}
-                          onClick={() => {
-                            setActiveTab(tab);
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full text-left py-3 px-4 font-mono text-[10px] uppercase tracking-[0.25em] border rounded-none flex items-center justify-between cursor-pointer ${
-                            isSelected
-                              ? "bg-[#D9D6CA] text-black font-semibold border-[#D9D6CA]"
-                              : "bg-transparent text-neutral-500 border-transparent hover:border-zinc-900 hover:text-white"
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            {isSelected && <span>🦉</span>}
-                            <span>{tab}</span>
-                          </span>
-                          {isSelected && <span className="text-[9px] text-black font-bold">[ ACTIVE ]</span>}
-                        </button>
-                      );
-                    })}
+                    <div className="p-6 pb-24 space-y-8 select-none">
+                      {/* Section 1: ARCHIVE */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          ARCHIVE
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          {[
+                            { name: "The Owl Clock", tab: "The Owl Clock" as NavigationTab },
+                            { name: "The Observatory", tab: "The Observatory" as NavigationTab },
+                            { name: "The Midnight Journal", tab: "The Midnight Journal" as NavigationTab },
+                            { name: "The Signal Tower", tab: "The Signal Tower" as NavigationTab }
+                          ].map((item) => {
+                            const isSelected = activeTab === item.tab && !selectedFragment && !checkoutActive;
+                            return (
+                              <button
+                                key={item.name}
+                                onClick={() => {
+                                  setActiveTab(item.tab);
+                                  setSelectedFragment(null);
+                                  setCheckoutActive(false);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className={`text-left font-mono text-[11px] uppercase tracking-wider py-1.5 cursor-pointer flex items-center justify-between ${
+                                  isSelected ? "text-white font-bold" : "text-zinc-400 hover:text-white"
+                                }`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  {isSelected && <span className="text-xs">🦉</span>}
+                                  <span>{item.name}</span>
+                                </span>
+                                {isSelected && <span className="text-[8px] bg-zinc-900 px-1.5 py-0.5 text-zinc-400">[ ACTIVE ]</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Section 2: CLEARANCE */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          CLEARANCE
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleLinkClick("Request Clearance", "CLEARANCE DEP")}
+                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            * Request Clearance
+                          </button>
+                          <button
+                            onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP")}
+                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            * License Verification
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCheckoutActive(true);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`text-left font-mono text-[11px] uppercase tracking-wider py-1 cursor-pointer ${
+                              checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            * Media Bag
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section 3: RIGHTS */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          RIGHTS
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          {["Rights Administration", "Publishing", "Ownership", "Metadata", "Royalty Administration"].map((r) => (
+                            <button
+                              key={r}
+                              onClick={() => handleLinkClick(r, "RIGHTS DEP")}
+                              className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                            >
+                              * {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 4: ACCOUNT */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          ACCOUNT
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => {
+                              setHasEntered(false);
+                              setMobileMenuOpen(false);
+                              setSelectedFragment(null);
+                              setCheckoutActive(false);
+                            }}
+                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            * Archive Access
+                          </button>
+                          {["My Licenses", "My Certificates", "My Downloads"].map((a) => (
+                            <button
+                              key={a}
+                              onClick={() => handleLinkClick(a, "ACCOUNT DEP")}
+                              className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                            >
+                              * {a}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 5: COMPANY */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          COMPANY
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          {["About", "Enterprise", "Support", "Contact"].map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => handleLinkClick(c, "COMPANY DEP")}
+                              className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                            >
+                              * {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 6: POLICIES */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          POLICIES
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          {["Terms of Use", "Privacy Policy", "Cookie Policy", "Refund Policy", "Acceptable Use"].map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => handleLinkClick(p, "POLICIES DEP")}
+                              className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                            >
+                              * {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -302,8 +501,8 @@ export default function App() {
                 id="stage" 
                 className={`flex-grow relative px-4 bg-black transition-all duration-300 ${
                   activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive
-                    ? "py-2 sm:py-4 h-[calc(100vh-84px)] md:h-[calc(100vh-92px)] overflow-hidden flex flex-col justify-center items-center"
-                    : "py-8 md:py-16"
+                    ? "py-2 sm:py-4 h-[calc(100vh-84px)] lg:h-[calc(100vh-92px)] overflow-hidden flex flex-col justify-center items-center"
+                    : "py-8 lg:py-16"
                 }`}
               >
                 <AnimatePresence mode="wait">
@@ -340,51 +539,374 @@ export default function App() {
 
             {/* STEP 11: Minimal Footer */}
             {!(activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive) && (
-              <footer id="site-footer" className="bg-black py-16 px-4 select-none flex flex-col items-center justify-center">
+              <footer id="site-footer" className="bg-black py-16 px-4 md:px-8 select-none flex flex-col">
                 {/* Upper line decoration */}
-                <div className="flex items-center justify-center gap-3 w-full max-w-6xl sm:max-w-7xl mx-auto opacity-25 mb-8">
-                  <div className="h-[1px] flex-grow bg-zinc-600" />
-                  <div className="h-[1px] w-5 bg-zinc-400" />
-                  <div className="h-[1px] flex-grow bg-zinc-600" />
+                <div className="flex items-center justify-center gap-3 w-full max-w-7xl mx-auto opacity-25 mb-12">
+                  <div className="h-[1px] flex-grow bg-zinc-650" />
+                  <div className="h-[1px] w-5 bg-zinc-450" />
+                  <div className="h-[1px] flex-grow bg-zinc-650" />
                 </div>
 
-                {/* Main Content: TRANSMISSIONS */}
-                <div className="text-center font-mono space-y-4 tracking-[0.25em]">
-                  <span className="text-zinc-500 uppercase font-bold text-[10px] sm:text-[11px] block select-none">
-                    TRANSMISSIONS
-                  </span>
-                  
-                  <div className="flex flex-col items-center gap-4 text-[10.5px] sm:text-[11.5px] font-bold text-zinc-400">
-                    <a 
-                      id="link-instagram"
-                      href="https://instagram.com" 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1.5 cursor-pointer uppercase"
-                    >
-                      <span>INSTAGRAM</span>
-                      <span className="text-zinc-600 text-[9px]">↗</span>
-                    </a>
+                {/* 1. DESKTOP FOOTER STRUCTURE (Shown on md and up) */}
+                <div className="hidden md:grid grid-cols-5 gap-8 max-w-7xl w-full mx-auto text-left mb-16">
+                  {/* Column 1: ARCHIVE */}
+                  <div className="space-y-4">
+                    <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
+                      ARCHIVE
+                    </h5>
+                    <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
+                      <li>
+                        <button 
+                          onClick={() => {
+                            setActiveTab("The Owl Clock");
+                            setSelectedFragment(null);
+                            setCheckoutActive(false);
+                          }}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          Enter the Archive
+                        </button>
+                      </li>
+                      <li>
+                        <button 
+                          onClick={() => {
+                            setActiveTab("The Observatory");
+                            setSelectedFragment(null);
+                            setCheckoutActive(false);
+                          }}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          Composition Archive
+                        </button>
+                      </li>
+                      <li>
+                        <button 
+                          onClick={() => handleLinkClick("Request Clearance", "CLEARANCE DEP")}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          Request Clearance
+                        </button>
+                      </li>
+                      <li>
+                        <button 
+                          onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP")}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          License Verification
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
 
-                    <a 
-                      id="link-tiktok"
-                      href="https://tiktok.com" 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1.5 cursor-pointer uppercase"
-                    >
-                      <span>TIKTOK</span>
-                      <span className="text-zinc-600 text-[9px]">↗</span>
-                    </a>
+                  {/* Column 2: RIGHTS */}
+                  <div className="space-y-4">
+                    <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
+                      RIGHTS
+                    </h5>
+                    <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
+                      {["Rights Administration", "Publishing", "Ownership", "Metadata", "Royalty Administration"].map((r) => (
+                        <li key={r}>
+                          <button 
+                            onClick={() => handleLinkClick(r, "RIGHTS DEP")}
+                            className="hover:text-white transition-colors cursor-pointer text-left block"
+                          >
+                            {r}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                    <a 
-                      id="link-email"
-                      href="mailto:vault@credentials.local" 
-                      className="hover:text-[#D9D6CA] transition-colors flex items-center gap-1.5 cursor-pointer uppercase"
+                  {/* Column 3: COMPANY */}
+                  <div className="space-y-4">
+                    <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
+                      COMPANY
+                    </h5>
+                    <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
+                      {["About", "Enterprise", "Support", "Contact"].map((c) => (
+                        <li key={c}>
+                          <button 
+                            onClick={() => handleLinkClick(c, "COMPANY DEP")}
+                            className="hover:text-white transition-colors cursor-pointer text-left block"
+                          >
+                            {c}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Column 4: POLICIES */}
+                  <div className="space-y-4">
+                    <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
+                      POLICIES
+                    </h5>
+                    <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
+                      {["Terms of Use", "Privacy Policy", "Cookie Policy", "Refund Policy", "Acceptable Use"].map((p) => (
+                        <li key={p}>
+                          <button 
+                            onClick={() => handleLinkClick(p, "POLICIES DEP")}
+                            className="hover:text-white transition-colors cursor-pointer text-left block"
+                          >
+                            {p}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Column 5: TRANSMISSIONS */}
+                  <div className="space-y-4">
+                    <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
+                      TRANSMISSIONS
+                    </h5>
+                    <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
+                      <li>
+                        <a 
+                          href="https://instagram.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>Instagram</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a 
+                          href="https://tiktok.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>TikTok</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a 
+                          href="https://youtube.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>YouTube</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a 
+                          href="mailto:vault@credentials.local" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>Email</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 2. MOBILE FOOTER STRUCTURE (Accordion-style for screens smaller than md) */}
+                <div className="md:hidden flex flex-col w-full max-w-md mx-auto mb-12 border-t border-zinc-900 divide-y divide-zinc-900">
+                  {/* ACCORDION 1: ARCHIVE */}
+                  <div className="py-3">
+                    <button 
+                      onClick={() => toggleMobileFooterSection("ARCHIVE")}
+                      className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>EMAIL</span>
-                      <span className="text-zinc-600 text-[9px]">↗</span>
-                    </a>
+                      <span>ARCHIVE</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.ARCHIVE ? "−" : "+"}</span>
+                    </button>
+                    {mobileFooterExpanded.ARCHIVE && (
+                      <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
+                        <button 
+                          onClick={() => {
+                            setActiveTab("The Owl Clock");
+                            setSelectedFragment(null);
+                            setCheckoutActive(false);
+                          }}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          * Enter the Archive
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setActiveTab("The Observatory");
+                            setSelectedFragment(null);
+                            setCheckoutActive(false);
+                          }}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          * Composition Archive
+                        </button>
+                        <button 
+                          onClick={() => handleLinkClick("Request Clearance", "CLEARANCE DEP")}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          * Request Clearance
+                        </button>
+                        <button 
+                          onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP")}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          * License Verification
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ACCORDION 2: RIGHTS */}
+                  <div className="py-3">
+                    <button 
+                      onClick={() => toggleMobileFooterSection("RIGHTS")}
+                      className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
+                    >
+                      <span>RIGHTS</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.RIGHTS ? "−" : "+"}</span>
+                    </button>
+                    {mobileFooterExpanded.RIGHTS && (
+                      <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
+                        {["Rights Administration", "Publishing", "Ownership", "Metadata", "Royalty Administration"].map((r) => (
+                          <button 
+                            key={r}
+                            onClick={() => handleLinkClick(r, "RIGHTS DEP")}
+                            className="hover:text-white transition-colors cursor-pointer text-left block"
+                          >
+                            * {r}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ACCORDION 3: COMPANY */}
+                  <div className="py-3">
+                    <button 
+                      onClick={() => toggleMobileFooterSection("COMPANY")}
+                      className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
+                    >
+                      <span>COMPANY</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.COMPANY ? "−" : "+"}</span>
+                    </button>
+                    {mobileFooterExpanded.COMPANY && (
+                      <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
+                        {["About", "Enterprise", "Support", "Contact"].map((c) => (
+                          <button 
+                            key={c}
+                            onClick={() => handleLinkClick(c, "COMPANY DEP")}
+                            className="hover:text-white transition-colors cursor-pointer text-left block"
+                          >
+                            * {c}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ACCORDION 4: POLICIES */}
+                  <div className="py-3">
+                    <button 
+                      onClick={() => toggleMobileFooterSection("POLICIES")}
+                      className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
+                    >
+                      <span>POLICIES</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.POLICIES ? "−" : "+"}</span>
+                    </button>
+                    {mobileFooterExpanded.POLICIES && (
+                      <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
+                        {["Terms of Use", "Privacy Policy", "Cookie Policy", "Refund Policy", "Acceptable Use"].map((p) => (
+                          <button 
+                            key={p}
+                            onClick={() => handleLinkClick(p, "POLICIES DEP")}
+                            className="hover:text-white transition-colors cursor-pointer text-left block"
+                          >
+                            * {p}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ACCORDION 5: TRANSMISSIONS */}
+                  <div className="py-3">
+                    <button 
+                      onClick={() => toggleMobileFooterSection("TRANSMISSIONS")}
+                      className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
+                    >
+                      <span>TRANSMISSIONS</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.TRANSMISSIONS ? "−" : "+"}</span>
+                    </button>
+                    {mobileFooterExpanded.TRANSMISSIONS && (
+                      <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
+                        <a 
+                          href="https://instagram.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* Instagram</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                        <a 
+                          href="https://tiktok.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* TikTok</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                        <a 
+                          href="https://youtube.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* YouTube</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                        <a 
+                          href="mailto:vault@credentials.local" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* Email</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* BOTTOM FOOTER LINE */}
+                <div className="text-center font-mono space-y-4 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-950 pt-10 pb-6">
+                  {/* Desktop bottom line with multi-column text */}
+                  <div className="hidden sm:block space-y-2">
+                    <h6 className="text-[#D9D6CA] font-bold text-[11px] uppercase tracking-[0.3em]">
+                      LOMON LLC
+                    </h6>
+                    <p className="text-zinc-500 text-[9px] uppercase">
+                      Rights Management • Publishing • Licensing
+                    </p>
+                    <p className="text-zinc-600 text-[8.5px] uppercase">
+                      Atlanta, Georgia, USA
+                    </p>
+                    <p className="text-zinc-600 text-[8.5px] pt-4 uppercase">
+                      © 2026 LOMON LLC. All Rights Reserved.
+                    </p>
+                  </div>
+
+                  {/* Mobile bottom line with stacked texts */}
+                  <div className="sm:hidden space-y-2">
+                    <h6 className="text-[#D9D6CA] font-bold text-[10px] uppercase tracking-[0.25em]">
+                      LOMON LLC
+                    </h6>
+                    <p className="text-zinc-500 text-[8.5px] uppercase">
+                      Rights Management • Publishing • Licensing
+                    </p>
+                    <p className="text-zinc-600 text-[8px] pt-2 uppercase">
+                      © 2026 LOMON LLC. All Rights Reserved.
+                    </p>
                   </div>
                 </div>
               </footer>
@@ -473,6 +995,62 @@ export default function App() {
                       </div>
                     </>
                   )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Cinematic Secure Transmission Overlay */}
+            <AnimatePresence>
+              {infoOverlay && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-none font-mono"
+                >
+                  <motion.div 
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="border border-zinc-850 bg-[#050505] p-6 max-w-md w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative"
+                  >
+                    <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
+                      <div className="space-y-1">
+                        <span className="text-[8px] tracking-[0.3em] uppercase text-red-500 font-bold block">
+                          [ ACCESS RESTRICTED ]
+                        </span>
+                        <h4 className="text-[#D9D6CA] font-bold text-xs uppercase tracking-widest leading-tight">
+                          {infoOverlay.title}
+                        </h4>
+                      </div>
+                      <button 
+                        onClick={() => setInfoOverlay(null)} 
+                        className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs p-1"
+                        title="Dismiss"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3.5 py-2">
+                      <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase tracking-wider">
+                        {infoOverlay.body}
+                      </p>
+                      
+                      <div className="border border-zinc-900 bg-neutral-950 p-2.5 flex items-center gap-2.5">
+                        <span className="text-red-500 animate-pulse text-sm shrink-0">⚠️</span>
+                        <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest leading-normal">
+                          SECURITY PROTOCOL LOMON-44 IS ACTIVE. ATTEMPTS HAVE BEEN LOGGED.
+                        </span>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => setInfoOverlay(null)}
+                      className="w-full bg-zinc-900 border border-zinc-800 hover:border-[#D9D6CA]/40 hover:text-white text-zinc-300 font-mono text-[9px] tracking-[0.25em] uppercase py-3 transition-all cursor-pointer rounded-none"
+                    >
+                      DISMISS TRANSMISSION
+                    </button>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>

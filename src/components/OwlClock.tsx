@@ -695,7 +695,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
 
             {calibrationState === "restricted" && (
               <div className="text-red-500/90 text-xs tracking-[0.2em] uppercase font-mono font-bold animate-pulse">
-                it is restricted
+                restricted
               </div>
             )}
           </div>
