@@ -265,15 +265,21 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
             src={owlBgImage}
             alt="The Sentinel Entrance"
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover select-none pointer-events-none transition-all duration-700"
+            className="w-full h-full object-cover select-none pointer-events-none transition-all duration-700 opacity-85"
             animate={{
               scale: isHooting ? [1, 1.05, 0.98, 1] : 1,
               filter: isTriggered 
-                ? "sepia(0.35) saturate(3) hue-rotate(320deg) brightness(0.85) drop-shadow(0 0 25px rgba(220,38,38,0.7))"
+                ? "sepia(0.35) saturate(3) hue-rotate(320deg) brightness(0.85)"
                 : "none"
             }}
             transition={{ duration: 1.5 }}
           />
+
+          {/* Gradients to blend seamless with black background on all sides */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none z-10" />
+          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black via-black/60 to-transparent pointer-events-none z-10" />
+          <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none z-10" />
+          <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black via-black/60 to-transparent pointer-events-none z-10" />
 
 
 

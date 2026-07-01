@@ -122,9 +122,9 @@ export default function App() {
   const [infoOverlay, setInfoOverlay] = useState<{ title: string; subtitle: string; body: string } | null>(null);
   const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
     ARCHIVE: false,
-    RIGHTS: false,
-    COMPANY: false,
-    POLICIES: false,
+    CLEARANCE: false,
+    SYSTEM: false,
+    PROTOCOLS: false,
     TRANSMISSIONS: false
   });
 
@@ -564,7 +564,7 @@ export default function App() {
                           }}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
-                          Enter the Archive
+                          Recovered Fragments
                         </button>
                       </li>
                       <li>
@@ -581,14 +581,6 @@ export default function App() {
                       </li>
                       <li>
                         <button 
-                          onClick={() => handleLinkClick("Request Clearance", "CLEARANCE DEP")}
-                          className="hover:text-white transition-colors cursor-pointer text-left block"
-                        >
-                          Request Clearance
-                        </button>
-                      </li>
-                      <li>
-                        <button 
                           onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP")}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
@@ -598,57 +590,57 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Column 2: RIGHTS */}
+                  {/* Column 2: CLEARANCE */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      RIGHTS
+                      CLEARANCE
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
-                      {["Rights Administration", "Publishing", "Ownership", "Metadata", "Royalty Administration"].map((r) => (
-                        <li key={r}>
+                      {["Request Clearance", "Publishing", "Metadata", "Ownership Verification", "Royalty Administration", "Rights Administration"].map((item) => (
+                        <li key={item}>
                           <button 
-                            onClick={() => handleLinkClick(r, "RIGHTS DEP")}
+                            onClick={() => handleLinkClick(item, "CLEARANCE DEP")}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
-                            {r}
+                            {item}
                           </button>
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  {/* Column 3: COMPANY */}
+                  {/* Column 3: SYSTEM */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      COMPANY
+                      SYSTEM
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
-                      {["About", "Enterprise", "Support", "Contact"].map((c) => (
-                        <li key={c}>
+                      {["About the Archive", "Enterprise", "Support", "Contact"].map((item) => (
+                        <li key={item}>
                           <button 
-                            onClick={() => handleLinkClick(c, "COMPANY DEP")}
+                            onClick={() => handleLinkClick(item, "SYSTEM DEP")}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
-                            {c}
+                            {item}
                           </button>
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  {/* Column 4: POLICIES */}
+                  {/* Column 4: PROTOCOLS */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      POLICIES
+                      PROTOCOLS
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
-                      {["Terms of Use", "Privacy Policy", "Cookie Policy", "Refund Policy", "Acceptable Use"].map((p) => (
-                        <li key={p}>
+                      {["Terms", "Privacy", "Cookies", "Refunds", "Acceptable Use"].map((item) => (
+                        <li key={item}>
                           <button 
-                            onClick={() => handleLinkClick(p, "POLICIES DEP")}
+                            onClick={() => handleLinkClick(item, "PROTOCOLS DEP")}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
-                            {p}
+                            {item}
                           </button>
                         </li>
                       ))}
@@ -661,48 +653,24 @@ export default function App() {
                       TRANSMISSIONS
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
-                      <li>
-                        <a 
-                          href="https://instagram.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>Instagram</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                      </li>
-                      <li>
-                        <a 
-                          href="https://tiktok.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>TikTok</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                      </li>
-                      <li>
-                        <a 
-                          href="https://youtube.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>YouTube</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                      </li>
-                      <li>
-                        <a 
-                          href="mailto:vault@credentials.local" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>Email</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                      </li>
+                      {[
+                        { name: "Instagram", url: "https://instagram.com" },
+                        { name: "TikTok", url: "https://tiktok.com" },
+                        { name: "YouTube", url: "https://youtube.com" },
+                        { name: "Signal", url: "https://signal.org" }
+                      ].map((link) => (
+                        <li key={link.name}>
+                          <a 
+                            href={link.url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                          >
+                            <span>{link.name}</span>
+                            <span className="text-zinc-600 text-[9px]">↗</span>
+                          </a>
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 </div>
@@ -728,7 +696,7 @@ export default function App() {
                           }}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
-                          * Enter the Archive
+                          * Recovered Fragments
                         </button>
                         <button 
                           onClick={() => {
@@ -741,12 +709,6 @@ export default function App() {
                           * Composition Archive
                         </button>
                         <button 
-                          onClick={() => handleLinkClick("Request Clearance", "CLEARANCE DEP")}
-                          className="hover:text-white transition-colors cursor-pointer text-left block"
-                        >
-                          * Request Clearance
-                        </button>
-                        <button 
                           onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP")}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
@@ -756,72 +718,72 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* ACCORDION 2: RIGHTS */}
+                  {/* ACCORDION 2: CLEARANCE */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("RIGHTS")}
+                      onClick={() => toggleMobileFooterSection("CLEARANCE")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>RIGHTS</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.RIGHTS ? "−" : "+"}</span>
+                      <span>CLEARANCE</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.CLEARANCE ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.RIGHTS && (
+                    {mobileFooterExpanded.CLEARANCE && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
-                        {["Rights Administration", "Publishing", "Ownership", "Metadata", "Royalty Administration"].map((r) => (
+                        {["Request Clearance", "Publishing", "Metadata", "Ownership Verification", "Royalty Administration", "Rights Administration"].map((item) => (
                           <button 
-                            key={r}
-                            onClick={() => handleLinkClick(r, "RIGHTS DEP")}
+                            key={item}
+                            onClick={() => handleLinkClick(item, "CLEARANCE DEP")}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
-                            * {r}
+                            * {item}
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* ACCORDION 3: COMPANY */}
+                  {/* ACCORDION 3: SYSTEM */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("COMPANY")}
+                      onClick={() => toggleMobileFooterSection("SYSTEM")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>COMPANY</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.COMPANY ? "−" : "+"}</span>
+                      <span>SYSTEM</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.SYSTEM ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.COMPANY && (
+                    {mobileFooterExpanded.SYSTEM && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
-                        {["About", "Enterprise", "Support", "Contact"].map((c) => (
+                        {["About the Archive", "Enterprise", "Support", "Contact"].map((item) => (
                           <button 
-                            key={c}
-                            onClick={() => handleLinkClick(c, "COMPANY DEP")}
+                            key={item}
+                            onClick={() => handleLinkClick(item, "SYSTEM DEP")}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
-                            * {c}
+                            * {item}
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
 
-                  {/* ACCORDION 4: POLICIES */}
+                  {/* ACCORDION 4: PROTOCOLS */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("POLICIES")}
+                      onClick={() => toggleMobileFooterSection("PROTOCOLS")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>POLICIES</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.POLICIES ? "−" : "+"}</span>
+                      <span>PROTOCOLS</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.PROTOCOLS ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.POLICIES && (
+                    {mobileFooterExpanded.PROTOCOLS && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
-                        {["Terms of Use", "Privacy Policy", "Cookie Policy", "Refund Policy", "Acceptable Use"].map((p) => (
+                        {["Terms", "Privacy", "Cookies", "Refunds", "Acceptable Use"].map((item) => (
                           <button 
-                            key={p}
-                            onClick={() => handleLinkClick(p, "POLICIES DEP")}
+                            key={item}
+                            onClick={() => handleLinkClick(item, "PROTOCOLS DEP")}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
-                            * {p}
+                            * {item}
                           </button>
                         ))}
                       </div>
@@ -839,40 +801,23 @@ export default function App() {
                     </button>
                     {mobileFooterExpanded.TRANSMISSIONS && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
-                        <a 
-                          href="https://instagram.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>* Instagram</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                        <a 
-                          href="https://tiktok.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>* TikTok</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                        <a 
-                          href="https://youtube.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>* YouTube</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                        <a 
-                          href="mailto:vault@credentials.local" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>* Email</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
+                        {[
+                          { name: "Instagram", url: "https://instagram.com" },
+                          { name: "TikTok", url: "https://tiktok.com" },
+                          { name: "YouTube", url: "https://youtube.com" },
+                          { name: "Signal", url: "https://signal.org" }
+                        ].map((link) => (
+                          <a 
+                            key={link.name}
+                            href={link.url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                          >
+                            <span>* {link.name}</span>
+                            <span className="text-zinc-600 text-[9px]">↗</span>
+                          </a>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -886,13 +831,13 @@ export default function App() {
                       LOMON LLC
                     </h6>
                     <p className="text-zinc-500 text-[9px] uppercase">
-                      Rights Management • Publishing • Licensing
+                      Publishing • Rights Management • Licensing
                     </p>
                     <p className="text-zinc-600 text-[8.5px] uppercase">
-                      Atlanta, Georgia, USA
+                      Lagos, Nigeria
                     </p>
                     <p className="text-zinc-600 text-[8.5px] pt-4 uppercase">
-                      © 2026 LOMON LLC. All Rights Reserved.
+                      © 2026 LOMON LLC
                     </p>
                   </div>
 
@@ -902,10 +847,13 @@ export default function App() {
                       LOMON LLC
                     </h6>
                     <p className="text-zinc-500 text-[8.5px] uppercase">
-                      Rights Management • Publishing • Licensing
+                      Publishing • Rights Management • Licensing
+                    </p>
+                    <p className="text-zinc-500 text-[8.5px] uppercase">
+                      Lagos, Nigeria
                     </p>
                     <p className="text-zinc-600 text-[8px] pt-2 uppercase">
-                      © 2026 LOMON LLC. All Rights Reserved.
+                      © 2026 LOMON LLC
                     </p>
                   </div>
                 </div>
