@@ -181,7 +181,7 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                   >
                     <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide font-sans">
-                        Cart
+                        Media Bag
                       </h1>
                     </div>
 
@@ -738,14 +738,14 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                   <button
                     onClick={() => {
                       if (cart.length === 0) {
-                        alert("Your cart is empty.");
+                        alert("Your media bag is empty.");
                         return;
                       }
                       setStep("billing");
                     }}
                     className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[12px] sm:text-[13px] tracking-widest py-4 flex items-center justify-center transition-colors duration-200 rounded-[4px] cursor-pointer shadow-lg"
                   >
-                    PROCEED TO CHECKOUT
+                    CONTINUE TO SECURE GATEWAY →
                   </button>
                 )}
 
@@ -780,8 +780,8 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                     </p>
 
                     <p>
-                      Would you like to keep records of your transaction(s) for future download of your purchased files?{" "}
-                      <span className="underline cursor-pointer text-zinc-400 hover:text-white font-semibold">Login</span>
+                      Already have Archive Access?{" "}
+                      <span className="underline cursor-pointer text-zinc-400 hover:text-white font-semibold">Sign In →</span>
                     </p>
 
                     <p>
