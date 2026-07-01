@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, ArrowUpRight, ChevronRight, Trash2, Mail, Phone, MapPin, 
@@ -33,22 +33,44 @@ interface CheckoutPageProps {
   onRemoveItem: (id: string) => void;
   onClose: () => void;
   onClearCart: () => void;
+  isLoggedIn: boolean;
+  currentUserEmail: string;
+  authToken: string | null;
+  onLoginSuccess: (email: string, token: string) => void;
+  initialStep?: "cart" | "auth" | "billing" | "paystack" | "success";
 }
 
-type CheckoutStep = "cart" | "billing" | "paystack" | "success";
+type CheckoutStep = "cart" | "auth" | "billing" | "paystack" | "success";
 
-export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart }: CheckoutPageProps) {
-  const [step, setStep] = useState<CheckoutStep>("cart");
+export default function CheckoutPage({ 
+  cart, 
+  onRemoveItem, 
+  onClose, 
+  onClearCart,
+  isLoggedIn,
+  currentUserEmail,
+  authToken,
+  onLoginSuccess,
+  initialStep = "cart"
+}: CheckoutPageProps) {
+  const [step, setStep] = useState<CheckoutStep>(initialStep);
   const [couponChecked, setCouponChecked] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
 
+  // Authentication states
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+
   // Billing states
   const [isBusiness, setIsBusiness] = useState(false);
   const [firstName, setFirstName] = useState("John");
   const [lastName, setLastName] = useState("Nwanne");
-  const [email, setEmail] = useState("evianaconcepts1@gmail.com");
+  const [email, setEmail] = useState(currentUserEmail || "evianaconcepts1@gmail.com");
   const [phone, setPhone] = useState("+234 803 123 4567");
   const [companyName, setCompanyName] = useState("");
   const [streetAddress, setStreetAddress] = useState("12 Broad Street");
@@ -94,6 +116,41 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
     }
   };
 
+  const [paystackError, setPaystackError] = useState("");
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmail || !authPassword) {
+      setAuthError("Email and Password are required.");
+      return;
+    }
+    setAuthError("");
+    setIsSubmittingAuth(true);
+
+    try {
+      const endpoint = isSigningUp ? "/api/auth/signup" : "/api/auth/login";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail.toLowerCase(), password: authPassword })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        onLoginSuccess(data.email, data.token);
+        setEmail(data.email);
+        setStep("billing");
+      } else {
+        setAuthError(data.error || "Authentication failed.");
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      setAuthError("Failed to connect to authentication node.");
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
   const handleBillingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !email || !streetAddress || !city || !stateProvince) {
@@ -103,23 +160,60 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
     setStep("paystack");
   };
 
-  const handlePaystackPayment = (e: React.FormEvent) => {
-    e.preventDefault();
+  const initiateRedirect = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPaystackError("");
     setPaystackProcessing(true);
-    setTimeout(() => {
+
+    try {
+      // Initialize on the backend (passing the items list!)
+      const response = await fetch("/api/paystack/initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({
+          email: email || currentUserEmail || "guest@lomon.local",
+          amount: subtotal,
+          items: cart.map(item => ({
+            fragmentId: item.id,
+            name: item.name,
+            tierId: item.tierId,
+            tierTitle: item.tierTitle,
+            price: item.price,
+            artwork: item.artwork
+          }))
+        })
+      });
+
+      const initData = await response.json();
+      if (!initData.success) {
+        throw new Error(initData.error || "Failed to initialize secure transaction with backend.");
+      }
+
+      if (!initData.isMock && initData.authorization_url) {
+        console.log("[PAYSTACK] Redirecting user to official Paystack hosted checkout:", initData.authorization_url);
+        window.location.href = initData.authorization_url;
+      } else {
+        console.log("[PAYSTACK] Redirecting user to custom simulated hosted checkout page.");
+        const redirectUrl = `/mock-paystack-checkout?reference=${encodeURIComponent(initData.reference)}&amount=${encodeURIComponent(subtotal.toString())}&email=${encodeURIComponent(email || currentUserEmail || "guest@lomon.local")}`;
+        window.location.href = redirectUrl;
+      }
+    } catch (err: any) {
+      console.error("[PAYSTACK] Error during initialization:", err);
       setPaystackProcessing(false);
-      setPaystackOtpStep(true);
-    }, 1500);
+      setPaystackError(err.message || "Failed to initialize transaction.");
+    }
   };
 
-  const handlePaystackOtpSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPaystackProcessing(true);
-    setTimeout(() => {
-      setPaystackProcessing(false);
-      setStep("success");
-    }, 1500);
-  };
+  // Trigger redirect automatically when step changes to 'paystack'
+  useEffect(() => {
+    if (step === "paystack") {
+      initiateRedirect();
+    }
+  }, [step]);
+
 
   const handleCompleteAll = () => {
     onClearCart();
@@ -149,16 +243,25 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
             <ChevronRight size={10} className="text-zinc-650 shrink-0" />
           </div>
 
+          {!isLoggedIn && (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`whitespace-nowrap ${step === "auth" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
+                02. TERMINAL ACCESS
+              </span>
+              <ChevronRight size={10} className="text-zinc-650 shrink-0" />
+            </div>
+          )}
+
           <div className="flex items-center gap-2 shrink-0">
             <span className={`whitespace-nowrap ${step === "billing" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
-              02. BILLING INFO
+              {isLoggedIn ? "02. BILLING INFO" : "03. BILLING INFO"}
             </span>
             <ChevronRight size={10} className="text-zinc-650 shrink-0" />
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <span className={`whitespace-nowrap ${step === "paystack" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
-              03. SECURE GATEWAY
+              {isLoggedIn ? "03. SECURE GATEWAY" : "04. SECURE GATEWAY"}
             </span>
           </div>
         </div>
@@ -270,6 +373,104 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
 
                       </div>
                     )}
+                  </motion.div>
+                )}
+
+                {/* STEP 1.5: TERMINAL ACCESS AUTH VIEW */}
+                {step === "auth" && (
+                  <motion.div
+                    key="auth-view"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-6 max-w-md mx-auto border border-zinc-900 bg-neutral-950/40 p-6 sm:p-8 rounded-[4px]"
+                  >
+                    <div className="space-y-2 border-b border-zinc-900 pb-4 text-center">
+                      <h2 className="text-xl font-extrabold text-white tracking-[0.2em] uppercase font-sans">
+                        TERMINAL ACCESS
+                      </h2>
+                      <p className="text-zinc-500 text-[10px] tracking-widest uppercase font-mono">
+                        Secure Archive Clearance & Signature Bond
+                      </p>
+                    </div>
+
+                    {/* Simple toggle between login and register */}
+                    <div className="flex border border-zinc-900 font-mono text-[9px] uppercase tracking-wider rounded-[4px] overflow-hidden">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setIsSigningUp(false);
+                          setAuthError("");
+                        }}
+                        className={`flex-1 py-2.5 text-center border-r border-zinc-900 cursor-pointer transition-all duration-200 ${!isSigningUp ? "bg-[#D9D6CA] text-black font-extrabold shadow-inner" : "text-zinc-500 hover:text-white bg-black/40"}`}
+                      >
+                        Sign In
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setIsSigningUp(true);
+                          setAuthError("");
+                        }}
+                        className={`flex-1 py-2.5 text-center cursor-pointer transition-all duration-200 ${isSigningUp ? "bg-[#D9D6CA] text-black font-extrabold shadow-inner" : "text-zinc-500 hover:text-white bg-black/40"}`}
+                      >
+                        Request Clearance (Sign Up)
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAuthSubmit} className="space-y-4">
+                      {authError && (
+                        <div className="p-3 bg-red-950/10 border border-red-500/20 text-red-400 text-[10px] font-mono uppercase text-center rounded-[2px]">
+                          {authError}
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[9px] text-zinc-500 font-mono uppercase tracking-[0.15em] block">
+                          Secure Email Address *
+                        </label>
+                        <input 
+                          type="email"
+                          required
+                          placeholder="EMAIL@DOMAIN.COM"
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-300 outline-none focus:border-[#D9D6CA] transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[9px] text-zinc-500 font-mono uppercase tracking-[0.15em] block">
+                          Access Cipher Key (Password) *
+                        </label>
+                        <input 
+                          type="password"
+                          required
+                          placeholder="••••••••••••"
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                          className="w-full bg-[#0c0c0c] border border-zinc-900 rounded-[4px] py-3 px-4 text-xs text-zinc-350 outline-none focus:border-[#D9D6CA] transition-all font-mono"
+                        />
+                      </div>
+
+                      <div className="pt-2">
+                        <button 
+                          type="submit"
+                          disabled={isSubmittingAuth}
+                          className="w-full bg-[#D9D6CA] text-black hover:bg-white font-sans font-extrabold text-[12px] tracking-widest py-3.5 transition-colors duration-200 rounded-[4px] cursor-pointer shadow-lg uppercase"
+                        >
+                          {isSubmittingAuth ? "PROCESSING CIPHERS..." : isSigningUp ? "REQUEST CLEARANCE & SIGN UP" : "ESTABLISH CONNECTION"}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setStep("cart")}
+                        className="w-full text-zinc-650 hover:text-zinc-450 text-[9px] tracking-widest font-mono uppercase text-center cursor-pointer py-1 block transition-colors mt-2"
+                      >
+                        &lt; Return to Media Bag
+                      </button>
+                    </form>
                   </motion.div>
                 )}
 
@@ -477,217 +678,64 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                   </motion.div>
                 )}
 
-                {/* STEP 3: SECURE GATEWAY PORT (PAYSTACK SIMULATION) */}
+                {/* STEP 3: SECURE GATEWAY PORT (PAYSTACK REDIRECT) */}
                 {step === "paystack" && (
                   <motion.div
                     key="paystack-view"
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
-                    className="flex justify-center py-6"
+                    className="w-full max-w-[540px] mx-auto bg-[#040404] border border-zinc-900 rounded-md p-8 sm:p-10 flex flex-col items-center justify-center text-center shadow-2xl font-mono text-[#D9D6CA]"
                   >
-                    {/* PAYSTACK POPUP OVERLAY LAYOUT - High Fidelity representation */}
-                    <div className="w-full max-w-[480px] bg-white text-zinc-800 rounded-lg shadow-2xl overflow-hidden flex flex-col font-sans select-none text-left">
-                      
-                      {/* Brand Header */}
-                      <div className="bg-[#1c2833] text-white p-5 flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            {/* Signature Paystack Green circle */}
-                            <span className="w-3.5 h-3.5 rounded-full bg-[#39CD74] inline-block animate-pulse" />
-                            <span className="font-extrabold text-sm tracking-widest uppercase">
-                              paystack
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-zinc-400 font-mono mt-1">
-                            Secured transaction for {email}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[11px] text-zinc-400 block uppercase font-mono">Amount to Pay</span>
-                          <span className="text-lg font-black font-sans text-[#39CD74]">
-                            NGN {(subtotal * 1500).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <span className="text-[9px] text-zinc-500 block">
-                            (equivalent to ${subtotal.toFixed(2)} USD)
-                          </span>
-                        </div>
+                    {/* Paystack Green pulsating circle / ripple */}
+                    <div className="relative w-16 h-16 flex items-center justify-center mb-6">
+                      <div className="absolute inset-0 bg-[#39CD74]/10 rounded-full animate-ping duration-1000" />
+                      <div className="w-10 h-10 bg-[#39CD74]/20 border border-[#39CD74]/40 text-[#39CD74] rounded-full flex items-center justify-center relative">
+                        <span className="w-3.5 h-3.5 bg-[#39CD74] rounded-full" />
                       </div>
+                    </div>
 
-                      {/* Paystack Panel content */}
-                      <div className="flex flex-col sm:flex-row min-h-[280px]">
-                        {/* Sidebar tabs for payment methods */}
-                        <div className="sm:w-1/3 bg-[#f2f4f4] border-r border-zinc-200 py-4 flex sm:flex-col gap-2 overflow-x-auto sm:overflow-x-visible shrink-0 px-2 sm:px-0">
-                          <button
-                            type="button"
-                            onClick={() => setPaystackMethod("card")}
-                            className={`w-full text-left py-2.5 px-4 text-xs font-semibold flex items-center gap-2 rounded-none sm:rounded-r-md transition-colors ${paystackMethod === "card" ? "bg-white text-[#39CD74] border-l-4 border-[#39CD74]" : "text-zinc-600 hover:bg-zinc-100"}`}
-                          >
-                            <CreditCard size={13} />
-                            <span>Card</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaystackMethod("bank")}
-                            className={`w-full text-left py-2.5 px-4 text-xs font-semibold flex items-center gap-2 rounded-none sm:rounded-r-md transition-colors ${paystackMethod === "bank" ? "bg-white text-[#39CD74] border-l-4 border-[#39CD74]" : "text-zinc-600 hover:bg-zinc-100"}`}
-                          >
-                            <Building size={13} />
-                            <span>Bank</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaystackMethod("transfer")}
-                            className={`w-full text-left py-2.5 px-4 text-xs font-semibold flex items-center gap-2 rounded-none sm:rounded-r-md transition-colors ${paystackMethod === "transfer" ? "bg-white text-[#39CD74] border-l-4 border-[#39CD74]" : "text-zinc-600 hover:bg-zinc-100"}`}
-                          >
-                            <Phone size={13} />
-                            <span>Transfer</span>
-                          </button>
-                        </div>
+                    <h2 className="text-base sm:text-lg font-bold tracking-[0.25em] text-[#D9D6CA] uppercase mb-3 font-sans">
+                      SECURE CONNECTION TO PAYSTACK
+                    </h2>
 
-                        {/* Paystack Main Input Frame */}
-                        <div className="flex-grow p-5 sm:p-6 flex flex-col justify-between">
-                          <AnimatePresence mode="wait">
-                            {!paystackOtpStep ? (
-                              <motion.div
-                                key="paystack-form"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="space-y-4 text-left"
-                              >
-                                {paystackMethod === "card" && (
-                                  <form onSubmit={handlePaystackPayment} className="space-y-4">
-                                    <div className="space-y-1 text-left">
-                                      <label className="text-[10px] font-bold uppercase text-zinc-500 block">
-                                        Card Number
-                                      </label>
-                                      <input 
-                                        type="text"
-                                        required
-                                        placeholder="4012  0000  1111  2222"
-                                        value={cardNumber}
-                                        onChange={(e) => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim())}
-                                        maxLength={19}
-                                        className="w-full bg-[#fcfcfc] border border-zinc-200 rounded-md py-2.5 px-3 text-sm text-zinc-800 outline-none focus:border-[#39CD74]"
-                                      />
-                                    </div>
+                    <p className="text-[11.5px] text-zinc-400 font-sans font-light leading-relaxed mb-6 max-w-sm">
+                      We are securely routing your connection to the official Paystack hosted checkout portal to authorize your digital acquisition.
+                    </p>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-1 text-left">
-                                        <label className="text-[10px] font-bold uppercase text-zinc-500 block">
-                                          Card Expiry
-                                        </label>
-                                        <input 
-                                          type="text"
-                                          required
-                                          placeholder="MM / YY"
-                                          value={cardExpiry}
-                                          onChange={(e) => setCardExpiry(e.target.value)}
-                                          maxLength={5}
-                                          className="w-full bg-[#fcfcfc] border border-zinc-200 rounded-md py-2.5 px-3 text-sm text-zinc-800 outline-none focus:border-[#39CD74] text-center"
-                                        />
-                                      </div>
-
-                                      <div className="space-y-1 text-left">
-                                        <label className="text-[10px] font-bold uppercase text-zinc-500 block">
-                                          CVV
-                                        </label>
-                                        <input 
-                                          type="password"
-                                          required
-                                          placeholder="123"
-                                          value={cardCvv}
-                                          onChange={(e) => setCardCvv(e.target.value)}
-                                          maxLength={3}
-                                          className="w-full bg-[#fcfcfc] border border-zinc-200 rounded-md py-2.5 px-3 text-sm text-zinc-800 outline-none focus:border-[#39CD74] text-center"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <button
-                                      type="submit"
-                                      disabled={paystackProcessing}
-                                      className="w-full py-3 bg-[#39CD74] hover:bg-[#2fa85e] text-white font-bold text-xs tracking-wider rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer mt-4"
-                                    >
-                                      {paystackProcessing ? (
-                                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                                      ) : (
-                                        <span>Authorize & Pay NGN {(subtotal * 1500).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                                      )}
-                                    </button>
-                                  </form>
-                                )}
-
-                                {paystackMethod !== "card" && (
-                                  <div className="space-y-4 py-4 text-center">
-                                    <p className="text-zinc-500 text-xs">
-                                      Paystack Direct Transfer and Bank credentials authorizations are configured. Please proceed with Card validation for secure temporal simulation.
-                                    </p>
-                                    <button
-                                      onClick={() => setPaystackMethod("card")}
-                                      className="text-[#39CD74] hover:underline text-xs font-semibold cursor-pointer"
-                                    >
-                                      Return to Secure Card Payment
-                                    </button>
-                                  </div>
-                                )}
-                              </motion.div>
-                            ) : (
-                              <motion.div
-                                key="paystack-otp"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="space-y-4 text-left"
-                              >
-                                <div className="space-y-2 text-left">
-                                  <h4 className="text-sm font-bold text-zinc-800">
-                                    Secure One-Time PIN Verified
-                                  </h4>
-                                  <p className="text-xs text-zinc-500 leading-relaxed">
-                                    A simulation validation token has been prompted for your security. Enter any 6-digit credential (e.g., 123456) to clear mechanical contract ownership.
-                                  </p>
-                                </div>
-
-                                <form onSubmit={handlePaystackOtpSubmit} className="space-y-4">
-                                  <div className="space-y-1">
-                                    <label className="text-[10px] font-bold uppercase text-zinc-500 block">
-                                      OTP / SECURE TOKEN
-                                    </label>
-                                    <input 
-                                      type="text"
-                                      required
-                                      placeholder="1 2 3 4 5 6"
-                                      value={paystackOtp}
-                                      onChange={(e) => setPaystackOtp(e.target.value)}
-                                      maxLength={6}
-                                      className="w-full bg-[#fcfcfc] border border-zinc-200 rounded-md py-2.5 px-3 text-sm text-zinc-800 outline-none focus:border-[#39CD74] text-center tracking-[0.4em] font-mono"
-                                    />
-                                  </div>
-
-                                  <button
-                                    type="submit"
-                                    disabled={paystackProcessing}
-                                    className="w-full py-3 bg-[#39CD74] hover:bg-[#2fa85e] text-white font-bold text-xs tracking-wider rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                                  >
-                                    {paystackProcessing ? (
-                                      <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                                    ) : (
-                                      <span>Verify & Release Master Contract</span>
-                                    )}
-                                  </button>
-                                </form>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-
-                          {/* Secure badge */}
-                          <div className="pt-4 border-t border-zinc-100 flex items-center justify-center gap-1.5 text-zinc-400 text-[10px]">
-                            <ShieldCheck size={12} className="text-[#39CD74]" />
-                            <span>Secured by Paystack. Secured Global mechanical metrics.</span>
-                          </div>
-                        </div>
+                    {paystackError ? (
+                      <div className="bg-red-950/20 border border-red-900/40 text-red-400 text-[11px] p-4 rounded-sm w-full mb-6 font-sans">
+                        {paystackError}
                       </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5 text-[10.5px] text-zinc-500 font-bold uppercase tracking-widest mb-6 select-none font-mono">
+                        <span className="w-2 h-2 rounded-full bg-[#39CD74] inline-block animate-pulse" />
+                        <span>ESTABLISHING GATEWAY SECURE HANDSHAKE...</span>
+                      </div>
+                    )}
+
+                    <div className="w-full space-y-3">
+                      <button
+                        onClick={() => initiateRedirect()}
+                        disabled={paystackProcessing && !paystackError}
+                        className="w-full text-[11px] font-sans font-extrabold text-black bg-[#D9D6CA] hover:bg-white py-3.5 tracking-widest uppercase transition-all rounded-[4px] cursor-pointer shadow-lg inline-flex items-center justify-center gap-2"
+                      >
+                        {paystackProcessing && !paystackError ? (
+                          <>
+                            <span className="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin inline-block" />
+                            <span>REDIRECTING...</span>
+                          </>
+                        ) : (
+                          <span>PROCEED TO SECURE WEBSITE →</span>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => setStep("billing")}
+                        className="w-full text-zinc-500 hover:text-white font-mono text-[9px] tracking-widest uppercase text-center cursor-pointer py-1 block transition-colors"
+                      >
+                        &lt; Return to Billing Information
+                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -741,12 +789,22 @@ export default function CheckoutPage({ cart, onRemoveItem, onClose, onClearCart 
                         alert("Your media bag is empty.");
                         return;
                       }
-                      setStep("billing");
+                      if (isLoggedIn) {
+                        setStep("billing");
+                      } else {
+                        setStep("auth");
+                      }
                     }}
                     className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-extrabold text-[12px] sm:text-[13px] tracking-widest py-4 flex items-center justify-center transition-colors duration-200 rounded-[4px] cursor-pointer shadow-lg"
                   >
                     CONTINUE TO SECURE GATEWAY →
                   </button>
+                )}
+
+                {step === "auth" && (
+                  <div className="p-4 bg-zinc-950/60 border border-zinc-900 rounded-[4px] text-[10px] text-zinc-400 text-center leading-relaxed font-mono uppercase tracking-wider">
+                    Please secure your terminal connection to proceed with the clearance certificate download.
+                  </div>
                 )}
 
                 {step === "billing" && (

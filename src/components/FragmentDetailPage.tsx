@@ -682,6 +682,33 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
             {fragment.timestamp}
           </h2>
+          
+          {/* Hairline spacer with central geometric arrow divider */}
+          <div className="flex items-center justify-start gap-3 w-[160px] sm:w-[200px] pt-1.5 opacity-60">
+            <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent to-white/30" />
+            <motion.svg
+              viewBox="0 0 12 12"
+              className="w-[10px] h-[10px] text-white flex-shrink-0"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              animate={{
+                opacity: [0.4, 1, 0.4],
+                filter: [
+                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
+                  "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))",
+                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
+                ]
+              }}
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
+            </motion.svg>
+            <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent to-white/30" />
+          </div>
         </div>
 
         {/* PLAYBACK CONTROL BAR DIAL (Matches image play/pause widget block) */}

@@ -12,6 +12,12 @@ interface TransmissionsOverlayProps {
   title: string;
   subtitle: string;
   userEmail?: string;
+  isLoggedIn?: boolean;
+  currentUserEmail?: string;
+  onLoginSuccess?: (email: string, token: string) => void;
+  userLicenses?: any[];
+  userRequests?: any[];
+  onRefreshData?: () => void;
 }
 
 export default function TransmissionsOverlay({
@@ -20,7 +26,13 @@ export default function TransmissionsOverlay({
   type,
   title,
   subtitle,
-  userEmail = "evianaconcepts1@gmail.com"
+  userEmail = "evianaconcepts1@gmail.com",
+  isLoggedIn = false,
+  currentUserEmail,
+  onLoginSuccess,
+  userLicenses = [],
+  userRequests = [],
+  onRefreshData
 }: TransmissionsOverlayProps) {
   // License verification state
   const [verificationInput, setVerificationInput] = useState("");
@@ -65,6 +77,43 @@ export default function TransmissionsOverlay({
   // Document Vault modal state inside dashboards
   const [showDocumentVault, setShowDocumentVault] = useState(false);
 
+  // License transfer state
+  const [transferringId, setTransferringId] = useState<string | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [transferError, setTransferError] = useState("");
+  const [transferSuccessMsg, setTransferSuccessMsg] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  // Administrative Console CRUD state
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminPayments, setAdminPayments] = useState<any[]>([]);
+  const [adminActiveTab, setAdminActiveTab] = useState<"users" | "payments">("payments");
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState("");
+  const [adminSuccessMsg, setAdminSuccessMsg] = useState("");
+  const [activeAdminLocalView, setActiveAdminLocalView] = useState(false);
+  
+  // User Form
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [userFormEmail, setUserFormEmail] = useState("");
+  const [userFormPassword, setUserFormPassword] = useState("");
+  const [userFormIsEdit, setUserFormIsEdit] = useState(false);
+  
+  // Payment Form
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentFormId, setPaymentFormId] = useState("");
+  const [paymentFormEmail, setPaymentFormEmail] = useState("");
+  const [paymentFormAmount, setPaymentFormAmount] = useState("");
+  const [paymentFormStatus, setPaymentFormStatus] = useState("success");
+  const [paymentFormIsEdit, setPaymentFormIsEdit] = useState(false);
+
+  React.useEffect(() => {
+    const slug = type.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    if (isOpen && (slug === "admin" || slug === "admin-console" || slug === "system" || activeAdminLocalView)) {
+      fetchAdminData();
+    }
+  }, [isOpen, type, activeAdminLocalView]);
+
   if (!isOpen) return null;
 
   // Handle license verification lookup
@@ -93,6 +142,499 @@ export default function TransmissionsOverlay({
       });
     }, 1200);
   };
+
+  const handleTransferLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferringId || !recipientEmail) return;
+    setIsTransferring(true);
+    setTransferError("");
+    setTransferSuccessMsg("");
+    
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/licenses/transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          licenseId: transferringId,
+          recipientEmail: recipientEmail.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTransferSuccessMsg(`License ${transferringId} successfully transferred to ${recipientEmail}!`);
+        setRecipientEmail("");
+        // Refresh data and clean up states
+        setTimeout(() => {
+          setTransferringId(null);
+          setTransferSuccessMsg("");
+          if (onRefreshData) onRefreshData();
+        }, 2500);
+      } else {
+        setTransferError(data.error || "Failed to execute transfer.");
+      }
+    } catch (err: any) {
+      setTransferError("Network connection error: " + err.message);
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  // Administrative Operations CRUD handlers
+  const fetchAdminData = async () => {
+    setAdminLoading(true);
+    setAdminError("");
+    try {
+      const token = localStorage.getItem("token");
+      const [usersRes, paymentsRes] = await Promise.all([
+        fetch("/api/admin/users", {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        }),
+        fetch("/api/admin/payments", {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        })
+      ]);
+      const usersData = await usersRes.json();
+      const paymentsData = await paymentsRes.json();
+      if (usersData.success) setAdminUsers(usersData.users);
+      if (paymentsData.success) setAdminPayments(paymentsData.payments);
+    } catch (err: any) {
+      setAdminError("Failed to fetch administrative ledger: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = "/api/admin/users";
+      const method = userFormIsEdit ? "PUT" : "POST";
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          email: userFormEmail.toLowerCase().trim(),
+          password: userFormPassword
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg(userFormIsEdit ? "Access cipher updated successfully." : "Terminal account registered successfully.");
+        setShowUserForm(false);
+        setUserFormEmail("");
+        setUserFormPassword("");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to save user terminal.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (email: string) => {
+    if (!window.confirm(`Wipe user terminal ${email} permanently?`)) return;
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg("Terminal successfully deleted from secure indices.");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to purge user terminal.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleSavePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = "/api/admin/payments";
+      const method = paymentFormIsEdit ? "PUT" : "POST";
+      const bodyPayload = paymentFormIsEdit 
+        ? { id: paymentFormId, email: paymentFormEmail, amount: paymentFormAmount, status: paymentFormStatus }
+        : { email: paymentFormEmail, amount: paymentFormAmount, status: paymentFormStatus };
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg(paymentFormIsEdit ? "Payment metadata updated successfully." : "Manual payment record injected successfully.");
+        setShowPaymentForm(false);
+        setPaymentFormId("");
+        setPaymentFormEmail("");
+        setPaymentFormAmount("");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to save payment record.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    if (!window.confirm(`Purge payment record ${id} from database?`)) return;
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/admin/payments", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg("Payment record purged from archive databases.");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to delete payment record.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const renderAdminPanel = () => {
+    return (
+      <div className="space-y-4 text-left font-sans select-text">
+        <div className="flex justify-between items-start border-b border-zinc-900 pb-2">
+          <div className="space-y-0.5">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ LOMON SYSTEM ADMINISTRATIVE CONSOLE ]
+            </span>
+            <p className="text-zinc-500 text-[10px] leading-tight uppercase">
+              Manage secure terminal access and inspect transactional indices.
+            </p>
+          </div>
+          <button 
+            onClick={fetchAdminData} 
+            disabled={adminLoading}
+            className="text-[#00E676] bg-[#00E676]/5 border border-[#00E676]/20 px-2 py-1 text-[8px] font-mono font-bold hover:bg-[#00E676]/10 transition-colors uppercase whitespace-nowrap cursor-pointer"
+          >
+            {adminLoading ? "Syncing..." : "Reload Ledger ⇄"}
+          </button>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="flex border-b border-zinc-900">
+          <button
+            onClick={() => {
+              setAdminActiveTab("payments");
+              setAdminError("");
+              setAdminSuccessMsg("");
+            }}
+            className={`flex-1 py-2 text-center text-[10px] font-mono tracking-wider uppercase font-bold transition-all cursor-pointer ${adminActiveTab === "payments" ? "text-[#00E676] border-b-2 border-[#00E676] bg-[#00E676]/5" : "text-zinc-500 hover:text-zinc-300"}`}
+          >
+            Payments Ledger ({adminPayments.length})
+          </button>
+          <button
+            onClick={() => {
+              setAdminActiveTab("users");
+              setAdminError("");
+              setAdminSuccessMsg("");
+            }}
+            className={`flex-1 py-2 text-center text-[10px] font-mono tracking-wider uppercase font-bold transition-all cursor-pointer ${adminActiveTab === "users" ? "text-yellow-500 border-b-2 border-yellow-500 bg-yellow-500/5" : "text-zinc-500 hover:text-zinc-300"}`}
+          >
+            Terminal Registry ({adminUsers.length})
+          </button>
+        </div>
+
+        {adminError && (
+          <div className="text-[9px] font-mono text-red-500 uppercase bg-red-950/10 border border-red-900/40 p-2 rounded-sm leading-tight">
+            ERROR: {adminError}
+          </div>
+        )}
+
+        {adminSuccessMsg && (
+          <div className="text-[9px] font-mono text-[#00E676] uppercase bg-[#00E676]/10 border border-[#00E676]/40 p-2 rounded-sm leading-tight">
+            SUCCESS: {adminSuccessMsg}
+          </div>
+        )}
+
+        {/* ----------------- TAB: PAYMENTS ----------------- */}
+        {adminActiveTab === "payments" && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">TRANSACTIONS ARCHIVE</span>
+              <button
+                onClick={() => {
+                  setPaymentFormIsEdit(false);
+                  setPaymentFormEmail("");
+                  setPaymentFormAmount("");
+                  setPaymentFormStatus("success");
+                  setShowPaymentForm(!showPaymentForm);
+                  setShowUserForm(false);
+                }}
+                className="bg-[#00E676] text-black font-mono font-bold text-[8.5px] px-2 py-1 hover:bg-white transition-colors cursor-pointer"
+              >
+                {showPaymentForm ? "Close Form ✕" : "+ Ingest Payment"}
+              </button>
+            </div>
+
+            {/* Payment Input Form */}
+            {showPaymentForm && (
+              <motion.form 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                onSubmit={handleSavePayment}
+                className="bg-neutral-950 border border-zinc-900 p-3 rounded-sm space-y-2.5"
+              >
+                <span className="text-[8.5px] text-zinc-400 font-mono font-bold block uppercase">
+                  {paymentFormIsEdit ? `Edit Payment Reference: ${paymentFormId}` : "Manual Payment Ledger Ingestion"}
+                </span>
+                
+                <div className="space-y-1.5">
+                  <input 
+                    type="email"
+                    required
+                    placeholder="User Terminal Email"
+                    value={paymentFormEmail}
+                    onChange={(e) => setPaymentFormEmail(e.target.value)}
+                    className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700 uppercase"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input 
+                      type="number"
+                      required
+                      placeholder="Amount (NGN)"
+                      value={paymentFormAmount}
+                      onChange={(e) => setPaymentFormAmount(e.target.value)}
+                      className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700"
+                    />
+                    <select
+                      value={paymentFormStatus}
+                      onChange={(e) => setPaymentFormStatus(e.target.value)}
+                      className="w-full bg-black border border-zinc-850 px-2 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700 uppercase"
+                    >
+                      <option value="success">Success</option>
+                      <option value="pending">Pending</option>
+                      <option value="failed">Failed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#00E676] text-black font-mono font-bold text-[9px] py-2 hover:bg-white transition-colors cursor-pointer uppercase"
+                >
+                  {paymentFormIsEdit ? "Save Payment Changes" : "Commit Payment Record"}
+                </button>
+              </motion.form>
+            )}
+
+            {/* Payments List */}
+            <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 border border-zinc-900 bg-neutral-950 p-2 rounded-sm">
+              {adminPayments.length === 0 ? (
+                <div className="text-zinc-650 font-mono text-[9px] uppercase text-center py-6">
+                  No payment indexes present.
+                </div>
+              ) : (
+                adminPayments.map((pay: any) => (
+                  <div key={pay.id} className="border border-zinc-900 bg-black p-2 rounded-[2px] text-[10px] space-y-1.5">
+                    <div className="flex justify-between items-start">
+                      <div className="font-mono">
+                        <span className="text-zinc-500 uppercase">REF:</span> <span className="text-[#00E676] font-bold">{pay.id}</span>
+                      </div>
+                      <span className={`text-[8px] px-1.5 py-0.2 font-bold uppercase ${pay.status === "success" ? "text-[#00E676] bg-[#00E676]/10" : pay.status === "failed" ? "text-red-500 bg-red-500/10" : "text-yellow-500 bg-yellow-500/10"}`}>
+                        {pay.status}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 text-[9px] font-mono text-zinc-400">
+                      <div className="truncate">EMAIL: {pay.email}</div>
+                      <div className="text-right">AMT: {pay.amount?.toLocaleString()} {pay.currency || "NGN"}</div>
+                      <div>GATEWAY: {pay.gateway || "manual"}</div>
+                      <div className="text-right text-[8px] text-zinc-600 truncate">{pay.date}</div>
+                    </div>
+
+                    <div className="flex justify-end gap-2.5 pt-1 border-t border-zinc-950">
+                      <button
+                        onClick={() => {
+                          setPaymentFormIsEdit(true);
+                          setPaymentFormId(pay.id);
+                          setPaymentFormEmail(pay.email);
+                          setPaymentFormAmount(pay.amount?.toString() || "");
+                          setPaymentFormStatus(pay.status || "success");
+                          setShowPaymentForm(true);
+                          setShowUserForm(false);
+                        }}
+                        className="text-zinc-400 hover:text-white font-mono text-[8.5px] uppercase cursor-pointer"
+                      >
+                        Edit status
+                      </button>
+                      <button
+                        onClick={() => handleDeletePayment(pay.id)}
+                        className="text-red-500 hover:text-red-400 font-mono text-[8.5px] uppercase cursor-pointer"
+                      >
+                        Purge
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: USERS ----------------- */}
+        {adminActiveTab === "users" && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">AUTHENTICATED TERMINALS</span>
+              <button
+                onClick={() => {
+                  setUserFormIsEdit(false);
+                  setUserFormEmail("");
+                  setUserFormPassword("");
+                  setShowUserForm(!showUserForm);
+                  setShowPaymentForm(false);
+                }}
+                className="bg-yellow-500 text-black font-mono font-bold text-[8.5px] px-2 py-1 hover:bg-white transition-colors cursor-pointer"
+              >
+                {showUserForm ? "Close Form ✕" : "+ Ingest User"}
+              </button>
+            </div>
+
+            {/* User Input Form */}
+            {showUserForm && (
+              <motion.form 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                onSubmit={handleSaveUser}
+                className="bg-neutral-950 border border-zinc-900 p-3 rounded-sm space-y-2.5"
+              >
+                <span className="text-[8.5px] text-zinc-400 font-mono font-bold block uppercase">
+                  {userFormIsEdit ? `Reset Access Cipher for ${userFormEmail}` : "Register New Terminal Terminal"}
+                </span>
+                
+                <div className="space-y-2">
+                  <input 
+                    type="email"
+                    required
+                    disabled={userFormIsEdit}
+                    placeholder="Terminal Email address"
+                    value={userFormEmail}
+                    onChange={(e) => setUserFormEmail(e.target.value)}
+                    className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] disabled:text-zinc-650 outline-none focus:border-zinc-700 uppercase"
+                  />
+                  <input 
+                    type="password"
+                    required
+                    placeholder={userFormIsEdit ? "New Access Code (Cipher)" : "Access Code (Cipher)"}
+                    value={userFormPassword}
+                    onChange={(e) => setUserFormPassword(e.target.value)}
+                    className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-yellow-500 text-black font-mono font-bold text-[9px] py-2 hover:bg-white transition-colors cursor-pointer uppercase"
+                >
+                  {userFormIsEdit ? "Save Cipher Code" : "Provision Terminal Network"}
+                </button>
+              </motion.form>
+            )}
+
+            {/* Users List */}
+            <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 border border-zinc-900 bg-neutral-950 p-2 rounded-sm">
+              {adminUsers.length === 0 ? (
+                <div className="text-zinc-650 font-mono text-[9px] uppercase text-center py-6">
+                  No terminal index directories found.
+                </div>
+              ) : (
+                adminUsers.map((usr: any) => (
+                  <div key={usr.email} className="border border-zinc-900 bg-black p-2.5 rounded-[2px] text-[10px] space-y-1.5 flex flex-col">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-zinc-200 uppercase font-semibold">{usr.email}</span>
+                      <span className="text-[8px] px-1.5 py-0.2 text-yellow-500 bg-yellow-500/10 font-mono font-bold uppercase truncate">
+                        {usr.status || "VERIFIED"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[8.5px] font-mono text-zinc-500 pt-1 border-t border-zinc-950">
+                      <span>ESTD: {usr.createdAt?.toString().substring(0, 10)}</span>
+                      <div className="flex gap-2.5">
+                        <button
+                          onClick={() => {
+                            setUserFormIsEdit(true);
+                            setUserFormEmail(usr.email);
+                            setUserFormPassword("");
+                            setShowUserForm(true);
+                            setShowPaymentForm(false);
+                          }}
+                          className="text-zinc-400 hover:text-white uppercase cursor-pointer text-[8px]"
+                        >
+                          Set Cipher
+                        </button>
+                        {usr.email !== "evianaconcepts1@gmail.com" && (
+                          <button
+                            onClick={() => handleDeleteUser(usr.email)}
+                            className="text-red-500 hover:text-red-400 uppercase cursor-pointer text-[8px]"
+                          >
+                            Purge
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   // Render content based on mapped slug or title
   const renderContent = () => {
@@ -767,6 +1309,321 @@ export default function TransmissionsOverlay({
     }
 
     // ----------------------------------------------------
+    // 7A. MY LICENSES (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-licenses") {
+      if (activeAdminLocalView && currentUserEmail === "evianaconcepts1@gmail.com") {
+        return (
+          <div className="space-y-4">
+            <button
+              onClick={() => setActiveAdminLocalView(false)}
+              className="text-zinc-400 hover:text-white text-[9px] font-mono uppercase cursor-pointer flex items-center gap-1.5 border border-zinc-900 bg-neutral-950 px-2.5 py-1.5 rounded-sm"
+            >
+              ← BACK TO LICENSE REGISTRY
+            </button>
+            {renderAdminPanel()}
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / ACTIVE LICENSES ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              The currently active licenses assigned to your secure email terminal.
+            </p>
+          </div>
+
+          {currentUserEmail === "evianaconcepts1@gmail.com" && (
+            <div className="border border-yellow-500 bg-yellow-500/5 p-3 rounded-sm space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-yellow-500 text-[9.5px] font-bold uppercase">ADMINISTRATOR DIRECTORY TERMINAL DETECTED</span>
+                <span className="text-[7.5px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 font-bold font-mono">ROOT</span>
+              </div>
+              <p className="text-[9.5px] text-zinc-400 uppercase leading-normal">
+                You are authorized with root permissions. Access the complete Payments, Users, and License Registry CRUD terminal below.
+              </p>
+              <button
+                onClick={() => setActiveAdminLocalView(true)}
+                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-mono font-bold text-[9px] tracking-widest py-2 transition-all cursor-pointer uppercase"
+              >
+                Open Root Admin Control Center ⚙
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-2.5 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Terminal authorization required. Please establish a secure connection via checkout or support node to access active licenses.
+              </div>
+            ) : (userLicenses && userLicenses.length > 0) ? (
+              userLicenses.map((license) => (
+                <div key={license.id} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white text-[11px] font-bold uppercase">{license.song}</span>
+                    <span className="text-[8.5px] text-[#00E676] bg-[#00E676]/10 px-1.5 py-0.5 font-bold uppercase">ACTIVE</span>
+                  </div>
+                  <div className="grid grid-cols-2 text-[9px] font-mono text-zinc-400 font-bold">
+                    <div>TYPE: {license.type}</div>
+                    <div>ISSUED: {license.date}</div>
+                  </div>
+                  <div className="text-[8.5px] text-zinc-500 font-mono border-t border-zinc-900 pt-1.5 flex justify-between items-center">
+                    <span>ID: {license.id}</span>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => {
+                          if (transferringId === license.id) {
+                            setTransferringId(null);
+                            setTransferError("");
+                            setTransferSuccessMsg("");
+                          } else {
+                            setTransferringId(license.id);
+                            setRecipientEmail("");
+                            setTransferError("");
+                            setTransferSuccessMsg("");
+                          }
+                        }}
+                        className="text-yellow-500 hover:underline cursor-pointer uppercase text-[8px] font-bold"
+                      >
+                        {transferringId === license.id ? "Cancel Transfer ✕" : "Transfer License ⇄"}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setVerificationInput(license.id);
+                          setVerificationResult({
+                            id: license.id,
+                            status: "SECURED / ACTIVE",
+                            composition: license.song,
+                            type: license.type,
+                            isrc: license.isrc || "US-LMN-26-00301",
+                            iswc: license.iswc || "T-302.459.882-1",
+                            issuedTo: currentUserEmail || userEmail,
+                            issuedDate: license.date,
+                            signature: license.signature || "DIGITALLY REGISTERED VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
+                            hash: license.hash || "0x8F9C2B7A1E4D039F"
+                          });
+                        }}
+                        className="text-[#D9D6CA] hover:underline cursor-pointer uppercase text-[8px] font-bold"
+                      >
+                        View Certificate →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Inline Transfer Form */}
+                  {transferringId === license.id && (
+                    <motion.form 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      onSubmit={handleTransferLicense}
+                      className="border-t border-dashed border-zinc-900 pt-2.5 mt-2 space-y-2"
+                    >
+                      <p className="text-[8.5px] text-zinc-400 font-mono uppercase leading-tight">
+                        Transfer Ownership of this composition license. The recipient must be a registered terminal user on LOMON networks. This operation is cryptographically irreversible.
+                      </p>
+                      
+                      {transferError && (
+                        <div className="text-[8.5px] text-red-500 font-mono uppercase bg-red-950/10 border border-red-900/40 p-1.5 rounded-sm">
+                          ERROR: {transferError}
+                        </div>
+                      )}
+
+                      {transferSuccessMsg && (
+                        <div className="text-[8.5px] text-[#00E676] font-mono uppercase bg-[#00E676]/10 border border-[#00E676]/30 p-1.5 rounded-sm">
+                          SUCCESS: {transferSuccessMsg}
+                        </div>
+                      )}
+
+                      {!transferSuccessMsg && (
+                        <div className="flex gap-2">
+                          <input 
+                            type="email"
+                            required
+                            placeholder="RECIPIENT@EMAIL.COM"
+                            value={recipientEmail}
+                            onChange={(e) => setRecipientEmail(e.target.value)}
+                            className="flex-grow bg-black border border-zinc-850 px-2 py-1.5 text-[9px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-800"
+                          />
+                          <button 
+                            type="submit"
+                            disabled={isTransferring}
+                            className="bg-yellow-500 text-black font-mono font-bold text-[8px] tracking-wider px-3 py-1.5 hover:bg-yellow-400 transition-colors cursor-pointer"
+                          >
+                            {isTransferring ? "XFER..." : "CONFIRM XFER"}
+                          </button>
+                        </div>
+                      )}
+                    </motion.form>
+                  )}
+                </div>
+
+              ))
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active license records found for terminal {currentUserEmail}.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7B. MY CERTIFICATES (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    // ----------------------------------------------------
+    // 7B. MY CERTIFICATES (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-certificates") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / DIGITAL SIGNATURE CERTIFICATES ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Your cryptographic signature records and identity certificates stored on the LOMON registry.
+            </p>
+          </div>
+
+          <div className="space-y-2.5 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Terminal authorization required. Please establish a secure connection via checkout or support node to access active certificates.
+              </div>
+            ) : (userLicenses && userLicenses.length > 0) ? (
+              userLicenses.map((license, idx) => (
+                <div key={`cert-${license.id}`} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm font-mono space-y-2">
+                  <div className="flex justify-between items-center border-b border-zinc-900 pb-1.5">
+                    <span className="text-[#D9D6CA] text-[9.5px] font-bold uppercase">Digital Signature Certificate (DSC)</span>
+                    <span className="text-[8px] text-zinc-500 font-bold">DSC-{license.id.split("-").pop()}-{10 + idx}</span>
+                  </div>
+                  <div className="text-[9px] text-zinc-400 space-y-1">
+                    <div>COMPOSITION: {license.song}</div>
+                    <div>TERMINAL HOLDER: {currentUserEmail || userEmail}</div>
+                    <div className="truncate">SECURE HASH: {license.hash}</div>
+                  </div>
+                  <div className="text-[8px] text-zinc-500 text-right pt-1 uppercase">
+                    REGISTERED & VERIFIED BY LOMON SECURITY PROTOCOLS
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active certificate records found for terminal {currentUserEmail}.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7C. MY DOWNLOADS (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-downloads") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / MASTER SECURE DOWNLOADS ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Download your purchased master audio loops, high-quality stems, and metadata sheets.
+            </p>
+          </div>
+
+          <div className="space-y-2 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Terminal authorization required. Connect your terminal to access authorized high-quality master file downloads.
+              </div>
+            ) : (userLicenses && userLicenses.length > 0) ? (
+              userLicenses.flatMap((license) => {
+                const cleanSongName = license.song.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+                return [
+                  { filename: `${cleanSongName}_MASTER.WAV`, size: "48.2 MB", desc: `Master Stereo Wave File (24-bit / 48kHz) - ${license.song}` },
+                  { filename: `${cleanSongName}_STEMS.ZIP`, size: "185.0 MB", desc: `Separate Audio Stems (Drums, Bass, Synths, FX) - ${license.song}` }
+                ];
+              }).map((file) => (
+                <div key={file.filename} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm flex justify-between items-center">
+                  <div className="space-y-1 pr-2 max-w-[70%]">
+                    <span className="text-white text-[9.5px] font-mono font-bold block truncate">{file.filename}</span>
+                    <span className="text-[8.5px] text-zinc-500 font-mono block uppercase">{file.desc}</span>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-[8.5px] text-zinc-500 font-mono uppercase">{file.size}</span>
+                    <button 
+                      onClick={() => alert(`Initiating secure high-speed dispatch of "${file.filename}"...`)}
+                      className="text-black bg-[#D9D6CA] font-mono text-[8px] font-bold px-2 py-1 tracking-wider uppercase hover:bg-white transition-colors cursor-pointer rounded-none"
+                    >
+                      DOWNLOAD
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active license records found. Acquire digital licenses at checkout to populate high-speed stems dispatch queue.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7D. MY REQUESTS (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-requests") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / CLEARANCE & RIGHTS REQUESTS ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Track active clearance requests, publishing registration status, and ownership verification briefs.
+            </p>
+          </div>
+
+          <div className="space-y-2.5 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Terminal authorization required. Please establish a secure connection to track active clearance requests.
+              </div>
+            ) : (userRequests && userRequests.length > 0) ? (
+              userRequests.map((req) => (
+                <div key={req.ref} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm font-mono space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white text-[10px] font-bold uppercase">{req.type}</span>
+                    <span className="text-[8px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 font-bold uppercase">{req.status}</span>
+                  </div>
+                  <div className="grid grid-cols-2 text-[8.5px] text-zinc-500 font-bold">
+                    <div>TARGET: {req.target}</div>
+                    <div>DATE: {req.date}</div>
+                  </div>
+                  <div className="text-[8px] text-zinc-650 border-t border-zinc-900 pt-1">
+                    REFERENCE NUMBER: {req.ref}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active clearance or publishing requests found for terminal {currentUserEmail}.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
     // 8. BRAND STORY / MISSION / ABOUT
     // ----------------------------------------------------
     if (slug === "about-the-archive" || slug === "about") {
@@ -1081,6 +1938,13 @@ export default function TransmissionsOverlay({
           </div>
         </div>
       );
+    }
+
+    // ----------------------------------------------------
+    // 13. ADMINISTRATIVE CRUD CORE (USERS & PAYMENTS)
+    // ----------------------------------------------------
+    if (slug === "admin" || slug === "admin-console" || slug === "system") {
+      return renderAdminPanel();
     }
 
     // Default Fallback

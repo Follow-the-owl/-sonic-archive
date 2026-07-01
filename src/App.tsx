@@ -13,6 +13,7 @@ import OwlClock from "./components/OwlClock";
 import FragmentDetailPage from "./components/FragmentDetailPage";
 import CheckoutPage from "./components/CheckoutPage";
 import TransmissionsOverlay from "./components/TransmissionsOverlay";
+import MockPaystackCheckout from "./components/MockPaystackCheckout";
 import { Fragment } from "./data";
 
 
@@ -39,13 +40,113 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
 
+  // Authentication States
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [userLicenses, setUserLicenses] = useState<any[]>([]);
+  const [userRequests, setUserRequests] = useState<any[]>([]);
+
   // Cart States
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const saved = localStorage.getItem("lomon_cart");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [cartOpen, setCartOpen] = useState<boolean>(false);
   const [checkoutActive, setCheckoutActive] = useState<boolean>(false);
   const [checkoutEmail, setCheckoutEmail] = useState<string>("evianaconcepts1@gmail.com");
   const [checkoutSuccess, setCheckoutSuccess] = useState<boolean>(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment_success") === "true") {
+      // Clear URL search params without triggering reload
+      window.history.replaceState({}, document.title, "/");
+      setHasEntered(true);
+      setCheckoutActive(true);
+      setCheckoutSuccess(true);
+    }
+  }, []);
+
+  const isMockCheckout = typeof window !== "undefined" && window.location.pathname === "/mock-paystack-checkout";
+
+  if (isMockCheckout) {
+    return <MockPaystackCheckout />;
+  }
+
+  // Auto-authenticate session on mount
+  useEffect(() => {
+    const token = localStorage.getItem("lomon_auth_token");
+    if (token) {
+      fetch("/api/auth/me", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setIsLoggedIn(true);
+          setAuthToken(token);
+          setCurrentUserEmail(data.email);
+          setCheckoutEmail(data.email);
+          fetchUserData(token);
+        } else {
+          localStorage.removeItem("lomon_auth_token");
+        }
+      })
+      .catch(err => {
+        console.error("Auto-session check failed:", err);
+      });
+    }
+  }, []);
+
+  const fetchUserData = (token: string) => {
+    fetch("/api/user/data", {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setUserLicenses(data.licenses || []);
+        setUserRequests(data.requests || []);
+      }
+    })
+    .catch(err => console.error("Error fetching user credentials:", err));
+  };
+
+  const handleLoginSuccess = (email: string, token: string) => {
+    localStorage.setItem("lomon_auth_token", token);
+    setIsLoggedIn(true);
+    setAuthToken(token);
+    setCurrentUserEmail(email);
+    setCheckoutEmail(email);
+    fetchUserData(token);
+  };
+
+  const handleLogout = () => {
+    if (authToken) {
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${authToken}`
+        }
+      }).catch(err => console.error("Logout request failed:", err));
+    }
+    localStorage.removeItem("lomon_auth_token");
+    setIsLoggedIn(false);
+    setAuthToken(null);
+    setCurrentUserEmail("");
+    setUserLicenses([]);
+    setUserRequests([]);
+  };
 
   const handleAddToCart = (fragment: Fragment, tierId: string, tierTitle: string, price: string) => {
     const itemId = `${fragment.id}-${tierId}`;
@@ -246,25 +347,32 @@ export default function App() {
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
                     }`}
-                    title="View Collection"
+                    title="View Media Bag"
                   >
                     <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span className="hidden xl:inline">COLLECTION / MEDIA BAG ({cart.length})</span>
-                    <span className="xl:hidden">BAG ({cart.length})</span>
+                    <span>MEDIA BAG ({cart.length})</span>
                   </button>
 
-                  {/* Archive Access button */}
-                  <button 
-                    onClick={() => {
-                      setHasEntered(false);
-                      setSelectedFragment(null);
-                      setCheckoutActive(false);
-                    }}
-                    className="border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
-                  >
-                    <span className="hidden xl:inline">ARCHIVE ACCESS</span>
-                    <span className="xl:hidden">ARCHIVE</span>
-                  </button>
+                  {isLoggedIn ? (
+                    <div className="flex items-center gap-2 border border-zinc-900 bg-neutral-950 px-2.5 py-1.5 select-none font-mono text-[8.5px] xl:text-[9px]">
+                      <span className="text-[#00E676] animate-pulse">●</span>
+                      <span className="text-zinc-400 font-bold max-w-[120px] truncate">{currentUserEmail.toUpperCase()}</span>
+                      <span className="text-zinc-700">|</span>
+                      <button 
+                        onClick={handleLogout}
+                        className="text-red-400 hover:text-red-300 uppercase transition-colors cursor-pointer tracking-wider font-extrabold"
+                      >
+                        DISCONNECT
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setInfoOverlay({ title: "CONNECT TERMINAL", subtitle: "AUTH GATEWAY", body: "", type: "login" })}
+                      className="border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
+                    >
+                      <span>CONNECT TERMINAL</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -449,6 +557,30 @@ export default function App() {
                           ACCOUNT
                         </span>
                         <div className="flex flex-col gap-2">
+                          {isLoggedIn ? (
+                            <div className="text-left py-1 text-[11px] font-mono flex items-center justify-between border-b border-zinc-950 pb-1.5">
+                              <span className="text-[#00E676] font-bold">● {currentUserEmail.toUpperCase()}</span>
+                              <button 
+                                onClick={() => {
+                                  handleLogout();
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="text-red-400 hover:text-red-350 text-[10px] font-bold uppercase cursor-pointer"
+                              >
+                                DISCONNECT
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setMobileMenuOpen(false);
+                                setInfoOverlay({ title: "CONNECT TERMINAL", subtitle: "AUTH GATEWAY", body: "", type: "login" });
+                              }}
+                              className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-[#D9D6CA] font-bold hover:text-white cursor-pointer"
+                            >
+                              * CONNECT TERMINAL (LOGIN)
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               setHasEntered(false);
@@ -613,7 +745,15 @@ export default function App() {
                 cart={cart}
                 onRemoveItem={handleRemoveFromCart}
                 onClose={handleCloseCheckout}
-                onClearCart={() => setCart([])}
+                onClearCart={() => {
+                  setCart([]);
+                  localStorage.removeItem("lomon_cart");
+                }}
+                isLoggedIn={isLoggedIn}
+                currentUserEmail={currentUserEmail}
+                authToken={authToken}
+                onLoginSuccess={handleLoginSuccess}
+                initialStep={checkoutSuccess ? "success" : "cart"}
               />
             ) : selectedFragment ? (
               <FragmentDetailPage 
@@ -998,7 +1138,7 @@ export default function App() {
                       Publishing • Rights Management • Licensing
                     </p>
                     <p className="text-zinc-600 text-[8.5px] uppercase">
-                      Lagos, Nigeria
+                      Atlanta, Georgia
                     </p>
                     <p className="text-[#8e8d85] text-[8.5px] font-bold uppercase tracking-[0.25em]">
                       RESTRICTED
@@ -1017,7 +1157,7 @@ export default function App() {
                       Publishing • Rights Management • Licensing
                     </p>
                     <p className="text-zinc-500 text-[8.5px] uppercase">
-                      Lagos, Nigeria
+                      Atlanta, Georgia
                     </p>
                     <p className="text-[#8e8d85] text-[8.5px] font-bold uppercase tracking-[0.25em]">
                       RESTRICTED
@@ -1122,6 +1262,12 @@ export default function App() {
               title={infoOverlay?.title || ""}
               subtitle={infoOverlay?.subtitle || ""}
               type={infoOverlay?.type || ""}
+              isLoggedIn={isLoggedIn}
+              currentUserEmail={currentUserEmail}
+              onLoginSuccess={handleLoginSuccess}
+              userLicenses={userLicenses}
+              userRequests={userRequests}
+              onRefreshData={() => authToken && fetchUserData(authToken)}
             />
           </motion.div>
         )}

@@ -752,18 +752,18 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
           >
             <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-white/20" />
-            {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing in vivid red */}
+            {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing in elegant white */}
             <motion.svg
               viewBox="0 0 12 12"
-              className="w-[11px] h-[11px] text-red-500 flex-shrink-0"
+              className="w-[11px] h-[11px] text-white flex-shrink-0"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
               animate={{
                 opacity: [0.35, 1, 0.35],
                 filter: [
-                  "drop-shadow(0 0 0px rgba(239, 68, 68, 0))",
-                  "drop-shadow(0 0 5px rgba(239, 68, 68, 0.85))",
-                  "drop-shadow(0 0 0px rgba(239, 68, 68, 0))"
+                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
+                  "drop-shadow(0 0 5px rgba(255, 255, 255, 0.85))",
+                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
                 ],
                 scale: [0.95, 1.08, 0.95]
               }}
