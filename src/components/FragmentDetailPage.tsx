@@ -787,7 +787,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           </div>
 
           {/* METADATA GRID SECTION (No Recovered Artist, Full Width Request Clearance) */}
-          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] !mt-24 sm:!mt-4">
             {/* Request Clearance Button */}
             <button
               id="request-clearance-btn"

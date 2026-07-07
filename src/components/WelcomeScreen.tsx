@@ -212,12 +212,6 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
       id="landing-portal"
       className="fixed inset-0 bg-black text-[#D9D6CA] flex flex-col items-center justify-between select-none cursor-default z-50 overflow-hidden py-12 px-6"
     >
-      {/* Absolute faint concentric coordinate circles to indicate spatial audio interface */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04] z-0">
-        <div className="w-[300px] h-[300px] border border-[#D9D6CA] rounded-full animate-pulse" />
-        <div className="absolute w-[500px] h-[500px] border border-[#D9D6CA] rounded-full border-dashed" />
-      </div>
-
       {/* Top right "ARCHIVE ACCESS 🔒" badge - Styled exactly like the user's reference */}
       <div className="w-full flex justify-end items-center z-50">
         <button
@@ -266,6 +260,10 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
             alt="The Sentinel Entrance"
             referrerPolicy="no-referrer"
             className="w-full h-full object-cover select-none pointer-events-none transition-all duration-700 opacity-85"
+            style={{
+              WebkitMaskImage: "radial-gradient(circle at center, rgba(0,0,0,1) 12%, rgba(0,0,0,0) 45%)",
+              maskImage: "radial-gradient(circle at center, rgba(0,0,0,1) 12%, rgba(0,0,0,0) 45%)",
+            }}
             animate={{
               scale: isHooting ? [1, 1.05, 0.98, 1] : 1,
               filter: isTriggered 
@@ -274,17 +272,6 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
             }}
             transition={{ duration: 1.5 }}
           />
-
-          {/* Radial gradient mask to make the image's background absolute black */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,#000000_75%)] pointer-events-none z-10" />
-
-          {/* Gradients to blend seamless with black background on all sides */}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none z-10" />
-          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black via-black/60 to-transparent pointer-events-none z-10" />
-          <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/60 to-transparent pointer-events-none z-10" />
-          <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black via-black/60 to-transparent pointer-events-none z-10" />
-
-
 
           {/* Spaced aesthetic title and axis slider marker precisely matching the uploaded layout */}
           <div className="absolute inset-x-0 bottom-4 sm:bottom-6 md:bottom-10 lg:bottom-12 flex flex-col items-center gap-4 z-20 pointer-events-none">

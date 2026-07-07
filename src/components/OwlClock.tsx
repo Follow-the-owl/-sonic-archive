@@ -701,85 +701,83 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
           </div>
         </div>
 
-        {/* Beautiful full-bleed, organic Owl image, blended seamlessly to the dark background */}
-        <div className="flex-grow w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center mt-2 sm:mt-4 md:mt-6 mb-2 min-h-0 relative z-10">
-          <motion.div 
-            className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-transparent group flex items-center justify-center"
-            style={{
-              rotateX,
-              rotateY,
-              perspective: 1200
-            }}
-            onClick={handleOwlCall}
-            animate={isHooting ? {
-              scale: [1, 1.02, 0.99, 1],
-              filter: ["brightness(1)", "brightness(1.15)", "brightness(1)"]
-            } : {}}
-            transition={{ duration: 0.8 }}
-          >
-            <img
-              src={owlBgImage}
-              alt="The Sentinel Owl"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover opacity-85 pointer-events-none select-none animate-fade-in"
-            />
-            {/* Radial gradient mask to make the image's background absolute black */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,#000000_75%)] pointer-events-none" />
-
-            {/* Gradients to blend seamless with black background on all sides */}
-            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black via-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black via-black/50 to-transparent pointer-events-none" />
-          </motion.div>
-        </div>
-
-        {/* 3. ELEGANT WRITEUP: RECOVER A FRAGMENT FROM TIME */}
-        <div className="w-full flex flex-col items-center gap-2 z-20 pb-2 pointer-events-none">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.5, delay: 0.2 }}
-            className="w-full flex items-center justify-center"
-          >
-            <h2 className="text-[10px] sm:text-[11px] md:text-[12px] font-bold tracking-[0.35em] sm:tracking-[0.45em] text-white uppercase font-mono text-center select-none whitespace-nowrap">
-              RECOVER A FRAGMENT FROM TIME
-            </h2>
-          </motion.div>
-
-          {/* Hairline spacer with central hollow ring target */}
-          <motion.div 
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 0.5, scaleX: 1 }}
-            transition={{ duration: 1.8, delay: 0.5 }}
-            className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
-          >
-            <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-white/20" />
-            {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing in elegant white */}
-            <motion.svg
-              viewBox="0 0 12 12"
-              className="w-[11px] h-[11px] text-white flex-shrink-0"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              animate={{
-                opacity: [0.35, 1, 0.35],
-                filter: [
-                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
-                  "drop-shadow(0 0 5px rgba(255, 255, 255, 0.85))",
-                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
-                ],
-                scale: [0.95, 1.08, 0.95]
+        {/* Beautiful full-bleed, organic Owl image and elegant writeup grouped to keep them tight on mobile */}
+        <div className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2">
+          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative">
+            <motion.div 
+              className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-black group flex items-center justify-center"
+              style={{
+                rotateX,
+                rotateY,
+                perspective: 1200
               }}
-              transition={{
-                duration: 2.8,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
+              onClick={handleOwlCall}
             >
-              <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
-            </motion.svg>
-            <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-white/20" />
-          </motion.div>
+              <motion.img
+                src={owlBgImage}
+                alt="The Sentinel Owl"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover opacity-85 pointer-events-none select-none animate-fade-in"
+                style={{
+                  WebkitMaskImage: "radial-gradient(circle at center, rgba(0,0,0,1) 12%, rgba(0,0,0,0) 45%)",
+                  maskImage: "radial-gradient(circle at center, rgba(0,0,0,1) 12%, rgba(0,0,0,0) 45%)",
+                }}
+                animate={isHooting ? {
+                  scale: [1, 1.02, 0.99, 1],
+                  filter: ["brightness(1)", "brightness(1.15)", "brightness(1)"]
+                } : {}}
+                transition={{ duration: 0.8 }}
+              />
+            </motion.div>
+          </div>
+
+          {/* 3. ELEGANT WRITEUP: RECOVER A FRAGMENT FROM TIME */}
+          <div className="w-full flex flex-col items-center gap-2 pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.5, delay: 0.2 }}
+              className="w-full flex items-center justify-center"
+            >
+              <h2 className="text-[10px] sm:text-[11px] md:text-[12px] font-bold tracking-[0.35em] sm:tracking-[0.45em] text-white uppercase font-mono text-center select-none whitespace-nowrap">
+                RECOVER A FRAGMENT FROM TIME
+              </h2>
+            </motion.div>
+
+            {/* Hairline spacer with central hollow ring target */}
+            <motion.div 
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 0.5, scaleX: 1 }}
+              transition={{ duration: 1.8, delay: 0.5 }}
+              className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
+            >
+              <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-white/20" />
+              {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing in elegant white */}
+              <motion.svg
+                viewBox="0 0 12 12"
+                className="w-[11px] h-[11px] text-white flex-shrink-0"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                animate={{
+                  opacity: [0.35, 1, 0.35],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
+                    "drop-shadow(0 0 5px rgba(255, 255, 255, 0.85))",
+                    "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
+                  ],
+                  scale: [0.95, 1.08, 0.95]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
+              </motion.svg>
+              <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-white/20" />
+            </motion.div>
+          </div>
         </div>
       </div>
 

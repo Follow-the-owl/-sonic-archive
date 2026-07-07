@@ -35,6 +35,69 @@ export interface CartItem {
   price: string;
 }
 
+function UserAvatar({ email }: { email: string }) {
+  const hash = React.useMemo(() => {
+    let h = 0;
+    const str = email || "guest";
+    for (let i = 0; i < str.length; i++) {
+      h = str.charCodeAt(i) + ((h << 5) - h);
+    }
+    return Math.abs(h);
+  }, [email]);
+
+  // Curated list of deep, mysterious backgrounds
+  const gradients = [
+    ["from-[#1d120a] to-[#2e1d11]", "#D6C291"], // Ochre / Amber
+    ["from-[#0c1618] to-[#1a2d30]", "#00E676"], // Teal / Green
+    ["from-[#100b14] to-[#1f1629]", "#c084fc"], // Amethyst
+    ["from-[#150f0f] to-[#2c1c1c]", "#f87171"], // Crimson
+    ["from-[#0d131a] to-[#182635]", "#60a5fa"], // Cobalt
+    ["from-[#161712] to-[#2a2c22]", "#a3e635"], // Lime/Olive
+    ["from-[#1c1c1c] to-[#383838]", "#D9D6CA"], // Monochromatic Platinum
+  ];
+
+  const [bgGradient, accentColor] = gradients[hash % gradients.length];
+  const patternType = hash % 4;
+
+  return (
+    <div className={`w-5 h-5 rounded-[4px] bg-gradient-to-br ${bgGradient} border border-zinc-800 flex items-center justify-center overflow-hidden shrink-0 relative group shadow-[0_0_10px_rgba(0,0,0,0.5)]`}>
+      {/* Dynamic SVG procedural glyphs based on patternType */}
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" strokeWidth="1.5">
+        {patternType === 0 && (
+          <>
+            <path d="M12 2L22 12L12 22L2 12Z" stroke={accentColor} />
+            <path d="M12 6L18 12L12 18L6 12Z" stroke={accentColor} className="opacity-60" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" className="text-white" />
+          </>
+        )}
+        {patternType === 1 && (
+          <>
+            <circle cx="12" cy="12" r="8" stroke={accentColor} />
+            <path d="M12 2V22M2 12H22" stroke={accentColor} className="opacity-55" />
+            <rect x="9.5" y="9.5" width="5" height="5" stroke="currentColor" className="text-white" />
+          </>
+        )}
+        {patternType === 2 && (
+          <>
+            <path d="M12 3L21 19H3Z" stroke={accentColor} />
+            <path d="M12 21L3 5H21Z" stroke={accentColor} className="opacity-40" />
+            <circle cx="12" cy="12" r="2.5" fill="currentColor" className="text-white" />
+          </>
+        )}
+        {patternType === 3 && (
+          <>
+            <circle cx="12" cy="12" r="6" stroke={accentColor} strokeDasharray="3 3" />
+            <path d="M5 12h14" stroke={accentColor} />
+            <path d="M12 5v14" stroke={accentColor} />
+            <circle cx="12" cy="12" r="3" stroke="currentColor" className="text-white" />
+          </>
+        )}
+      </svg>
+      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+    </div>
+  );
+}
+
 export default function App() {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<NavigationTab>("The Owl Clock");
@@ -43,6 +106,7 @@ export default function App() {
 
   // Authentication States
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState<boolean>(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [userLicenses, setUserLicenses] = useState<any[]>([]);
@@ -338,8 +402,8 @@ export default function App() {
           >
             {/* Header / Guide Navigation segment */}
             <header id="site-header" className="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-zinc-900 px-4 lg:px-6 xl:px-8 py-4 xl:py-5">
-              {/* Desktop Header: 3 columns layout (Left, Center, Right) */}
-              <div className="max-w-7xl mx-auto hidden lg:grid grid-cols-3 items-center">
+              {/* Desktop Header: Flexible, responsive row layout (Left, Center, Right) */}
+              <div className="max-w-7xl mx-auto hidden lg:flex items-center justify-between gap-4">
                 {/* Left Column: Brand Logo */}
                 <div 
                   id="brand" 
@@ -349,7 +413,7 @@ export default function App() {
                     setCheckoutActive(false);
                     setActiveTab("The Owl Clock");
                   }}
-                  className="cursor-pointer space-y-0.5 xl:space-y-1 group relative select-none justify-self-start"
+                  className="cursor-pointer space-y-0.5 xl:space-y-1 group relative select-none shrink-0"
                 >
                   <div className="absolute inset-0 blur-[3px] opacity-25 scale-y-105 group-hover:opacity-40 transition-opacity text-white font-display text-xs xl:text-lg tracking-[0.2em] xl:tracking-[0.25em]">
                     THE OWL CLOCK
@@ -362,8 +426,8 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* Center Column: Minimal Desktop Navigation tabs */}
-                <nav id="desktop-nav" className="flex items-center gap-1 xl:gap-1.5 justify-self-center">
+                {/* Center Column: Minimal Desktop Navigation tabs with whitespace-nowrap and adaptive scaling */}
+                <nav id="desktop-nav" className="flex items-center gap-1 xl:gap-2 shrink">
                   {tabsList.map((tab) => {
                     const isSelected = activeTab === tab && !selectedFragment && !checkoutActive;
                     return (
@@ -375,7 +439,7 @@ export default function App() {
                           setSelectedFragment(null);
                           setCheckoutActive(false);
                         }}
-                        className={`px-2 xl:px-3 py-1.5 xl:py-2 text-[9px] xl:text-[10px] font-mono uppercase tracking-[0.12em] xl:tracking-[0.22em] transition-all duration-300 rounded-none relative flex items-center gap-1 xl:gap-1.5 cursor-pointer border ${
+                        className={`px-2 xl:px-3 py-1.5 xl:py-2 text-[8.5px] xl:text-[10px] font-mono uppercase tracking-[0.1em] xl:tracking-[0.22em] transition-all duration-300 rounded-none relative flex items-center gap-1 xl:gap-1.5 cursor-pointer border whitespace-nowrap ${
                           isSelected 
                             ? "text-white bg-transparent border-white font-bold" 
                             : "text-zinc-400 border-transparent hover:text-white hover:border-white/20"
@@ -400,13 +464,13 @@ export default function App() {
                 </nav>
 
                 {/* Right Column: Collection / Media Bag + Archive Access */}
-                <div className="flex items-center gap-2 xl:gap-3 justify-self-end">
+                <div className="flex items-center gap-2 xl:gap-3 shrink-0">
                   {/* Collection / Media Bag button */}
                   <button 
                     onClick={() => {
                       setCartOpen(!cartOpen);
                     }}
-                    className={`flex items-center gap-1 xl:gap-1.5 border px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none ${
+                    className={`flex items-center gap-1 xl:gap-1.5 border px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap ${
                       cartOpen 
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
@@ -417,17 +481,86 @@ export default function App() {
                     <span>MEDIA BAG ({cart.length})</span>
                   </button>
 
-                  {isLoggedIn ? (
-                    <div className="flex items-center gap-2 border border-zinc-900 bg-neutral-950 px-2.5 py-1.5 select-none font-mono text-[8.5px] xl:text-[9px]">
-                      <span className="text-[#00E676] animate-pulse">●</span>
-                      <span className="text-zinc-400 font-bold max-w-[120px] truncate">{currentUserEmail.toUpperCase()}</span>
-                      <span className="text-zinc-700">|</span>
+                   {isLoggedIn ? (
+                    <div className="relative z-50">
+                      {/* Interactive Avatar Button */}
                       <button 
-                        onClick={handleLogout}
-                        className="text-red-400 hover:text-red-300 uppercase transition-colors cursor-pointer tracking-wider font-extrabold"
+                        onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                        className="flex items-center gap-2 border border-zinc-900 hover:border-[#D9D6CA] bg-neutral-950 px-2 py-1.5 transition-colors cursor-pointer rounded-none select-none"
+                        title="Open User Terminal Menu"
                       >
-                        DISCONNECT
+                        <UserAvatar email={currentUserEmail} />
+                        <span className="text-[7px] text-zinc-500">▼</span>
                       </button>
+
+                      <AnimatePresence>
+                        {profileDropdownOpen && (
+                          <>
+                            {/* Backdrop invisible helper to close on outside click */}
+                            <div 
+                              className="fixed inset-0 z-40 bg-transparent cursor-default" 
+                              onClick={() => setProfileDropdownOpen(false)} 
+                            />
+                            
+                            {/* Dropdown Panel */}
+                            <motion.div
+                              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute right-0 mt-2 w-64 bg-[#0a0a0a] border border-zinc-900 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.95)] p-4 text-left font-mono z-50 space-y-3"
+                            >
+                              {/* Email Display */}
+                              <div className="space-y-1 select-text">
+                                <span className="text-[7.5px] tracking-[0.25em] text-zinc-500 font-bold block uppercase">
+                                  TERMINAL GATEWAY
+                                </span>
+                                <span className="text-[10px] text-zinc-300 font-bold break-all block">
+                                  {currentUserEmail.toLowerCase()}
+                                </span>
+                              </div>
+
+                              {/* Demarcation line */}
+                              <div className="h-[1px] bg-zinc-900 w-full" />
+
+                              {/* Navigation Link to Dashboard (My Licenses) */}
+                              <div>
+                                <button
+                                  onClick={() => {
+                                    setProfileDropdownOpen(false);
+                                    setInfoOverlay({
+                                      title: "My Licenses",
+                                      subtitle: "ACCOUNT DEP",
+                                      body: "",
+                                      type: "my-licenses"
+                                    });
+                                  }}
+                                  className="w-full text-left text-[9.5px] text-[#D9D6CA] hover:text-white uppercase transition-colors flex items-center justify-between cursor-pointer py-1 font-bold tracking-wider"
+                                >
+                                  <span>My Dashboard</span>
+                                  <span className="text-zinc-600 font-bold">→</span>
+                                </button>
+                              </div>
+
+                              {/* Demarcation line */}
+                              <div className="h-[1px] bg-zinc-900 w-full" />
+
+                              {/* Logout Link with Normal Text */}
+                              <div>
+                                <button 
+                                  onClick={() => {
+                                    setProfileDropdownOpen(false);
+                                    handleLogout();
+                                  }}
+                                  className="w-full text-left text-[11px] text-zinc-400 hover:text-red-400 transition-colors cursor-pointer py-1 font-sans font-normal normal-case block"
+                                >
+                                  Logout
+                                </button>
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ) : (
                     <button 
@@ -622,16 +755,19 @@ export default function App() {
                         </span>
                         <div className="flex flex-col gap-2">
                           {isLoggedIn ? (
-                            <div className="text-left py-1 text-[11px] font-mono flex items-center justify-between border-b border-zinc-950 pb-1.5">
-                              <span className="text-[#00E676] font-bold">● {currentUserEmail.toUpperCase()}</span>
+                            <div className="text-left py-1 text-[11px] font-mono flex items-center justify-between border-b border-zinc-950 pb-1.5 gap-2">
+                              <div className="flex items-center gap-2 truncate">
+                                <UserAvatar email={currentUserEmail} />
+                                <span className="text-zinc-400 font-bold truncate">{currentUserEmail.toUpperCase()}</span>
+                              </div>
                               <button 
                                 onClick={() => {
                                   handleLogout();
                                   setMobileMenuOpen(false);
                                 }}
-                                className="text-red-400 hover:text-red-350 text-[10px] font-bold uppercase cursor-pointer"
+                                className="text-zinc-400 hover:text-white font-sans text-[10px] font-medium uppercase cursor-pointer transition-colors whitespace-nowrap"
                               >
-                                DISCONNECT
+                                LOGOUT
                               </button>
                             </div>
                           ) : (
