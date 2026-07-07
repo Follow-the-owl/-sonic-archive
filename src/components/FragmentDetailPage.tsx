@@ -647,24 +647,13 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   return (
     <div 
       id={`fragment-detail-${fragment.id}`} 
-      className="min-h-screen w-full bg-black text-[#D9D6CA] flex flex-col justify-start items-center p-4 sm:p-8 pb-12 relative select-none overflow-x-hidden"
+      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-start items-center p-4 sm:p-8 pb-12 relative select-none overflow-x-hidden bg-no-repeat"
+      style={{ 
+        backgroundImage: `linear-gradient(to bottom, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.5) 50%, rgba(3, 3, 3, 0.95) 90%, #030303 100%), url(${fragmentPageBackground})`,
+        backgroundPosition: "center 60px",
+        backgroundSize: "min(100%, 850px) auto"
+      }}
     >
-      {/* Immersive background image with filters to make blacks pitch black */}
-      <div 
-        className="absolute top-[60px] left-1/2 -translate-x-1/2 w-full max-w-[850px] aspect-[16/10] bg-cover bg-center pointer-events-none z-0 opacity-80"
-        style={{ 
-          backgroundImage: `url(${fragmentPageBackground})`,
-          filter: "contrast(1.4) brightness(0.75)"
-        }}
-      />
-      {/* Black overlay gradients to blend it perfectly with absolute black bg */}
-      <div 
-        className="absolute top-[60px] left-1/2 -translate-x-1/2 w-full max-w-[850px] aspect-[16/10] pointer-events-none z-0"
-        style={{
-          background: "radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 15%, rgba(0,0,0,0.9) 45%, #000000 60%), linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.98) 90%, #000000 100%)"
-        }}
-      />
-
       {/* 1. Global CRT horizontal scanline texture overlay */}
       <div className="film-grain pointer-events-none opacity-20 z-[2]" />
 
