@@ -686,7 +686,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             {calibrationState === "available" && (
               <button
                 onClick={handleTransmit}
-                className="w-full bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(217,214,202,0.35)] flex items-center justify-center gap-1.5"
+                className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.35)] flex items-center justify-center gap-1.5"
               >
                 <span>TRANSMIT SIGNAL</span>
                 <span className="font-mono text-[9px]">&gt;</span>
@@ -722,12 +722,16 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               alt="The Sentinel Owl"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover opacity-85 pointer-events-none select-none animate-fade-in"
+              style={{ filter: "contrast(1.4) brightness(0.75)" }}
             />
+            {/* Radial gradient mask to make the image's background absolute black */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.15)_15%,rgba(0,0,0,0.9)_45%,#000000_60%)] pointer-events-none" />
+
             {/* Gradients to blend seamless with black background on all sides */}
-            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black via-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black via-black/50 to-transparent pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black via-black/50 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black via-black/95 to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black via-black/95 to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black via-black/95 to-transparent pointer-events-none" />
           </motion.div>
         </div>
 

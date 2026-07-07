@@ -14,6 +14,7 @@ import FragmentDetailPage from "./components/FragmentDetailPage";
 import CheckoutPage from "./components/CheckoutPage";
 import TransmissionsOverlay from "./components/TransmissionsOverlay";
 import MockPaystackCheckout from "./components/MockPaystackCheckout";
+import DocumentDashboard from "./components/DocumentDashboard";
 import { Fragment } from "./data";
 
 
@@ -46,6 +47,7 @@ export default function App() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [userLicenses, setUserLicenses] = useState<any[]>([]);
   const [userRequests, setUserRequests] = useState<any[]>([]);
+  const [userEmailLogs, setUserEmailLogs] = useState<any[]>([]);
 
   // Cart States
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -57,6 +59,7 @@ export default function App() {
   const [checkoutEmail, setCheckoutEmail] = useState<string>("evianaconcepts1@gmail.com");
   const [checkoutSuccess, setCheckoutSuccess] = useState<boolean>(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState<boolean>(false);
+  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string>("");
 
   useEffect(() => {
     localStorage.setItem("lomon_cart", JSON.stringify(cart));
@@ -65,11 +68,39 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment_success") === "true") {
+      const token = params.get("auth_token");
+      const email = params.get("email");
+      const previewUrl = params.get("email_preview_url");
+
+      if (token) {
+        localStorage.setItem("lomon_auth_token", token);
+        setIsLoggedIn(true);
+        setAuthToken(token);
+        setCurrentUserEmail(email || "");
+        setCheckoutEmail(email || "");
+        fetchUserData(token);
+      }
+      if (previewUrl) {
+        setEmailPreviewUrl(previewUrl);
+      }
+
       // Clear URL search params without triggering reload
       window.history.replaceState({}, document.title, "/");
       setHasEntered(true);
-      setCheckoutActive(true);
-      setCheckoutSuccess(true);
+
+      // Clear the media cart
+      setCart([]);
+      localStorage.removeItem("lomon_cart");
+
+      // Close checkout screens and automatically slide open the secure licenses dashboard
+      setCheckoutActive(false);
+      setCheckoutSuccess(false);
+      setInfoOverlay({
+        title: "My Licenses",
+        subtitle: "ACCOUNT DEP",
+        body: "",
+        type: "my-licenses"
+      });
     }
   }, []);
 
@@ -77,6 +108,38 @@ export default function App() {
 
   if (isMockCheckout) {
     return <MockPaystackCheckout />;
+  }
+
+  const isAdminDashboard = typeof window !== "undefined" && window.location.pathname === "/AdminDashboard";
+
+  if (isAdminDashboard) {
+    return (
+      <div className="min-h-screen bg-[#020202] text-zinc-100 p-6 select-text font-mono flex flex-col justify-between">
+        <div className="max-w-7xl w-full mx-auto space-y-6 flex-grow">
+          <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase">
+                SYSTEM ADMINISTRATIVE PORTAL //
+              </span>
+              <span className="text-[10px] text-emerald-400 font-extrabold tracking-widest uppercase animate-pulse">
+                SECURE CONSOLE ACTIVE
+              </span>
+            </div>
+            <a 
+              href="/"
+              className="text-[10px] text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-wider"
+            >
+              ← BACK TO MAIN APPMENU
+            </a>
+          </div>
+          <DocumentDashboard
+            currentUserEmail={currentUserEmail || "admin@system.local"}
+            isLoggedIn={isLoggedIn}
+            mode="ADMIN"
+          />
+        </div>
+      </div>
+    );
   }
 
   // Auto-authenticate session on mount
@@ -117,6 +180,7 @@ export default function App() {
       if (data.success) {
         setUserLicenses(data.licenses || []);
         setUserRequests(data.requests || []);
+        setUserEmailLogs(data.emailLogs || []);
       }
     })
     .catch(err => console.error("Error fetching user credentials:", err));
@@ -313,8 +377,8 @@ export default function App() {
                         }}
                         className={`px-2 xl:px-3 py-1.5 xl:py-2 text-[9px] xl:text-[10px] font-mono uppercase tracking-[0.12em] xl:tracking-[0.22em] transition-all duration-300 rounded-none relative flex items-center gap-1 xl:gap-1.5 cursor-pointer border ${
                           isSelected 
-                            ? "text-black bg-[#D9D6CA] border-[#D9D6CA] font-bold" 
-                            : "text-zinc-400 border-transparent hover:text-white hover:border-[#D9D6CA]/20"
+                            ? "text-white bg-transparent border-white font-bold" 
+                            : "text-zinc-400 border-transparent hover:text-white hover:border-white/20"
                         }`}
                       >
                         {isSelected && (
@@ -754,6 +818,7 @@ export default function App() {
                 authToken={authToken}
                 onLoginSuccess={handleLoginSuccess}
                 initialStep={checkoutSuccess ? "success" : "cart"}
+                emailPreviewUrl={emailPreviewUrl}
               />
             ) : selectedFragment ? (
               <FragmentDetailPage 
@@ -1238,7 +1303,7 @@ export default function App() {
                             setCheckoutActive(true);
                             setCartOpen(false);
                           }}
-                          className="w-full bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[10px] tracking-widest py-3.5 px-4 flex items-center justify-center gap-1.5 transition-all shadow-[0_4px_12px_rgba(217,214,202,0.15)] rounded-sm cursor-pointer"
+                          className="w-full bg-white hover:bg-zinc-200 text-black font-mono font-bold text-[10px] tracking-widest py-3.5 px-4 flex items-center justify-center gap-1.5 transition-all shadow-[0_4px_12px_rgba(255,255,255,0.15)] rounded-sm cursor-pointer"
                         >
                           <span>CONTINUE TO SECURE GATEWAY →</span>
                         </button>
@@ -1267,6 +1332,7 @@ export default function App() {
               onLoginSuccess={handleLoginSuccess}
               userLicenses={userLicenses}
               userRequests={userRequests}
+              userEmailLogs={userEmailLogs}
               onRefreshData={() => authToken && fetchUserData(authToken)}
             />
           </motion.div>

@@ -3,6 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { MongoClient, Db } from "mongodb";
+import nodemailer from "nodemailer";
 
 // --- Types ---
 interface User {
@@ -126,6 +127,18 @@ const mockPayments: Payment[] = [
   }
 ];
 
+interface EmailLog {
+  id: string;
+  email: string;
+  reference: string;
+  subject: string;
+  previewUrl?: string;
+  html: string;
+  date: string;
+}
+
+const mockEmailLogs: EmailLog[] = [];
+
 async function initializeDatabase() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
@@ -185,6 +198,12 @@ function hashPassword(password: string): string {
 // Helper: Token generator
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
+}
+
+// Helper: send premium transaction license dispatch email
+async function sendLicenseEmail(email: string, licenses: License[], amountNgn: number, reference: string): Promise<string> {
+  console.log(`[EMAIL BYPASS] Email dispatch disabled as per instructions. No transmission email will be sent to ${email} for reference ${reference}.`);
+  return "";
 }
 
 // --- API ENDPOINTS ---
@@ -361,13 +380,16 @@ app.get("/api/user/data", async (req, res) => {
 
     let userLicenses: License[] = [];
     let userRequests: RequestItem[] = [];
+    let userEmailLogs: EmailLog[] = [];
 
     if (useMockDb) {
       userLicenses = mockLicenses.filter((lic) => lic.email === email);
       userRequests = mockRequests.filter((reqItem) => reqItem.email === email);
+      userEmailLogs = mockEmailLogs.filter((log) => log.email === email);
     } else {
       userLicenses = (await db!.collection("licenses").find({ email }).toArray()) as any[];
       userRequests = (await db!.collection("requests").find({ email }).toArray()) as any[];
+      userEmailLogs = (await db!.collection("email_logs").find({ email }).toArray()) as any[];
     }
 
     res.json({
@@ -375,6 +397,7 @@ app.get("/api/user/data", async (req, res) => {
       email,
       licenses: userLicenses,
       requests: userRequests,
+      emailLogs: userEmailLogs,
       database: useMockDb ? "MOCK_IN_MEMORY" : "MONGODB"
     });
   } catch (err: any) {
@@ -639,12 +662,16 @@ app.post("/api/paystack/verify", async (req, res) => {
         await db!.collection("payments").insertOne(newPayment);
       }
 
+      // Dispatch license confirmation email (real SMTP or auto-simulated sandbox preview URL)
+      const emailPreviewUrl = await sendLicenseEmail(dbEmail, generatedLicenses, actualAmount, reference);
+
       res.json({
         success: true,
         reference,
         licenses: generatedLicenses,
         requests: generatedRequests,
         payment: newPayment,
+        emailPreviewUrl,
         database: useMockDb ? "MOCK_IN_MEMORY" : "MONGODB"
       });
     } else {
@@ -746,11 +773,44 @@ app.get("/api/paystack/callback", async (req, res) => {
         await db!.collection("payments").insertOne(newPayment);
       }
 
+      // Dispatch license confirmation email (real SMTP or auto-simulated sandbox preview URL)
+      const emailPreviewUrl = await sendLicenseEmail(dbEmail, generatedLicenses, actualAmount, reference);
+
+      // Generate a session token for this user so they are automatically authenticated upon returning!
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      if (useMockDb) {
+        mockSessions.set(sessionToken, dbEmail);
+        // Ensure user account exists in mock accounts
+        if (!mockUsers.has(dbEmail)) {
+          mockUsers.set(dbEmail, {
+            email: dbEmail,
+            passwordHash: hashPassword("123456"),
+            createdAt: new Date()
+          });
+        }
+      } else {
+        // Find or create user
+        const existingUser = await db!.collection("users").findOne({ email: dbEmail });
+        if (!existingUser) {
+          await db!.collection("users").insertOne({
+            email: dbEmail,
+            passwordHash: hashPassword("123456"), // Default placeholder password
+            role: "user",
+            createdAt: new Date()
+          });
+        }
+        await db!.collection("sessions").insertOne({
+          token: sessionToken,
+          email: dbEmail,
+          createdAt: new Date()
+        });
+      }
+
       // Clean up the pending map
       pendingTransactions.delete(reference);
 
-      // Redirect back to our site with payment_success=true!
-      return res.redirect("/?payment_success=true&reference=" + reference);
+      // Redirect back to our site with payment_success=true, session token, email, and the preview url!
+      return res.redirect(`/?payment_success=true&reference=${reference}&auth_token=${sessionToken}&email=${encodeURIComponent(dbEmail)}&email_preview_url=${encodeURIComponent(emailPreviewUrl)}`);
     } else {
       return res.redirect("/?payment_error=Transaction could not be authorized.");
     }

@@ -38,6 +38,7 @@ interface CheckoutPageProps {
   authToken: string | null;
   onLoginSuccess: (email: string, token: string) => void;
   initialStep?: "cart" | "auth" | "billing" | "paystack" | "success";
+  emailPreviewUrl?: string;
 }
 
 type CheckoutStep = "cart" | "auth" | "billing" | "paystack" | "success";
@@ -51,7 +52,8 @@ export default function CheckoutPage({
   currentUserEmail,
   authToken,
   onLoginSuccess,
-  initialStep = "cart"
+  initialStep = "cart",
+  emailPreviewUrl = ""
 }: CheckoutPageProps) {
   const [step, setStep] = useState<CheckoutStep>(initialStep);
   const [couponChecked, setCouponChecked] = useState(false);
@@ -160,7 +162,7 @@ export default function CheckoutPage({
     setStep("paystack");
   };
 
-  const initiateRedirect = async (e?: React.FormEvent) => {
+  const initiateRedirect = async (e?: React.FormEvent, isUserClick: boolean = false) => {
     if (e) e.preventDefault();
     setPaystackError("");
     setPaystackProcessing(true);
@@ -194,7 +196,25 @@ export default function CheckoutPage({
 
       if (!initData.isMock && initData.authorization_url) {
         console.log("[PAYSTACK] Redirecting user to official Paystack hosted checkout:", initData.authorization_url);
-        window.location.href = initData.authorization_url;
+        
+        // Detect if running inside an iframe (like AI Studio preview)
+        const inIframe = typeof window !== "undefined" && window.self !== window.top;
+        
+        if (inIframe || isUserClick) {
+          console.log("[PAYSTACK] Running inside iframe or clicked by user. Opening Paystack in a secure new window tab...");
+          const paymentWindow = window.open(initData.authorization_url, "_blank");
+          
+          if (!paymentWindow) {
+            setPaystackProcessing(false);
+            setPaystackError("Your browser blocked the secure checkout window popup. Please click the button below to authorize payment manually.");
+          } else {
+            setPaystackProcessing(false);
+            // Show a friendly status message letting them know it opened in a new tab
+            setPaystackError("We have opened your secure Paystack checkout portal in a new browser tab. Please complete your transaction there. Once paid, the system will process your licenses automatically.");
+          }
+        } else {
+          window.location.href = initData.authorization_url;
+        }
       } else {
         console.log("[PAYSTACK] Redirecting user to custom simulated hosted checkout page.");
         const redirectUrl = `/mock-paystack-checkout?reference=${encodeURIComponent(initData.reference)}&amount=${encodeURIComponent(subtotal.toString())}&email=${encodeURIComponent(email || currentUserEmail || "guest@lomon.local")}`;
@@ -213,6 +233,13 @@ export default function CheckoutPage({
       initiateRedirect();
     }
   }, [step]);
+
+  // Keep email state updated when currentUserEmail changes (e.g., after callback auto-login)
+  useEffect(() => {
+    if (currentUserEmail) {
+      setEmail(currentUserEmail);
+    }
+  }, [currentUserEmail]);
 
 
   const handleCompleteAll = () => {
@@ -716,7 +743,7 @@ export default function CheckoutPage({
 
                     <div className="w-full space-y-3">
                       <button
-                        onClick={() => initiateRedirect()}
+                        onClick={(e) => initiateRedirect(e, true)}
                         disabled={paystackProcessing && !paystackError}
                         className="w-full text-[11px] font-sans font-extrabold text-black bg-[#D9D6CA] hover:bg-white py-3.5 tracking-widest uppercase transition-all rounded-[4px] cursor-pointer shadow-lg inline-flex items-center justify-center gap-2"
                       >
@@ -885,6 +912,23 @@ export default function CheckoutPage({
             <p className="text-[11.5px] text-zinc-400 font-sans font-light leading-relaxed mb-6">
               All uncompressed master WAV files and professional tracking stems have been deployed to your secure customer terminal. Your license certificate and stem downloads link have been forwarded to <strong className="text-white">{email}</strong>.
             </p>
+
+            {emailPreviewUrl && (
+              <div className="mb-6 w-full">
+                <a 
+                  href={emailPreviewUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-[#00E676]/10 border border-[#00E676]/30 text-[#00E676] hover:bg-[#00E676]/20 text-[10.5px] font-sans font-bold px-5 py-3 rounded-[4px] uppercase tracking-wider transition-all cursor-pointer w-full text-center"
+                >
+                  <Mail size={13} />
+                  <span>View Dispatched Email (Sandbox Preview) &rarr;</span>
+                </a>
+                <p className="text-[9px] text-zinc-500 mt-2 lowercase leading-relaxed font-sans">
+                  Click to open the simulated Ethereal Mailbox to inspect the premium HTML email dispatched by our backend system.
+                </p>
+              </div>
+            )}
 
             <button
               onClick={handleCompleteAll}

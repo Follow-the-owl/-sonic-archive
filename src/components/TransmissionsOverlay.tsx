@@ -4,6 +4,7 @@ import {
   X, Check, AlertCircle, FileText, Search, ShieldCheck, 
   Send, DollarSign, List, Plus, Landmark, History, FileCheck, ExternalLink, Mail
 } from "lucide-react";
+import DocumentDashboard from "./DocumentDashboard";
 
 interface TransmissionsOverlayProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface TransmissionsOverlayProps {
   onLoginSuccess?: (email: string, token: string) => void;
   userLicenses?: any[];
   userRequests?: any[];
+  userEmailLogs?: any[];
   onRefreshData?: () => void;
 }
 
@@ -32,12 +34,58 @@ export default function TransmissionsOverlay({
   onLoginSuccess,
   userLicenses = [],
   userRequests = [],
+  userEmailLogs = [],
   onRefreshData
 }: TransmissionsOverlayProps) {
   // License verification state
   const [verificationInput, setVerificationInput] = useState("");
   const [verificationResult, setVerificationResult] = useState<any | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  // Custom Login State inside TransmissionsOverlay
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginIsRegister, setLoginIsRegister] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleOverlayLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) {
+      setLoginError("Credentials cannot be null.");
+      return;
+    }
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      const endpoint = loginIsRegister ? "/api/auth/signup" : "/api/auth/login";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.toLowerCase().trim(), password: loginPassword })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLoginSuccess(true);
+        if (onLoginSuccess) {
+          onLoginSuccess(data.email, data.token);
+        }
+        setTimeout(() => {
+          onClose();
+          setLoginEmail("");
+          setLoginPassword("");
+          setLoginSuccess(false);
+        }, 1500);
+      } else {
+        setLoginError(data.error || "Authentication handshake rejected.");
+      }
+    } catch (err: any) {
+      setLoginError("Connection refused: " + err.message);
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   // Clearance state
   const [clearanceStep, setClearanceStep] = useState<"choose" | "review" | "approval" | "final">("choose");
@@ -137,7 +185,7 @@ export default function TransmissionsOverlay({
         iswc: "T-302.459.882-1",
         issuedTo: userEmail,
         issuedDate: "2026-06-30 UTC",
-        signature: "DIGITALLY REGISTERED VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
+        signature: "DIGITALLY REGISTERED VIA SECURE CRYPTOGRAPHIC PROTOCOL",
         hash: "0x8F9C2B7A1E4D039F"
       });
     }, 1200);
@@ -348,7 +396,7 @@ export default function TransmissionsOverlay({
         <div className="flex justify-between items-start border-b border-zinc-900 pb-2">
           <div className="space-y-0.5">
             <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
-              [ LOMON SYSTEM ADMINISTRATIVE CONSOLE ]
+              [ SYSTEM ADMINISTRATIVE CONSOLE ]
             </span>
             <p className="text-zinc-500 text-[10px] leading-tight uppercase">
               Manage secure terminal access and inspect transactional indices.
@@ -651,14 +699,14 @@ export default function TransmissionsOverlay({
               [ SECURED VERIFICATION PORTAL ]
             </span>
             <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-              Enter a License ID, Certificate ID, or Composition ID to query the LOMON LLC cryptographic registry.
+              Enter a License ID, Certificate ID, or Composition ID to query the secure cryptographic registry.
             </p>
           </div>
 
           <form onSubmit={handleVerify} className="flex gap-2">
             <input 
               type="text"
-              placeholder="e.g. LOMON-OWL-823"
+              placeholder="e.g. OWL-823"
               value={verificationInput}
               onChange={(e) => setVerificationInput(e.target.value)}
               className="flex-grow bg-black border border-zinc-850 px-3.5 py-2.5 text-[11px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
@@ -767,7 +815,7 @@ export default function TransmissionsOverlay({
                   [ STEP 1: CHOOSE CONTRACT TYPE ]
                 </span>
                 <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-                  Select the required license archetype to initiate the LOMON LLC clearance procedure.
+                  Select the required license archetype to initiate the clearance procedure.
                 </p>
               </div>
 
@@ -810,11 +858,11 @@ export default function TransmissionsOverlay({
               </div>
 
               <div className="border border-zinc-850 bg-neutral-950 p-4 h-[200px] overflow-y-auto text-[9.5px] font-mono text-zinc-400 space-y-4 scrollbar-thin select-text">
-                <p className="font-bold text-white">LOMON COVENANT &amp; INTELLECTUAL LICENSE</p>
-                <p>This document constitutes a binding agreement between LOMON LLC (operating on behalf of the Sonic Archive catalog) and the licensee ({userEmail}).</p>
+                <p className="font-bold text-white">SECURE MASTER &amp; INTELLECTUAL LICENSE</p>
+                <p>This document constitutes a binding agreement between the Sonic Archive catalog and the licensee ({userEmail}).</p>
                 <p>1. LICENSED MATERIAL: The corresponding sonic master recordings, stems, and metadata generated under THE OWL CLOCK umbrella.</p>
                 <p>2. SCOPE OF RIGHTS: Licensee is granted non-exclusive rights to exploit the works strictly in accordance with the parameters defined under the {selectedContractType} archetype.</p>
-                <p>3. RESTRICTIONS: Re-selling, sub-licensing, or deploying the assets to external generative machine learning models is strictly prohibited without the express physical co-signature of LOMON administration.</p>
+                <p>3. RESTRICTIONS: Re-selling, sub-licensing, or deploying the assets to external generative machine learning models is strictly prohibited without the express physical co-signature of administration.</p>
                 <p>4. JURISDICTION: This license is governed by federal copyright law and administered under the statutory guidelines of the state of Atlanta, Georgia and Lagos, Nigeria.</p>
               </div>
 
@@ -842,7 +890,7 @@ export default function TransmissionsOverlay({
                   [ STEP 3: CLEARANCE REVIEW &amp; SIGNATURE ]
                 </span>
                 <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-                  Sign below with your full name to submit this Master Clearance Agreement to LOMON systems for Final Approval.
+                  Sign below with your full name to submit this Master Clearance Agreement for Final Approval.
                 </p>
               </div>
 
@@ -894,7 +942,7 @@ export default function TransmissionsOverlay({
               <div className="border border-zinc-900 bg-black p-3 text-[9px] text-zinc-500 font-mono uppercase text-left space-y-1">
                 <div>CONTRACT HASH: 0xBB823D3F1E8</div>
                 <div>SIGNATURE: {contractSignature.toUpperCase()}</div>
-                <div>STATUS: REGISTERED IN LOMON VAULT</div>
+                <div>STATUS: REGISTERED IN SECURE VAULT</div>
               </div>
 
               <button
@@ -933,7 +981,7 @@ export default function TransmissionsOverlay({
               <span className="text-[8.5px] text-zinc-500 block uppercase tracking-wider font-extrabold">Split Sheet Record</span>
               <div className="text-[11px] font-bold text-white uppercase">OWL-01 Splits</div>
               <div className="text-[9.5px] text-zinc-400 font-mono space-y-1">
-                <div>• LOMON LLC — 50% (Pub)</div>
+                <div>• PUBLISHER — 50% (Pub)</div>
                 <div>• COMPOSER — 50% (Writer)</div>
               </div>
             </div>
@@ -942,7 +990,7 @@ export default function TransmissionsOverlay({
               <span className="text-[8.5px] text-zinc-500 block uppercase tracking-wider font-extrabold">PRO Affiliations</span>
               <div className="text-[11px] font-bold text-[#D9D6CA] uppercase">ASCAP / BMI / PRS</div>
               <div className="text-[9px] text-zinc-500 leading-normal uppercase">
-                Global performance rights administered securely via Lomon network.
+                Global performance rights administered securely via performance rights organizations.
               </div>
             </div>
           </div>
@@ -987,13 +1035,13 @@ export default function TransmissionsOverlay({
                 type="submit"
                 className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-3 hover:bg-white transition-colors cursor-pointer uppercase"
               >
-                {isPublishingSubmitting ? "PROCESSING COVENANT..." : "SUBMIT PUBLISHING REQUEST"}
+                {isPublishingSubmitting ? "PROCESSING REQUEST..." : "SUBMIT PUBLISHING REQUEST"}
               </button>
             </form>
           )}
 
           <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
-            <span>ADMINISTRATOR: LOMON GLOBAL</span>
+            <span>ADMINISTRATOR: SYSTEM GLOBAL</span>
             <button 
               onClick={() => setShowDocumentVault(true)}
               className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
@@ -1099,7 +1147,7 @@ export default function TransmissionsOverlay({
               [ OWNERSHIP VERIFICATION DASHBOARD ]
             </span>
             <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-              Submit clearance covenants, assert sample-free warranties, and review intellectual property statements.
+              Submit clearance requests, assert sample-free warranties, and review intellectual property statements.
             </p>
           </div>
 
@@ -1110,7 +1158,7 @@ export default function TransmissionsOverlay({
               <span>ACTIVE GUARANTEE — 100% ORIGINAL COMPOSITIONS</span>
             </div>
             <p className="text-[8.5px] text-zinc-500 uppercase leading-relaxed">
-              Lomon LLC guarantees all masters in the Owl Clock are cleared, containing zero unauthorized samples.
+              Our administration guarantees all masters in the Owl Clock are cleared, containing zero unauthorized samples.
             </p>
           </div>
 
@@ -1124,7 +1172,7 @@ export default function TransmissionsOverlay({
                 SAMPLE DECLARATION LOGGED
               </div>
               <p className="text-[9.5px] text-zinc-400 uppercase leading-normal">
-                Your legal assertion has been securely registered to the LOMON LLC Ledger under the warranty block.
+                Your legal assertion has been securely registered to the System Ledger under the warranty block.
               </p>
             </motion.div>
           ) : (
@@ -1292,7 +1340,7 @@ export default function TransmissionsOverlay({
           </div>
 
           <p className="text-[9px] text-zinc-500 leading-normal uppercase">
-            All rights asserted globally on behalf of the registered owners under LOMON LLC legal proxy structures.
+            All rights asserted globally on behalf of the registered owners under standard legal proxy structures.
           </p>
 
           <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
@@ -1403,7 +1451,7 @@ export default function TransmissionsOverlay({
                             iswc: license.iswc || "T-302.459.882-1",
                             issuedTo: currentUserEmail || userEmail,
                             issuedDate: license.date,
-                            signature: license.signature || "DIGITALLY REGISTERED VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
+                            signature: license.signature || "DIGITALLY REGISTERED VIA SECURE CRYPTOGRAPHIC PROTOCOL",
                             hash: license.hash || "0x8F9C2B7A1E4D039F"
                           });
                         }}
@@ -1424,7 +1472,7 @@ export default function TransmissionsOverlay({
                       className="border-t border-dashed border-zinc-900 pt-2.5 mt-2 space-y-2"
                     >
                       <p className="text-[8.5px] text-zinc-400 font-mono uppercase leading-tight">
-                        Transfer Ownership of this composition license. The recipient must be a registered terminal user on LOMON networks. This operation is cryptographically irreversible.
+                        Transfer Ownership of this composition license. The recipient must be a registered terminal user. This operation is cryptographically irreversible.
                       </p>
                       
                       {transferError && (
@@ -1487,7 +1535,7 @@ export default function TransmissionsOverlay({
               [ ACCOUNT / DIGITAL SIGNATURE CERTIFICATES ]
             </span>
             <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-              Your cryptographic signature records and identity certificates stored on the LOMON registry.
+              Your cryptographic signature records and identity certificates stored on the secure registry.
             </p>
           </div>
 
@@ -1509,7 +1557,7 @@ export default function TransmissionsOverlay({
                     <div className="truncate">SECURE HASH: {license.hash}</div>
                   </div>
                   <div className="text-[8px] text-zinc-500 text-right pt-1 uppercase">
-                    REGISTERED & VERIFIED BY LOMON SECURITY PROTOCOLS
+                    REGISTERED & VERIFIED BY SECURITY PROTOCOLS
                   </div>
                 </div>
               ))
@@ -1646,12 +1694,12 @@ export default function TransmissionsOverlay({
               Every audio fragment recorded inside this threshold represents a specific temporal marker—measured, verified, and sealed with a custom frequency and signature.
             </p>
             <p>
-              Operated behind the veil by LOMON LLC, we provide modern creators, media directors, and labels with a verified catalog of cleared compositions, stems, and atmospheric loops designed for deep cinematic immersion.
+              We provide modern creators, media directors, and labels with a verified catalog of cleared compositions, stems, and atmospheric loops designed for deep cinematic immersion.
             </p>
           </div>
 
           <div className="border-t border-zinc-900 pt-4 text-[9px] text-zinc-500 font-mono flex justify-between">
-            <span>OPERATOR: LOMON LLC</span>
+            <span>OPERATOR: THE SONIC ARCHIVE CATALOG</span>
             <span>ESTABLISHED 2026</span>
           </div>
         </div>
@@ -1815,13 +1863,13 @@ export default function TransmissionsOverlay({
           <div className="grid grid-cols-2 gap-3 border border-zinc-900 bg-neutral-950 p-3.5 text-[9.5px] font-mono text-zinc-400">
             <div>
               <span className="text-white font-bold block uppercase tracking-wider mb-1">ATLANTA HUB</span>
-              <div>LOMON CO. Atlanta</div>
+              <div>HQ. Atlanta</div>
               <div>Georgia, USA</div>
               <div className="text-zinc-650 mt-1">atl@credentials.local</div>
             </div>
             <div>
               <span className="text-white font-bold block uppercase tracking-wider mb-1">LAGOS HUB</span>
-              <div>LOMON CO. Lagos</div>
+              <div>HQ. Lagos</div>
               <div>Lagos, Nigeria</div>
               <div className="text-zinc-650 mt-1">los@credentials.local</div>
             </div>
@@ -1890,9 +1938,9 @@ export default function TransmissionsOverlay({
 
       const legalText: Record<string, string[]> = {
         "terms": [
-          "1. ACCEPTANCE: By accessing this portal, the user agrees to be bound by LOMON LLC's digital governance protocols.",
-          "2. INTELLECTUAL STATUS: All audio, waveform metadata, clock algorithms, and cryptographic files are sole property of LOMON LLC.",
-          "3. USAGE: Redistribution or algorithmic mining of archive materials without validated licenses is heavily prosecuted under international copyright covenants."
+          "1. ACCEPTANCE: By accessing this portal, the user agrees to be bound by the digital governance protocols.",
+          "2. INTELLECTUAL STATUS: All audio, waveform metadata, clock algorithms, and cryptographic files are sole property of the administration.",
+          "3. USAGE: Redistribution or algorithmic mining of archive materials without validated licenses is heavily prosecuted under international copyright agreements."
         ],
         "privacy": [
           "1. REGISTRATION DATA: We collect terminal identifiers, purchase histories, and secure emails strictly for clearance tracking.",
@@ -1905,22 +1953,22 @@ export default function TransmissionsOverlay({
         ],
         "refunds": [
           "1. DIGITAL WAIVER: Due to the instant delivery of master WAV stems and clearance certificates, all completed acquisitions are final.",
-          "2. DISCREPANCIES: If file corruption occurs, LOMON LLC will re-generate and sign a fresh stem package."
+          "2. DISCREPANCIES: If file corruption occurs, we will re-generate and sign a fresh stem package."
         ],
         "acceptable-use": [
           "1. FORBIDDEN VECTORS: You may not use Owl Clock fragments to feed deep artificial networks or audio mimicry frameworks.",
-          "2. DEFIANT ACTION: Any unauthorized server probing will automatically lock access terminals via Security Protocol LOMON-44."
+          "2. DEFIANT ACTION: Any unauthorized server probing will automatically lock access terminals via Security Protocol SYS-44."
         ]
       };
 
       const targetTitle = legalTitles[slug] || "PROTOCOLS MANUAL";
-      const targetParas = legalText[slug] || ["1. STANDARD PROTOCOL IS ACTIVE. REFER ALL INQUIRIES TO LOMON LLC CORE STAFF."];
+      const targetParas = legalText[slug] || ["1. STANDARD PROTOCOL IS ACTIVE. REFER ALL INQUIRIES TO OUR CORE STAFF."];
 
       return (
         <div className="space-y-4 text-left select-text">
           <div className="space-y-1">
             <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
-              [ LEGAL COVENANT ]
+              [ LEGAL AGREEMENT ]
             </span>
             <h4 className="text-white font-bold text-xs uppercase tracking-widest">
               {targetTitle}
@@ -1934,7 +1982,7 @@ export default function TransmissionsOverlay({
           </div>
 
           <div className="border-t border-zinc-900 pt-4 text-[9px] text-zinc-500 font-mono text-center">
-            LAST MODIFIED: JUNE 2026 • LOMON LEGAL DEPT
+            LAST MODIFIED: JUNE 2026 • LEGAL DEPT
           </div>
         </div>
       );
@@ -1957,7 +2005,7 @@ export default function TransmissionsOverlay({
         <div className="border border-zinc-900 bg-neutral-950 p-2.5 flex items-center gap-2.5">
           <span className="text-red-500 animate-pulse text-sm shrink-0">⚠️</span>
           <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest leading-normal">
-            SECURITY PROTOCOL LOMON-44 IS ACTIVE. ATTEMPTS HAVE BEEN LOGGED.
+            SECURITY PROTOCOL SYS-44 IS ACTIVE. ATTEMPTS HAVE BEEN LOGGED.
           </span>
         </div>
       </div>
@@ -1966,50 +2014,210 @@ export default function TransmissionsOverlay({
 
   const body = `ACCESS TO "${title}" IS CURRENTLY UNREACHABLE OR DEMANDS HIGHER CRYPTOGRAPHIC CLEARANCE. CONTACT TRANSMISSIONS ADMIN.`;
 
+  const isDashboardView = type !== "login";
+
+  if (isDashboardView) {
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/98 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-6 select-text font-mono"
+          >
+            <motion.div 
+              initial={{ scale: 0.98, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.98, opacity: 0 }}
+              className="border border-zinc-900 bg-[#050505] w-full max-w-7xl h-[95vh] sm:h-[90vh] max-h-[95vh] sm:max-h-[90vh] shadow-[0_25px_60px_rgba(0,0,0,0.95)] relative rounded-sm flex flex-col overflow-hidden"
+            >
+              {/* Dashboard Header Bar */}
+              <div className="flex justify-between items-center border-b border-zinc-900 bg-zinc-950 px-5 py-3 shrink-0 select-none">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-zinc-650 font-bold tracking-widest uppercase">
+                    SECURE STORAGE PROTOCOL // 
+                  </span>
+                  <span className="text-[10px] text-[#00E676] font-extrabold tracking-widest uppercase animate-pulse">
+                    ACTIVE CLIENT SESSION
+                  </span>
+                </div>
+                <button 
+                  onClick={onClose} 
+                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-[10px] p-1 flex items-center gap-1.5 font-bold tracking-wider"
+                  title="Disconnect Gateway"
+                >
+                  <span>CLOSE WORKSPACE</span>
+                  <span>✕</span>
+                </button>
+              </div>
+
+              {/* Scrollable Workspace */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <DocumentDashboard
+                  currentUserEmail={currentUserEmail || userEmail}
+                  isLoggedIn={isLoggedIn}
+                  onClose={onClose}
+                  onRefreshData={onRefreshData}
+                  mode="CLIENT"
+                />
+              </div>
+
+              <div className="border-t border-zinc-900 bg-zinc-950 px-5 py-2 shrink-0 flex items-center justify-between select-none">
+                <span className="text-[8px] text-zinc-600 tracking-wider uppercase font-bold">
+                  SECURE DEP NODE: ATL-GA-NGR-2026
+                </span>
+                <span className="text-[8px] text-[#00E676]/60 tracking-widest font-bold">
+                  ALL SESSIONS ARE ENCRYPTED AND LOGGED. SECURITY PROTOCOL SYS-44 ACTIVE.
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
+
   return (
     <>
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-none font-mono"
-      >
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="border border-zinc-850 bg-[#050505] p-6 max-w-md w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative rounded-sm"
-        >
-          <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
-            <div className="space-y-1">
-              <span className="text-[8px] tracking-[0.3em] uppercase text-[#D9D6CA]/50 font-bold block">
-                [ {subtitle || "TRANSMISSION"} ]
-              </span>
-              <h4 className="text-[#D9D6CA] font-bold text-xs uppercase tracking-widest leading-tight">
-                {title}
-              </h4>
-            </div>
-            <button 
-              onClick={onClose} 
-              className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs p-1"
-              title="Dismiss"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="py-1">
-            {renderContent()}
-          </div>
-
-          <button 
-            onClick={onClose}
-            className="w-full bg-zinc-900 border border-zinc-800 hover:border-[#D9D6CA]/40 hover:text-white text-zinc-300 font-mono text-[9px] tracking-[0.25em] uppercase py-3 transition-all cursor-pointer rounded-none"
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-none font-mono"
           >
-            DISMISS TRANSMISSION
-          </button>
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="border border-zinc-850 bg-[#050505] p-6 max-w-md w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative rounded-sm"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
+              <div className="space-y-1">
+                <span className="text-[8px] tracking-[0.3em] uppercase text-[#D9D6CA]/50 font-bold block">
+                  [ {subtitle || "TRANSMISSION"} ]
+                </span>
+                <h4 className="text-[#D9D6CA] font-bold text-xs uppercase tracking-widest leading-tight">
+                  {title}
+                </h4>
+              </div>
+              <button 
+                onClick={onClose} 
+                className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs p-1"
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content: Auth form */}
+            <div className="py-1">
+              {loginSuccess ? (
+                <div className="space-y-4 text-center py-6">
+                  <div className="w-10 h-10 border border-[#00E676]/40 bg-[#00E676]/10 text-[#00E676] rounded-full flex items-center justify-center mx-auto">
+                    ✓
+                  </div>
+                  <div className="space-y-1">
+                    <h5 className="text-[#00E676] text-xs font-bold tracking-widest uppercase">
+                      SECURE LINK ESTABLISHED
+                    </h5>
+                    <p className="text-zinc-500 text-[9px] uppercase">
+                      Initializing terminal access keys for {loginEmail.toUpperCase()}...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleOverlayLoginSubmit} className="space-y-4">
+                  <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+                    Authenticate to establish a secure, encrypted connection to your private document dashboard.
+                  </p>
+
+                  {loginError && (
+                    <div className="text-[9px] text-red-500 bg-red-950/10 border border-red-900/40 p-2 uppercase">
+                      HANDSHAKE ERROR: {loginError}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-zinc-500 text-[7.5px] uppercase block tracking-wider">
+                        EMAIL ADDR:
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        disabled={loginLoading}
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        placeholder="RECIPIENT@SYSTEM.LOCAL"
+                        className="w-full bg-black border border-zinc-900 focus:border-[#D9D6CA]/40 text-white font-mono placeholder-zinc-800 text-[10px] px-3 py-2.5 rounded-none uppercase transition-colors focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-500 text-[7.5px] uppercase block tracking-wider">
+                        ACCESS CIPHER (PASSWORD):
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        disabled={loginLoading}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full bg-black border border-zinc-900 focus:border-[#D9D6CA]/40 text-white font-mono placeholder-zinc-800 text-[10px] px-3 py-2.5 rounded-none transition-colors focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mode switcher (Sign in vs Register) */}
+                  <div className="text-left">
+                    <button
+                      type="button"
+                      disabled={loginLoading}
+                      onClick={() => {
+                        setLoginIsRegister(!loginIsRegister);
+                        setLoginError("");
+                      }}
+                      className="text-[#D9D6CA] hover:text-white text-[9px] uppercase tracking-wider underline cursor-pointer"
+                    >
+                      {loginIsRegister 
+                        ? "Already registered? Connect Existing Terminal" 
+                        : "Need an account? Register New Terminal"
+                      }
+                    </button>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={loginLoading}
+                    className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-[0.2em] uppercase py-3 transition-all cursor-pointer rounded-none hover:bg-white"
+                  >
+                    {loginLoading 
+                      ? "INITIATING HANDSHAKE..." 
+                      : loginIsRegister 
+                        ? "REGISTER & CONNECT TERMINAL" 
+                        : "CONNECT TERMINAL"
+                    }
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <button 
+              onClick={onClose}
+              disabled={loginLoading}
+              className="w-full bg-zinc-900 border border-zinc-800 hover:border-[#D9D6CA]/40 hover:text-white text-zinc-300 font-mono text-[9px] tracking-[0.25em] uppercase py-3 transition-all cursor-pointer rounded-none"
+            >
+              CANCEL CONNECTION
+            </button>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
+    </AnimatePresence>
 
       {/* 8. HIDDEN DOCUMENT VAULT SUB-MODAL */}
       <AnimatePresence>
@@ -2056,7 +2264,7 @@ export default function TransmissionsOverlay({
                     <span className="text-[#00E676] bg-[#00E676]/10 px-1.5 py-0.5 text-[8.5px] font-bold">[ SIGNED ]</span>
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-zinc-950">
-                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> COVENANT_SPLIT_SHEET_M01.XLS</span>
+                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> SPLIT_SHEET_M01.XLS</span>
                     <span className="text-[#00E676] bg-[#00E676]/10 px-1.5 py-0.5 text-[8.5px] font-bold">[ EXECUTED ]</span>
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-zinc-950">
