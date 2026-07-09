@@ -135,6 +135,27 @@ export default function App() {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState<boolean>(false);
   const [emailPreviewUrl, setEmailPreviewUrl] = useState<string>("");
 
+  const [infoOverlay, setInfoOverlay] = useState<{ title: string; subtitle: string; body: string; type?: string } | null>(null);
+  const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
+    ARCHIVE: false,
+    CLEARANCE: false,
+    SYSTEM: false,
+    PROTOCOLS: false,
+    TRANSMISSIONS: false
+  });
+
+  // Auto-scroll to top when tab changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
+
+  // Transition ambient background loops smoothly as the client moves between sections
+  useEffect(() => {
+    if (hasEntered) {
+      transitionAmbient(activeTab);
+    }
+  }, [activeTab, hasEntered]);
+
   useEffect(() => {
     localStorage.setItem("lomon_cart", JSON.stringify(cart));
   }, [cart]);
@@ -174,6 +195,33 @@ export default function App() {
         subtitle: "ACCOUNT DEP",
         body: "",
         type: "my-licenses"
+      });
+    }
+  }, []);
+
+  // Auto-authenticate session on mount
+  useEffect(() => {
+    const token = localStorage.getItem("lomon_auth_token");
+    if (token) {
+      fetch("/api/auth/me", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setIsLoggedIn(true);
+          setAuthToken(token);
+          setCurrentUserEmail(data.email);
+          setCheckoutEmail(data.email);
+          fetchUserData(token);
+        } else {
+          localStorage.removeItem("lomon_auth_token");
+        }
+      })
+      .catch(err => {
+        console.error("Auto-session check failed:", err);
       });
     }
   }, []);
@@ -227,34 +275,7 @@ export default function App() {
     );
   }
 
-  // Auto-authenticate session on mount
-  useEffect(() => {
-    const token = localStorage.getItem("lomon_auth_token");
-    if (token) {
-      fetch("/api/auth/me", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setIsLoggedIn(true);
-          setAuthToken(token);
-          setCurrentUserEmail(data.email);
-          setCheckoutEmail(data.email);
-          fetchUserData(token);
-        } else {
-          localStorage.removeItem("lomon_auth_token");
-        }
-      })
-      .catch(err => {
-        console.error("Auto-session check failed:", err);
-      });
-    }
-  }, []);
-
-  const fetchUserData = (token: string) => {
+  function fetchUserData(token: string) {
     fetch("/api/user/data", {
       headers: {
         "Authorization": `Bearer ${token}`
@@ -269,7 +290,7 @@ export default function App() {
       }
     })
     .catch(err => console.error("Error fetching user credentials:", err));
-  };
+  }
 
   const handleLoginSuccess = (email: string, token: string) => {
     localStorage.setItem("lomon_auth_token", token);
@@ -351,33 +372,12 @@ export default function App() {
     setCartOpen(false);
   };
 
-  // Auto-scroll to top when tab changes
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [activeTab]);
-
-  // Transition ambient background loops smoothly as the client moves between sections
-  useEffect(() => {
-    if (hasEntered) {
-      transitionAmbient(activeTab);
-    }
-  }, [activeTab, hasEntered]);
-
   const tabsList: NavigationTab[] = [
     "The Owl Clock",
     "The Observatory",
     "The Midnight Journal",
     "The Signal Tower"
   ];
-
-  const [infoOverlay, setInfoOverlay] = useState<{ title: string; subtitle: string; body: string; type?: string } | null>(null);
-  const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
-    ARCHIVE: false,
-    CLEARANCE: false,
-    SYSTEM: false,
-    PROTOCOLS: false,
-    TRANSMISSIONS: false
-  });
 
   const toggleMobileFooterSection = (section: string) => {
     setMobileFooterExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
