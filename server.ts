@@ -50,6 +50,16 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Database initialization middleware (critical for serverless execution like Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await initializeDatabase();
+  } catch (err) {
+    console.error("[MIDDLEWARE] Database initialization failed:", err);
+  }
+  next();
+});
+
 // --- Database Connection & Fail-safe Mock Fallbacks ---
 let mongoClient: MongoClient | null = null;
 let db: Db | null = null;
@@ -139,7 +149,12 @@ interface EmailLog {
 
 const mockEmailLogs: EmailLog[] = [];
 
+let dbInitialized = false;
+
 async function initializeDatabase() {
+  if (dbInitialized) {
+    return;
+  }
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.warn("\x1b[33m%s\x1b[0m", "[DATABASE] WARNING: MONGODB_URI environment variable is not defined.");
@@ -147,6 +162,7 @@ async function initializeDatabase() {
     useMockDb = true;
     dbStatusMsg = "OFFLINE - MONGODB_URI missing. Using fully functional Sandbox Mock database.";
     dbErrorDetail = "MONGODB_URI environment variable not configured in AI Studio / container environment variables.";
+    dbInitialized = true;
     return;
   }
 
@@ -169,6 +185,7 @@ async function initializeDatabase() {
       await db.collection("payments").insertMany(mockPayments);
       console.log("[DATABASE] Seeded default credentials, licenses and payments to MongoDB collections.");
     }
+    dbInitialized = true;
   } catch (error: any) {
     const errorMsg = error?.message || String(error);
     console.log("[DATABASE] INFO: MongoDB connection attempt bypassed or failed. Message: " + errorMsg);
@@ -187,6 +204,7 @@ async function initializeDatabase() {
     
     console.log("[DATABASE] NOTICE: Falling back to safe, fully featured in-memory database mock store.");
     useMockDb = true;
+    dbInitialized = true;
   }
 }
 
@@ -1206,4 +1224,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
