@@ -15,6 +15,7 @@ import CheckoutPage from "./components/CheckoutPage";
 import TransmissionsOverlay from "./components/TransmissionsOverlay";
 import MockPaystackCheckout from "./components/MockPaystackCheckout";
 import DocumentDashboard from "./components/DocumentDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 import { Fragment } from "./data";
 
 
@@ -100,6 +101,7 @@ function UserAvatar({ email }: { email: string }) {
 
 export default function App() {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
+  const [adminViewActive, setAdminViewActive] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<NavigationTab>("The Owl Clock");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
@@ -115,8 +117,16 @@ export default function App() {
 
   // Cart States
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem("lomon_cart");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem("lomon_cart");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse lomon_cart from localStorage", e);
+    }
+    return [];
   });
   const [cartOpen, setCartOpen] = useState<boolean>(false);
   const [checkoutActive, setCheckoutActive] = useState<boolean>(false);
@@ -176,7 +186,7 @@ export default function App() {
 
   const isAdminDashboard = typeof window !== "undefined" && window.location.pathname === "/AdminDashboard";
 
-  if (isAdminDashboard) {
+  if (isAdminDashboard || adminViewActive) {
     return (
       <div className="min-h-screen bg-[#020202] text-zinc-100 p-6 select-text font-mono flex flex-col justify-between">
         <div className="max-w-7xl w-full mx-auto space-y-6 flex-grow">
@@ -189,17 +199,28 @@ export default function App() {
                 SECURE CONSOLE ACTIVE
               </span>
             </div>
-            <a 
-              href="/"
-              className="text-[10px] text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-wider"
+            <button 
+              onClick={() => {
+                if (isAdminDashboard) {
+                  window.location.href = "/";
+                } else {
+                  setAdminViewActive(false);
+                }
+              }}
+              className="text-[10px] text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-wider cursor-pointer bg-transparent border-none"
             >
               ← BACK TO MAIN APPMENU
-            </a>
+            </button>
           </div>
-          <DocumentDashboard
-            currentUserEmail={currentUserEmail || "admin@system.local"}
-            isLoggedIn={isLoggedIn}
-            mode="ADMIN"
+          <AdminDashboard
+            currentUserEmail={currentUserEmail || "evianaconcepts1@gmail.com"}
+            onClose={() => {
+              if (isAdminDashboard) {
+                window.location.href = "/";
+              } else {
+                setAdminViewActive(false);
+              }
+            }}
           />
         </div>
       </div>
@@ -544,6 +565,27 @@ export default function App() {
 
                               {/* Demarcation line */}
                               <div className="h-[1px] bg-zinc-900 w-full" />
+
+                              {/* Administrative Console Link */}
+                              {(currentUserEmail.toLowerCase() === "evianaconcepts1@gmail.com" || currentUserEmail.toLowerCase() === "admin@system.local") && (
+                                <>
+                                  <div>
+                                    <button
+                                      onClick={() => {
+                                        setProfileDropdownOpen(false);
+                                        setAdminViewActive(true);
+                                      }}
+                                      className="w-full text-left text-[9.5px] text-[#D9D6CA] hover:text-white uppercase transition-colors flex items-center justify-between cursor-pointer py-1 font-bold tracking-wider"
+                                    >
+                                      <span>Admin Dashboard</span>
+                                      <span className="text-zinc-600 font-bold">→</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Demarcation line */}
+                                  <div className="h-[1px] bg-zinc-900 w-full" />
+                                </>
+                              )}
 
                               {/* Logout Link with Normal Text */}
                               <div>
