@@ -167,7 +167,11 @@ async function initializeDatabase() {
 
   try {
     console.log("[DATABASE] Attempting connection to MongoDB...");
-    mongoClient = new MongoClient(uri, { connectTimeoutMS: 5000 });
+    mongoClient = new MongoClient(uri, {
+      connectTimeoutMS: 1500,
+      serverSelectionTimeoutMS: 1500,
+      socketTimeoutMS: 1500
+    });
     await mongoClient.connect();
     db = mongoClient.db();
     console.log("\x1b[32m%s\x1b[0m", "[DATABASE] SUCCESS: Connected to real MongoDB database.");
