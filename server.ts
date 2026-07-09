@@ -62,7 +62,7 @@ app.use(async (req, res, next) => {
 // --- Database Connection & Fail-safe Mock Fallbacks ---
 let mongoClient: MongoClient | null = null;
 let db: Db | null = null;
-let useMockDb = false;
+let useMockDb = true;
 let dbStatusMsg = "Initializing...";
 let dbErrorDetail = "";
 
@@ -148,67 +148,71 @@ interface EmailLog {
 
 const mockEmailLogs: EmailLog[] = [];
 
-let dbInitialized = false;
+let dbInitPromise: Promise<void> | null = null;
 
 async function initializeDatabase() {
-  if (dbInitialized) {
-    return;
-  }
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    console.warn("\x1b[33m%s\x1b[0m", "[DATABASE] WARNING: MONGODB_URI environment variable is not defined.");
-    console.warn("\x1b[33m%s\x1b[0m", "[DATABASE] Defaulting to safe, fully featured in-memory database mock store.");
-    useMockDb = true;
-    dbStatusMsg = "OFFLINE - MONGODB_URI missing. Using fully functional Sandbox Mock database.";
-    dbErrorDetail = "MONGODB_URI environment variable not configured in AI Studio / container environment variables.";
-    dbInitialized = true;
-    return;
+  if (dbInitPromise) {
+    return dbInitPromise;
   }
 
-  try {
-    console.log("[DATABASE] Attempting connection to MongoDB...");
-    mongoClient = new MongoClient(uri, {
-      connectTimeoutMS: 1500,
-      serverSelectionTimeoutMS: 1500,
-      socketTimeoutMS: 1500
-    });
-    await mongoClient.connect();
-    db = mongoClient.db();
-    console.log("\x1b[32m%s\x1b[0m", "[DATABASE] SUCCESS: Connected to real MongoDB database.");
-    dbStatusMsg = "CONNECTED - MongoDB database connection is active and fully functional.";
-    dbErrorDetail = "";
-    useMockDb = false;
-    
-    // Seed default mock licenses for seed admin email if they don't exist
-    const licensesCol = db.collection("licenses");
-    const count = await licensesCol.countDocuments();
-    if (count === 0) {
-      await licensesCol.insertMany(mockLicenses);
-      await db.collection("requests").insertMany(mockRequests);
-      await db.collection("payments").insertMany(mockPayments);
-      console.log("[DATABASE] Seeded default credentials, licenses and payments to MongoDB collections.");
+  dbInitPromise = (async () => {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      console.warn("\x1b[33m%s\x1b[0m", "[DATABASE] WARNING: MONGODB_URI environment variable is not defined.");
+      console.warn("\x1b[33m%s\x1b[0m", "[DATABASE] Defaulting to safe, fully featured in-memory database mock store.");
+      useMockDb = true;
+      dbStatusMsg = "OFFLINE - MONGODB_URI missing. Using fully functional Sandbox Mock database.";
+      dbErrorDetail = "MONGODB_URI environment variable not configured in AI Studio / container environment variables.";
+      return;
     }
-    dbInitialized = true;
-  } catch (error: any) {
-    const errorMsg = error?.message || String(error);
-    console.log("[DATABASE] INFO: MongoDB connection attempt bypassed or failed. Message: " + errorMsg);
-    dbStatusMsg = "OFFLINE - MongoDB connection failed. Sandbox Mock database is active.";
-    dbErrorDetail = errorMsg;
-    
-    if (errorMsg.includes("alert number 80") || errorMsg.includes("tlsv1 alert") || errorMsg.includes("SSL alert")) {
-      console.log("\x1b[33m%s\x1b[0m", "=====================================================================================");
-      console.log("\x1b[33m%s\x1b[0m", "[DATABASE] DIAGNOSTIC TIP: This TLS alert number 80 / handshake error almost always");
-      console.log("\x1b[33m%s\x1b[0m", "means your current Server IP address is NOT whitelisted in MongoDB Atlas.");
-      console.log("\x1b[33m%s\x1b[0m", "To fix this: Go to your MongoDB Atlas dashboard -> 'Network Access' tab, and add");
-      console.log("\x1b[33m%s\x1b[0m", "'0.0.0.0/0' to allow access from dynamic server containers.");
-      console.log("\x1b[33m%s\x1b[0m", "=====================================================================================");
-      dbStatusMsg = "OFFLINE - SSL Handshake Error (IP Whitelist Missing in MongoDB Atlas)";
+
+    try {
+      console.log("[DATABASE] Attempting connection to MongoDB...");
+      const client = new MongoClient(uri, {
+        connectTimeoutMS: 1500,
+        serverSelectionTimeoutMS: 1500,
+        socketTimeoutMS: 1500
+      });
+      await client.connect();
+      db = client.db();
+      mongoClient = client;
+      
+      console.log("\x1b[32m%s\x1b[0m", "[DATABASE] SUCCESS: Connected to real MongoDB database.");
+      dbStatusMsg = "CONNECTED - MongoDB database connection is active and fully functional.";
+      dbErrorDetail = "";
+      useMockDb = false;
+      
+      // Seed default mock licenses for seed admin email if they don't exist
+      const licensesCol = db.collection("licenses");
+      const count = await licensesCol.countDocuments().catch(() => 0);
+      if (count === 0) {
+        await licensesCol.insertMany(mockLicenses).catch(() => {});
+        await db.collection("requests").insertMany(mockRequests).catch(() => {});
+        await db.collection("payments").insertMany(mockPayments).catch(() => {});
+        console.log("[DATABASE] Seeded default credentials, licenses and payments to MongoDB collections.");
+      }
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      console.log("[DATABASE] INFO: MongoDB connection attempt bypassed or failed. Message: " + errorMsg);
+      dbStatusMsg = "OFFLINE - MongoDB connection failed. Sandbox Mock database is active.";
+      dbErrorDetail = errorMsg;
+      
+      if (errorMsg.includes("alert number 80") || errorMsg.includes("tlsv1 alert") || errorMsg.includes("SSL alert")) {
+        console.log("\x1b[33m%s\x1b[0m", "=====================================================================================");
+        console.log("\x1b[33m%s\x1b[0m", "[DATABASE] DIAGNOSTIC TIP: This TLS alert number 80 / handshake error almost always");
+        console.log("\x1b[33m%s\x1b[0m", "means your current Server IP address is NOT whitelisted in MongoDB Atlas.");
+        console.log("\x1b[33m%s\x1b[0m", "To fix this: Go to your MongoDB Atlas dashboard -> 'Network Access' tab, and add");
+        console.log("\x1b[33m%s\x1b[0m", "'0.0.0.0/0' to allow access from dynamic server containers.");
+        console.log("\x1b[33m%s\x1b[0m", "=====================================================================================");
+        dbStatusMsg = "OFFLINE - SSL Handshake Error (IP Whitelist Missing in MongoDB Atlas)";
+      }
+      
+      console.log("[DATABASE] NOTICE: Falling back to safe, fully featured in-memory database mock store.");
+      useMockDb = true;
     }
-    
-    console.log("[DATABASE] NOTICE: Falling back to safe, fully featured in-memory database mock store.");
-    useMockDb = true;
-    dbInitialized = true;
-  }
+  })();
+
+  return dbInitPromise;
 }
 
 // Helper: Hash password
