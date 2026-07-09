@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import crypto from "crypto";
-import { createServer as createViteServer } from "vite";
 import { MongoClient, Db } from "mongodb";
 import nodemailer from "nodemailer";
 
@@ -1205,6 +1204,7 @@ async function startServer() {
 
   if (process.env.NODE_ENV !== "production") {
     console.log("[SERVER] Mounting Vite in development middleware mode...");
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
       appType: "spa",
