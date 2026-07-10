@@ -178,16 +178,26 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
   const [editingFragmentId, setEditingFragmentId] = useState<string | null>(null);
 
   // Step-by-Step Form state
-  const [formInfo, setFormInfo] = useState({
-    timestamp: "11:28 PM",
-    name: "SHADOW SHIFT",
-    classification: "RESTLESS COID",
-    bpm: 120,
-    key: "G Minor",
-    genre: "Ambient Trap",
-    mood: "Restless",
+  const [formInfo, setFormInfo] = useState<{
+    timestamp: string;
+    name: string;
+    classification: string;
+    bpm: number | "";
+    key: string;
+    genre: string;
+    mood: string;
+    status: string;
+    duration: string;
+  }>({
+    timestamp: "",
+    name: "",
+    classification: "",
+    bpm: "",
+    key: "",
+    genre: "",
+    mood: "",
     status: "Draft",
-    duration: "4:30"
+    duration: ""
   });
 
   const [formArtwork, setFormArtwork] = useState<string>("");
@@ -198,12 +208,10 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
   const [formStems, setFormStems] = useState<{ type: "file" | "multiple"; list: string[] }>({
     type: "multiple",
-    list: ["Drums", "808", "Melody", "Bass", "FX", "Vocals", "Full Stems"]
+    list: []
   });
 
-  const [formDocuments, setFormDocuments] = useState<string[]>([
-    "PDF License", "Split Sheet", "Metadata", "Contracts", "Cue Sheets"
-  ]);
+  const [formDocuments, setFormDocuments] = useState<string[]>([]);
 
   const [formLicensing, setFormLicensing] = useState({
     mp3: { enabled: true, price: 50 },
@@ -494,16 +502,26 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     setCurrentStep(1);
     // Clear fields
     setFormInfo({
-      timestamp: "11:28 PM",
-      name: "SHADOW SHIFT",
-      classification: "RESTLESS COID",
-      bpm: 120,
-      key: "G Minor",
-      genre: "Ambient Trap",
-      mood: "Restless",
+      timestamp: "",
+      name: "",
+      classification: "",
+      bpm: "",
+      key: "",
+      genre: "",
+      mood: "",
       status: "Draft",
-      duration: "4:30"
+      duration: ""
     });
+    setFormArtwork("");
+    setFormAudioFiles({
+      mp3Preview: "",
+      wavMaster: ""
+    });
+    setFormStems({
+      type: "multiple",
+      list: []
+    });
+    setFormDocuments([]);
     setActiveTab("Fragments");
   };
 
@@ -532,7 +550,21 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       method: "POST",
       body: formData
     })
-    .then(res => res.json())
+    .then(async res => {
+      if (res.status === 413) {
+        throw new Error("File too large (413 Payload Too Large). The server environment has a request size limit. Please use the direct URL field below to link this file instead!");
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        let errMsg = "Server error during upload.";
+        try {
+          const parsed = JSON.parse(text);
+          errMsg = parsed.error || errMsg;
+        } catch (e) {}
+        throw new Error(errMsg);
+      }
+      return res.json();
+    })
     .then(data => {
       clearInterval(interval);
       if (data.success) {
@@ -555,7 +587,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       clearInterval(interval);
       setMediaUploadProgress(null);
       console.error("[UPLOAD CLIENT ERROR]", err);
-      showToast(`Upload connection failed: ${err.message || String(err)}`);
+      showToast(`Upload failed: ${err.message || String(err)}`);
     });
   };
 
@@ -645,6 +677,27 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                   onClick={() => {
                     setActiveTab(tab);
                     if (tab === "New Fragment" && !editingFragmentId) {
+                      setFormInfo({
+                        timestamp: "",
+                        name: "",
+                        classification: "",
+                        bpm: "",
+                        key: "",
+                        genre: "",
+                        mood: "",
+                        status: "Draft",
+                        duration: ""
+                      });
+                      setFormArtwork("");
+                      setFormAudioFiles({
+                        mp3Preview: "",
+                        wavMaster: ""
+                      });
+                      setFormStems({
+                        type: "multiple",
+                        list: []
+                      });
+                      setFormDocuments([]);
                       setCurrentStep(1);
                     }
                   }}
@@ -764,16 +817,26 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                   onClick={() => {
                     setEditingFragmentId(null);
                     setFormInfo({
-                      timestamp: "11:28 PM",
-                      name: "SHADOW SHIFT",
-                      classification: "RESTLESS COID",
-                      bpm: 120,
-                      key: "G Minor",
-                      genre: "Ambient Trap",
-                      mood: "Restless",
+                      timestamp: "",
+                      name: "",
+                      classification: "",
+                      bpm: "",
+                      key: "",
+                      genre: "",
+                      mood: "",
                       status: "Draft",
-                      duration: "4:30"
+                      duration: ""
                     });
+                    setFormArtwork("");
+                    setFormAudioFiles({
+                      mp3Preview: "",
+                      wavMaster: ""
+                    });
+                    setFormStems({
+                      type: "multiple",
+                      list: []
+                    });
+                    setFormDocuments([]);
                     setCurrentStep(1);
                     setActiveTab("New Fragment");
                   }}
@@ -933,7 +996,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                         <input 
                           type="number" 
                           value={formInfo.bpm}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, bpm: Number(e.target.value) }))}
+                          onChange={(e) => setFormInfo(prev => ({ ...prev, bpm: e.target.value === "" ? "" : Number(e.target.value) }))}
                           placeholder="e.g. 120"
                           className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
@@ -1037,6 +1100,18 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                           <p className="text-[10px] text-zinc-600 mt-1 uppercase">MAXIMUM FILE SIZE: 10MB (JPG, PNG)</p>
                         </div>
 
+                        {/* Direct URL Input for Cover Art */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT COVER ART URL:</span>
+                          <input
+                            type="text"
+                            value={formArtwork}
+                            onChange={(e) => setFormArtwork(e.target.value.trim())}
+                            placeholder="https://example.com/artwork.jpg"
+                            className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
+                          />
+                        </div>
+
                         {/* Preset assets selector */}
                         <div className="space-y-1.5">
                           <span className="text-[10px] text-zinc-600 font-bold uppercase block">OR REUSE FROM MEDIA LIBRARY PRESETS:</span>
@@ -1099,6 +1174,18 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                             </p>
                           )}
                         </div>
+
+                        {/* Direct URL Input for MP3 */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT MP3 URL:</span>
+                          <input
+                            type="text"
+                            value={formAudioFiles.mp3Preview}
+                            onChange={(e) => setFormAudioFiles(prev => ({ ...prev, mp3Preview: e.target.value.trim() }))}
+                            placeholder="https://example.com/track_preview.mp3"
+                            className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
+                          />
+                        </div>
                       </div>
 
                       {/* WAV MASTER */}
@@ -1130,6 +1217,18 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               FILE: {formAudioFiles.wavMaster}
                             </p>
                           )}
+                        </div>
+
+                        {/* Direct URL Input for WAV */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT WAV URL (UP TO 50MB):</span>
+                          <input
+                            type="text"
+                            value={formAudioFiles.wavMaster}
+                            onChange={(e) => setFormAudioFiles(prev => ({ ...prev, wavMaster: e.target.value.trim() }))}
+                            placeholder="https://example.com/track_master.wav"
+                            className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
+                          />
                         </div>
                       </div>
                     </div>
@@ -1245,11 +1344,23 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                             />
                             <Folder className="w-6 h-6 text-zinc-600 mx-auto mb-2" />
                             <p className="text-xs text-zinc-400">UPLOAD TRACKOUTS_ALL.ZIP</p>
-                            {formStems.list.length === 1 && formStems.list[0].endsWith(".zip") && (
-                              <p className="text-[10px] text-emerald-400 font-bold mt-1 uppercase">
+                            {formStems.list.length === 1 && (
+                              <p className="text-[10px] text-emerald-400 font-bold mt-1 uppercase truncate max-w-full">
                                 MOUNTED: {formStems.list[0]}
                               </p>
                             )}
+                          </div>
+
+                          {/* Direct URL Input for Stems ZIP */}
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT ZIP ARCHIVE URL:</span>
+                            <input
+                              type="text"
+                              value={(formStems.list.length === 1 && formStems.list[0].startsWith("http")) ? formStems.list[0] : ""}
+                              onChange={(e) => setFormStems(prev => ({ ...prev, list: e.target.value.trim() ? [e.target.value.trim()] : [] }))}
+                              placeholder="https://example.com/stems_master.zip"
+                              className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
+                            />
                           </div>
                         </div>
                       )}
