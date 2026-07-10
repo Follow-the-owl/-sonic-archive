@@ -531,64 +531,121 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     endpoint: "cloudinary" | "uploadthing",
     onSuccess: (url: string) => void
   ) => {
-    setMediaUploadProgress(5);
-    const formData = new FormData();
-    formData.append("file", file);
+    const performTraditionalUpload = () => {
+      setMediaUploadProgress(5);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const interval = setInterval(() => {
-      setMediaUploadProgress(prev => {
-        if (prev === null) return null;
-        if (prev >= 85) {
-          clearInterval(interval);
-          return 85;
-        }
-        return prev + Math.floor(Math.random() * 10) + 5;
-      });
-    }, 150);
-
-    fetch(`/api/upload/${endpoint}`, {
-      method: "POST",
-      body: formData
-    })
-    .then(async res => {
-      if (res.status === 413) {
-        throw new Error("File too large (413 Payload Too Large). The server environment has a request size limit. Please use the direct URL field below to link this file instead!");
-      }
-      if (!res.ok) {
-        const text = await res.text();
-        let errMsg = "Server error during upload.";
-        try {
-          const parsed = JSON.parse(text);
-          errMsg = parsed.error || errMsg;
-        } catch (e) {}
-        throw new Error(errMsg);
-      }
-      return res.json();
-    })
-    .then(data => {
-      clearInterval(interval);
-      if (data.success) {
-        setMediaUploadProgress(100);
-        setTimeout(() => {
-          setMediaUploadProgress(null);
-          onSuccess(data.url);
-          if (data.fallback) {
-            showToast(`Cached ${file.name} locally (using base64 data url)`);
-          } else {
-            showToast(`Uploaded ${file.name} successfully via ${data.provider}!`);
+      const interval = setInterval(() => {
+        setMediaUploadProgress(prev => {
+          if (prev === null) return null;
+          if (prev >= 85) {
+            clearInterval(interval);
+            return 85;
           }
-        }, 400);
-      } else {
+          return prev + Math.floor(Math.random() * 10) + 5;
+        });
+      }, 150);
+
+      fetch(`/api/upload/${endpoint}`, {
+        method: "POST",
+        body: formData
+      })
+      .then(async res => {
+        if (res.status === 413) {
+          throw new Error("File too large (413 Payload Too Large). The server environment has a request size limit. Please use the direct URL field below to link this file instead!");
+        }
+        if (!res.ok) {
+          const text = await res.text();
+          let errMsg = "Server error during upload.";
+          try {
+            const parsed = JSON.parse(text);
+            errMsg = parsed.error || errMsg;
+          } catch (e) {}
+          throw new Error(errMsg);
+        }
+        return res.json();
+      })
+      .then(data => {
+        clearInterval(interval);
+        if (data.success) {
+          setMediaUploadProgress(100);
+          setTimeout(() => {
+            setMediaUploadProgress(null);
+            onSuccess(data.url);
+            if (data.fallback) {
+              showToast(`Cached ${file.name} locally (using base64 data url)`);
+            } else {
+              showToast(`Uploaded ${file.name} successfully via ${data.provider}!`);
+            }
+          }, 400);
+        } else {
+          setMediaUploadProgress(null);
+          showToast(`Upload error: ${data.error || "Failed to process upload."}`);
+        }
+      })
+      .catch(err => {
+        clearInterval(interval);
         setMediaUploadProgress(null);
-        showToast(`Upload error: ${data.error || "Failed to process upload."}`);
-      }
-    })
-    .catch(err => {
-      clearInterval(interval);
-      setMediaUploadProgress(null);
-      console.error("[UPLOAD CLIENT ERROR]", err);
-      showToast(`Upload failed: ${err.message || String(err)}`);
-    });
+        console.error("[UPLOAD CLIENT ERROR]", err);
+        showToast(`Upload failed: ${err.message || String(err)}`);
+      });
+    };
+
+    if (endpoint === "uploadthing") {
+      setMediaUploadProgress(5);
+      import("uploadthing/client")
+        .then(async ({ genUploader }) => {
+          let interval: any = null;
+          try {
+            setMediaUploadProgress(10);
+            interval = setInterval(() => {
+              setMediaUploadProgress(prev => {
+                if (prev === null) return null;
+                if (prev >= 90) {
+                  clearInterval(interval);
+                  return 90;
+                }
+                return prev + 5;
+              });
+            }, 200);
+
+            // In uploadthing v7, genUploader is used to create client-side upload helpers
+            const { uploadFiles } = genUploader({
+              url: "/api/uploadthing",
+            });
+
+            // Attempt direct client-to-S3 upload
+            const response = await uploadFiles("podcastUploader" as any, {
+              files: [file],
+            });
+
+            if (interval) clearInterval(interval);
+            const uploadedFile = response && response[0];
+            if (uploadedFile && uploadedFile.url) {
+              setMediaUploadProgress(100);
+              setTimeout(() => {
+                setMediaUploadProgress(null);
+                onSuccess(uploadedFile.url);
+                showToast(`Directly uploaded ${file.name} successfully via UploadThing (bypassed server limits)!`);
+              }, 400);
+            } else {
+              throw new Error("Direct upload returned invalid response format.");
+            }
+          } catch (err: any) {
+            if (interval) clearInterval(interval);
+            console.warn("[UPLOADTHING DIRECT ATTEMPT FAILED, FALLING BACK]", err);
+            // Fallback to traditional backend upload
+            performTraditionalUpload();
+          }
+        })
+        .catch(err => {
+          console.error("Failed to dynamically import uploadthing/client, falling back:", err);
+          performTraditionalUpload();
+        });
+    } else {
+      performTraditionalUpload();
+    }
   };
 
   // Mock Upload Progress bar

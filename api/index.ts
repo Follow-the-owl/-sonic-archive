@@ -5,7 +5,8 @@ import { MongoClient, Db } from "mongodb";
 import nodemailer from "nodemailer";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import { UTApi } from "uploadthing/server";
+import { UTApi, createUploadthing, type FileRouter } from "uploadthing/server";
+import { createRouteHandler } from "uploadthing/express";
 
 // --- Types ---
 interface User {
@@ -47,8 +48,44 @@ interface Payment {
 }
 
 
+const f = createUploadthing();
+
+export const ourFileRouter = {
+  podcastUploader: f({ 
+    audio: { 
+      maxFileSize: "512MB", // The max size PER individual file
+      maxFileCount: 4       // Allows the user to select 4 files at once
+    } 
+  })
+  .middleware(async () => {
+    return { userId: "admin" };
+  })
+  .onUploadComplete(async ({ metadata, file }) => {
+    console.log("[UPLOADTHING ROUTER] Audio file successfully uploaded!", file.url);
+  }),
+  audioUploader: f({ 
+    audio: { 
+      maxFileSize: "512MB", // The max size PER individual file
+      maxFileCount: 4       // Allows the user to select 4 files at once
+    } 
+  })
+  .middleware(async () => {
+    return { userId: "admin" };
+  })
+  .onUploadComplete(async ({ metadata, file }) => {
+    console.log("[UPLOADTHING ROUTER] Audio file successfully uploaded!", file.url);
+  }),
+} satisfies FileRouter;
+
 const app = express();
 const PORT = 3000;
+
+app.use(
+  "/api/uploadthing",
+  createRouteHandler({
+    router: ourFileRouter,
+  })
+);
 
 app.use(express.json());
 
