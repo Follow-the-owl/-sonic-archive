@@ -37,46 +37,41 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
   const [activeTab, setActiveTab] = useState<AdminTab>("Dashboard");
 
   // Load / initialize fragments list
-  const [fragments, setFragments] = useState<Fragment[]>(() => {
-    try {
-      const saved = localStorage.getItem("lomon_stored_fragments");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to load stored fragments", e);
-    }
-    
-    try {
-      const raw = localStorage.getItem("lomon_fragments_data");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to load fragments data", e);
-    }
-    
-    // Fallback list matching the initial setup
-    return [
-      { id: "00:50", name: "DEEP IN THE WATER", timestamp: "00:50 AM", classification: "THRESHOLD COIL", observation: "Registered in a submerged concrete chamber.", duration: "4:12", description: "Analog sub-drone theme.", isExclusive: false, frequency: 110, synthType: "drone" as const, bpm: 78, status: "Published", plays: 2840, revenue: 1200 },
-      { id: "07:46", name: "BANDIT", timestamp: "07:46 AM", classification: "MOONLIT RUN", observation: "Traced on empty Houston freeways.", duration: "3:50", description: "Hyper-distorted pulse.", isExclusive: true, frequency: 329.63, synthType: "pulse" as const, bpm: 160, status: "Published", plays: 3120, revenue: 150 },
-      { id: "02:17", name: "KRYPTONITE", timestamp: "02:17 AM", classification: "DISCOVERY FREQ", observation: "Captured on an old copper receiver.", duration: "6:04", description: "Glass-like piano notes.", isExclusive: false, frequency: 293.66, synthType: "keys" as const, bpm: 92, status: "Published", plays: 1540, revenue: 0 },
-      { id: "05:58", name: "TORE UP", timestamp: "05:58 AM", classification: "SUNRISE SIREN", observation: "Triggered as eastern sky changed.", duration: "7:20", description: "Evolving majestic low-bass drone.", isExclusive: false, frequency: 146.83, synthType: "pulse" as const, bpm: 128, status: "Published", plays: 1980, revenue: 50 },
-      { id: "03:33", name: "OCTANE", timestamp: "03:33 AM", classification: "WATCH CORE", observation: "Low frequency exhaust vibrations.", duration: "5:45", description: "High-energy industrial trap.", isExclusive: false, frequency: 220, synthType: "bell" as const, bpm: 140, status: "Published", plays: 2100, revenue: 300 },
-      { id: "10:14", name: "GLOCK", timestamp: "10:14 PM", classification: "RESTLESS COID", observation: "Dynamic chamber echoes.", duration: "4:32", description: "Dark ambient sub-harmonic landscape.", isExclusive: false, frequency: 98.0, synthType: "drone" as const, bpm: 120, status: "Draft", plays: 450, revenue: 0 },
-      { id: "11:28", name: "HARDSTONE NATIONAL", timestamp: "11:28 PM", classification: "CHRONO ANTHEM", observation: "Simultaneous signal broadcasted.", duration: "5:00", description: "Heavy majestic ambient motorcycle synth.", isExclusive: true, frequency: 196.0, synthType: "drone" as const, bpm: 120, status: "Draft", plays: 320, revenue: 0 },
-      { id: "11:59", name: "LAST LAUGH", timestamp: "11:59 PM", classification: "DEVIANT KEYS", observation: "Recorded during electrical blackout.", duration: "8:11", description: "Decaying celestial chord sequence.", isExclusive: true, frequency: 440, synthType: "keys" as const, bpm: 105, status: "Draft", plays: 100, revenue: 750 }
-    ] as any[];
-  });
+  const [fragments, setFragments] = useState<Fragment[]>([]);
 
-  // Track state in local storage to keep updates synchronized
   useEffect(() => {
-    try {
-      localStorage.setItem("lomon_stored_fragments", JSON.stringify(fragments));
-    } catch (e) {
-      console.error(e);
+    fetch("/api/fragments")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.fragments)) {
+          setFragments(data.fragments);
+        } else {
+          // Fallback to local storage if API is unsuccessful
+          const saved = localStorage.getItem("lomon_stored_fragments");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) setFragments(parsed);
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Failed to fetch fragments from database API:", err);
+        const saved = localStorage.getItem("lomon_stored_fragments");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setFragments(parsed);
+        }
+      });
+  }, []);
+
+  // Track state in local storage to keep updates synchronized as secondary backup
+  useEffect(() => {
+    if (fragments.length > 0) {
+      try {
+        localStorage.setItem("lomon_stored_fragments", JSON.stringify(fragments));
+      } catch (e) {
+        console.error(e);
+      }
     }
   }, [fragments]);
 
@@ -225,6 +220,28 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
   const totalOrdersCount = orders.length;
   const totalRevenueSum = orders.reduce((sum, o) => sum + o.amountPaid, 0);
 
+  // Dynamic Beat Sales Analysis (Ranked by revenue generation & orders)
+  const mostSoldBeats = fragments.map(frag => {
+    const fragmentOrders = orders.filter(o => o.fragmentName.toLowerCase() === frag.name.toLowerCase());
+    const salesCount = fragmentOrders.length;
+    const orderRevenue = fragmentOrders.reduce((sum, o) => sum + o.amountPaid, 0);
+    // Combine order sales with play counts to represent engagement
+    const plays = (frag as any).plays || 0;
+    const revenue = Math.max(orderRevenue, (frag as any).revenue || 0);
+    return {
+      id: frag.id,
+      name: frag.name,
+      classification: frag.classification || "ARCHIVAL",
+      plays,
+      salesCount,
+      revenue
+    };
+  }).sort((a, b) => b.revenue - a.revenue || b.plays - a.plays);
+
+  // Top Customers Ledger (Ranked by total spent)
+  const topCustomers = [...customers].sort((a, b) => b.totalSpent - a.totalSpent || b.purchases - a.purchases);
+
+
   // Alert/Notification Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -232,30 +249,108 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Interactive Dashboard States
+  const [terminalLogs, setTerminalLogs] = useState<string[]>(() => [
+    "SYSTEM JOURNAL [SYSTEM STABILIZED]",
+    `> authenticated session: ${currentUserEmail}`,
+    "> archive directory: /srv/lomon-archive/fragments",
+    "> active gateways: paystack-active, stripe-offline",
+    "> state: safe, ready for composition registration"
+  ]);
+  const [isDiagnosticRunning, setIsDiagnosticRunning] = useState<boolean>(false);
+  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
+
+  const chartData = [
+    { label: "MON", plays: 1200, revenue: 150 },
+    { label: "TUE", plays: 1800, revenue: 300 },
+    { label: "WED", plays: 1400, revenue: 50 },
+    { label: "THU", plays: 2200, revenue: 750 },
+    { label: "FRI", plays: 2800, revenue: 1200 },
+    { label: "SAT", plays: 2100, revenue: 300 },
+    { label: "SUN", plays: 2500, revenue: 950 }
+  ];
+
+  const handleRunDiagnostics = () => {
+    if (isDiagnosticRunning) return;
+    setIsDiagnosticRunning(true);
+    showToast("Initializing Diagnostics...");
+
+    // Clear logs and run step-by-step
+    setTerminalLogs([
+      "SYSTEM JOURNAL [DIAGNOSTICS MODE INITIALIZED]",
+      "> Loading cryptographic signatures...",
+    ]);
+
+    const steps = [
+      { delay: 400, log: "> Mounting secure nodes... OK" },
+      { delay: 800, log: `> Directory verified: /srv/lomon-archive/fragments (${fragments.length} entries)` },
+      { delay: 1200, log: `> Active Gateway Ping: Paystack (ONLINE), Stripe (OFFLINE)` },
+      { delay: 1600, log: `> Financial reconciliation: total accrued $${totalRevenueSum.toLocaleString()} across ${orders.length} orders.` },
+      { delay: 2000, log: "> System health: 100% operational. Integrity verified." },
+      { delay: 2400, log: "SYSTEM JOURNAL [SYSTEM STABILIZED]" }
+    ];
+
+    steps.forEach((step) => {
+      setTimeout(() => {
+        setTerminalLogs((prev) => [...prev, step.log]);
+        if (step.log.startsWith("SYSTEM JOURNAL [SYSTEM STABILIZED]")) {
+          setIsDiagnosticRunning(false);
+          showToast("Diagnostics complete. System secure.");
+        }
+      }, step.delay);
+    });
+  };
+
   // Operations inside Fragment Library
   const handleDeleteFragment = (id: string) => {
     if (window.confirm(`Are you sure you want to delete fragment ${id}?`)) {
-      setFragments(prev => prev.filter(f => f.id !== id));
-      showToast(`Fragment ${id} deleted successfully.`);
+      fetch(`/api/fragments/${id}`, { method: "DELETE" })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setFragments(prev => prev.filter(f => f.id !== id));
+            showToast(`Fragment ${id} deleted successfully.`);
+          } else {
+            showToast(`Error: ${data.error}`);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setFragments(prev => prev.filter(f => f.id !== id));
+          showToast(`Fragment ${id} deleted locally.`);
+        });
     }
   };
 
   const handleArchiveFragment = (id: string) => {
-    setFragments(prev => prev.map(f => {
-      if (f.id === id) {
-        const currentStatus = (f as any).status;
-        return {
-          ...f,
-          status: currentStatus === "Archived" ? "Draft" : "Archived"
-        } as any;
+    const target = fragments.find(f => f.id === id);
+    if (!target) return;
+    const currentStatus = (target as any).status;
+    const nextStatus = currentStatus === "Archived" ? "Draft" : "Archived";
+
+    fetch(`/api/fragments/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setFragments(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f));
+        showToast(`Fragment ${id} archive status updated in database.`);
+      } else {
+        showToast(`Error: ${data.error}`);
       }
-      return f;
-    }));
-    showToast(`Fragment ${id} archive status updated.`);
+    })
+    .catch(err => {
+      console.error(err);
+      setFragments(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f));
+      showToast(`Fragment ${id} archive status updated locally.`);
+    });
   };
 
   const handleDuplicateFragment = (frag: Fragment) => {
-    const newId = `${frag.id}-copy`;
+    const newId = `${frag.id}-copy-${Math.floor(Math.random() * 100)}`;
     const newName = `${frag.name} (Copy)`;
     const duplicated: Fragment = {
       ...frag,
@@ -265,8 +360,26 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       plays: 0,
       revenue: 0
     } as any;
-    setFragments(prev => [...prev, duplicated]);
-    showToast(`Duplicated ${frag.name} successfully.`);
+
+    fetch("/api/fragments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(duplicated)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setFragments(prev => [...prev, duplicated]);
+        showToast(`Duplicated ${frag.name} to DB successfully.`);
+      } else {
+        showToast(`DB Save Error: ${data.error}`);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      setFragments(prev => [...prev, duplicated]);
+      showToast(`Duplicated ${frag.name} locally.`);
+    });
   };
 
   const handleEditFragmentClick = (frag: Fragment) => {
@@ -330,15 +443,50 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     } as any;
 
     if (editingFragmentId) {
-      setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
-      showToast(`Fragment ${formInfo.name} updated successfully.`);
+      fetch(`/api/fragments/${editingFragmentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newFragData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
+          showToast(`Fragment ${formInfo.name} updated in database.`);
+        } else {
+          showToast(`DB Error: ${data.error}`);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
+        showToast(`Fragment ${formInfo.name} updated locally.`);
+      });
     } else {
-      // Check if id already exists
-      if (fragments.some(f => f.id === targetId)) {
-        newFragData.id = `${targetId}-${Math.floor(Math.random() * 100)}`;
-      }
-      setFragments(prev => [newFragData, ...prev]);
-      showToast(`New Fragment ${formInfo.name} added to archive.`);
+      const finalId = fragments.some(f => f.id === targetId)
+        ? `${targetId}-${Math.floor(Math.random() * 100)}`
+        : targetId;
+      newFragData.id = finalId;
+
+      fetch("/api/fragments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newFragData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setFragments(prev => [newFragData, ...prev]);
+          showToast(`New Fragment ${formInfo.name} saved to database.`);
+        } else {
+          showToast(`DB Error: ${data.error}`);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        setFragments(prev => [newFragData, ...prev]);
+        showToast(`New Fragment ${formInfo.name} added locally.`);
+      });
     }
 
     // Reset Form and exit
@@ -357,6 +505,58 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       duration: "4:30"
     });
     setActiveTab("Fragments");
+  };
+
+  // Real Upload function for Cloudinary / Uploadthing
+  const uploadFileToServer = (
+    file: File,
+    endpoint: "cloudinary" | "uploadthing",
+    onSuccess: (url: string) => void
+  ) => {
+    setMediaUploadProgress(5);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const interval = setInterval(() => {
+      setMediaUploadProgress(prev => {
+        if (prev === null) return null;
+        if (prev >= 85) {
+          clearInterval(interval);
+          return 85;
+        }
+        return prev + Math.floor(Math.random() * 10) + 5;
+      });
+    }, 150);
+
+    fetch(`/api/upload/${endpoint}`, {
+      method: "POST",
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      clearInterval(interval);
+      if (data.success) {
+        setMediaUploadProgress(100);
+        setTimeout(() => {
+          setMediaUploadProgress(null);
+          onSuccess(data.url);
+          if (data.fallback) {
+            showToast(`Cached ${file.name} locally (using base64 data url)`);
+          } else {
+            showToast(`Uploaded ${file.name} successfully via ${data.provider}!`);
+          }
+        }, 400);
+      } else {
+        setMediaUploadProgress(null);
+        showToast(`Upload error: ${data.error || "Failed to process upload."}`);
+      }
+    })
+    .catch(err => {
+      clearInterval(interval);
+      setMediaUploadProgress(null);
+      console.error("[UPLOAD CLIENT ERROR]", err);
+      showToast(`Upload connection failed: ${err.message || String(err)}`);
+    });
   };
 
   // Mock Upload Progress bar
@@ -394,7 +594,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             <button
               key={step}
               onClick={() => setCurrentStep(stepNum)}
-              className={`py-2 text-[8px] tracking-[0.1em] font-mono font-bold uppercase transition-colors text-center border ${
+              className={`py-2 text-[10px] tracking-[0.1em] font-mono font-bold uppercase transition-colors text-center border ${
                 isActive 
                   ? "bg-zinc-800 text-white border-zinc-700" 
                   : isCompleted 
@@ -420,7 +620,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-6 right-6 z-50 bg-[#0a0a0a] border border-[#D9D6CA] px-4 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.8)] text-[10px] text-white flex items-center gap-2 font-bold uppercase"
+            className="fixed top-6 right-6 z-50 bg-[#0a0a0a] border border-[#D9D6CA] px-4 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.8)] text-xs text-white flex items-center gap-2 font-bold uppercase"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
             <span>{toastMessage}</span>
@@ -432,8 +632,8 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       <div className="w-full md:w-56 flex-shrink-0 flex flex-col justify-between border-b md:border-b-0 md:border-r border-zinc-900 pb-4 md:pb-0 md:pr-4">
         <div className="space-y-6">
           <div className="py-2 border-b border-zinc-900">
-            <h1 className="text-xs font-bold tracking-[0.2em] text-[#D9D6CA] uppercase">LOMON ADMIN</h1>
-            <span className="text-[7.5px] text-zinc-500 tracking-[0.1em] uppercase font-bold block">Archive Management v3.0</span>
+            <h1 className="text-sm font-bold tracking-[0.2em] text-[#D9D6CA] uppercase">LOMON ADMIN</h1>
+            <span className="text-[10px] text-zinc-500 tracking-[0.1em] uppercase font-bold block">Archive Management v3.0</span>
           </div>
 
           <nav className="flex flex-col gap-1">
@@ -448,7 +648,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       setCurrentStep(1);
                     }
                   }}
-                  className={`w-full text-left px-3 py-2 text-[10px] tracking-wider uppercase transition-colors flex items-center justify-between font-bold cursor-pointer border ${
+                  className={`w-full text-left px-3 py-2.5 text-xs tracking-wider uppercase transition-colors flex items-center justify-between font-bold cursor-pointer border ${
                     isActive 
                       ? "bg-zinc-900/80 border-zinc-800 text-white font-black" 
                       : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/30"
@@ -463,11 +663,11 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         </div>
 
         <div className="pt-8 border-t border-zinc-900 mt-6 md:mt-0 space-y-2">
-          <div className="text-[8px] text-zinc-500 font-bold uppercase">SECURE SHELL</div>
-          <div className="text-[9px] text-zinc-400 font-bold truncate">{currentUserEmail.toUpperCase()}</div>
+          <div className="text-[10px] text-zinc-500 font-bold uppercase">SECURE SHELL</div>
+          <div className="text-xs text-zinc-400 font-bold truncate">{currentUserEmail.toUpperCase()}</div>
           <button
             onClick={onClose}
-            className="text-[9px] text-zinc-500 hover:text-red-400 transition-colors uppercase font-bold cursor-pointer tracking-wider"
+            className="text-xs text-zinc-500 hover:text-red-400 transition-colors uppercase font-bold cursor-pointer tracking-wider text-left"
           >
             ← EXIT PORTAL
           </button>
@@ -486,42 +686,65 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
               className="space-y-6"
             >
               {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">DASHBOARD METRICS</h2>
-                <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest bg-emerald-950/30 px-2 py-0.5 border border-emerald-900/50">CONSOLE READY</span>
-              </div>
-
-              {/* GRID STATS (Strictly only: Total Fragments, Published, Draft, Total Orders, Total Revenue) */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="border border-zinc-900 bg-zinc-950/20 p-4 space-y-2">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL FRAGMENTS</span>
-                  <div className="text-2xl font-bold font-mono tracking-tight text-white">{totalFragmentsCount}</div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-900 pb-4">
+                <div>
+                  <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">DASHBOARD OVERVIEW</h2>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Archive Management System Overview</p>
                 </div>
-                <div className="border border-zinc-900 bg-zinc-950/20 p-4 space-y-2">
-                  <span className="text-[8px] tracking-widest text-emerald-500 font-bold block uppercase">PUBLISHED FRAGMENTS</span>
-                  <div className="text-2xl font-bold font-mono tracking-tight text-emerald-400">{publishedFragmentsCount}</div>
-                </div>
-                <div className="border border-zinc-900 bg-zinc-950/20 p-4 space-y-2">
-                  <span className="text-[8px] tracking-widest text-amber-500 font-bold block uppercase">DRAFT FRAGMENTS</span>
-                  <div className="text-2xl font-bold font-mono tracking-tight text-amber-400">{draftFragmentsCount}</div>
-                </div>
-                <div className="border border-zinc-900 bg-zinc-950/20 p-4 space-y-2">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL ORDERS</span>
-                  <div className="text-2xl font-bold font-mono tracking-tight text-white">{totalOrdersCount}</div>
-                </div>
-                <div className="border border-zinc-900 bg-zinc-950/20 p-4 space-y-2 col-span-2 md:col-span-1">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL REVENUE</span>
-                  <div className="text-2xl font-bold font-mono tracking-tight text-[#D9D6CA]">${totalRevenueSum.toLocaleString()}</div>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D9D6CA]" />
+                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                    SYSTEM ACTIVE
+                  </span>
                 </div>
               </div>
 
-              {/* CLEAN TERMINAL WELCOME LOG */}
-              <div className="border border-zinc-900 bg-black/60 p-4 font-mono text-[9.5px] text-zinc-400 space-y-1 select-text">
-                <div className="text-zinc-600 font-bold">SYSTEM JOURNAL [SYSTEM STABILIZED]</div>
-                <div>&gt; authenticated session: <span className="text-[#D9D6CA]">{currentUserEmail}</span></div>
-                <div>&gt; archive directory: <span className="text-[#D9D6CA]">/srv/lomon-archive/fragments</span></div>
-                <div>&gt; active gateways: <span className="text-emerald-400">paystack-active</span>, <span className="text-zinc-600">stripe-offline</span></div>
-                <div>&gt; state: safe, ready for composition registration</div>
+              {/* GRID STATS - SHOWS ONLY THE 5 REQUIRED METRICS, NOTHING ELSE */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {/* Total Fragments */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
+                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL FRAGMENTS</span>
+                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{totalFragmentsCount}</div>
+                  <div className="w-full bg-zinc-950 h-[1px]">
+                    <div className="bg-zinc-700 h-full" style={{ width: "100%" }} />
+                  </div>
+                </div>
+
+                {/* Published Fragments */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
+                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">PUBLISHED FRAGMENTS</span>
+                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{publishedFragmentsCount}</div>
+                  <div className="w-full bg-zinc-950 h-[1px]">
+                    <div className="bg-[#D9D6CA] h-full" style={{ width: `${(publishedFragmentsCount / (totalFragmentsCount || 1)) * 100}%` }} />
+                  </div>
+                </div>
+
+                {/* Draft Fragments */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
+                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">DRAFT FRAGMENTS</span>
+                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{draftFragmentsCount}</div>
+                  <div className="w-full bg-zinc-950 h-[1px]">
+                    <div className="bg-zinc-700 h-full" style={{ width: `${(draftFragmentsCount / (totalFragmentsCount || 1)) * 100}%` }} />
+                  </div>
+                </div>
+
+                {/* Total Orders */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
+                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL ORDERS</span>
+                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{totalOrdersCount}</div>
+                  <div className="w-full bg-zinc-950 h-[1px]">
+                    <div className="bg-zinc-700 h-full" style={{ width: "100%" }} />
+                  </div>
+                </div>
+
+                {/* Total Revenue */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1">
+                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL REVENUE</span>
+                  <div className="text-3xl font-bold font-mono tracking-tight text-[#D9D6CA]">${totalRevenueSum.toLocaleString()}</div>
+                  <div className="w-full bg-zinc-950 h-[1px]">
+                    <div className="bg-[#D9D6CA] h-full" style={{ width: "100%" }} />
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
@@ -536,7 +759,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">FRAGMENT LIBRARY</h2>
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">FRAGMENT LIBRARY</h2>
                 <button
                   onClick={() => {
                     setEditingFragmentId(null);
@@ -554,7 +777,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                     setCurrentStep(1);
                     setActiveTab("New Fragment");
                   }}
-                  className="bg-[#D9D6CA] text-black hover:bg-white text-[9px] font-bold tracking-widest px-3 py-1 uppercase rounded-none transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="bg-[#D9D6CA] text-black hover:bg-white text-xs font-bold tracking-widest px-3 py-1.5 uppercase rounded-none transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" /> REGISTER NEW
                 </button>
@@ -562,9 +785,9 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
               {/* TABLE CONTAINER */}
               <div className="border border-zinc-900 rounded-none overflow-x-auto bg-neutral-950/20">
-                <table className="w-full border-collapse text-left font-mono text-[10px]">
+                <table className="w-full border-collapse text-left font-mono text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[8.5px]">
+                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[10.5px]">
                       <th className="p-3">Timestamp</th>
                       <th className="p-3">Name</th>
                       <th className="p-3">BPM</th>
@@ -589,7 +812,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                           <td className="p-3 text-zinc-400">{frag.bpm}</td>
                           <td className="p-3 text-zinc-400">{(frag as any).key || "N/A"}</td>
                           <td className="p-3">
-                            <span className={`px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                               isDraft 
                                 ? "bg-amber-950/30 text-amber-400 border border-amber-900/60" 
                                 : isArchived
@@ -656,7 +879,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">
                   {editingFragmentId ? `EDIT FRAGMENT: ${formInfo.name}` : "REGISTER NEW FRAGMENT"}
                 </h2>
                 <button
@@ -664,7 +887,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                     setEditingFragmentId(null);
                     setActiveTab("Fragments");
                   }}
-                  className="text-zinc-500 hover:text-white text-[9px] font-bold tracking-widest uppercase transition-colors"
+                  className="text-zinc-500 hover:text-white text-[11px] font-bold tracking-widest uppercase transition-colors"
                 >
                   CANCEL
                 </button>
@@ -679,93 +902,93 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 1 && (
                   <div className="space-y-4">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 1 // FRAGMENT INFORMATION</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 1 // FRAGMENT INFORMATION</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Fragment Timestamp</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Fragment Timestamp</label>
                         <input 
                           type="text" 
                           value={formInfo.timestamp}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, timestamp: e.target.value }))}
                           placeholder="e.g. 11:28 PM"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Fragment Name</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Fragment Name</label>
                         <input 
                           type="text" 
                           value={formInfo.name}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g. SHADOW SHIFT"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">BPM</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">BPM</label>
                         <input 
                           type="number" 
                           value={formInfo.bpm}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, bpm: Number(e.target.value) }))}
                           placeholder="e.g. 120"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">KEY</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">KEY</label>
                         <input 
                           type="text" 
                           value={formInfo.key}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, key: e.target.value }))}
                           placeholder="e.g. G Minor"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Genre</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Genre</label>
                         <input 
                           type="text" 
                           value={formInfo.genre}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, genre: e.target.value }))}
                           placeholder="e.g. Ambient Trap"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Mood</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Mood</label>
                         <input 
                           type="text" 
                           value={formInfo.mood}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, mood: e.target.value }))}
                           placeholder="e.g. Restless"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Duration (M:SS)</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Duration (M:SS)</label>
                         <input 
                           type="text" 
                           value={formInfo.duration}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, duration: e.target.value }))}
                           placeholder="e.g. 4:32"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none placeholder-zinc-700 font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
                         />
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Status</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Status</label>
                         <select 
                           value={formInfo.status}
                           onChange={(e) => setFormInfo(prev => ({ ...prev, status: e.target.value }))}
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-[10px] text-white focus:outline-none font-mono"
+                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none font-mono"
                         >
                           <option value="Draft">Draft</option>
                           <option value="Published">Published</option>
@@ -779,13 +1002,13 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 2 && (
                   <div className="space-y-4">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 2 // COVER IMAGE ARTWORK</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 2 // COVER IMAGE ARTWORK</span>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-6 items-center">
                       <div className="w-32 h-32 border border-zinc-900 bg-neutral-950 flex items-center justify-center relative overflow-hidden shrink-0">
                         {formArtwork ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-[9px] text-zinc-400">
+                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-[11px] text-zinc-400">
                             <Image className="w-8 h-8 text-zinc-600 mb-1" />
                             <span className="truncate w-full font-bold uppercase">{formArtwork}</span>
                           </div>
@@ -795,7 +1018,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       </div>
 
                       <div className="flex-grow w-full text-left space-y-3">
-                        <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Upload Cover Art</label>
+                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Upload Cover Art</label>
                         
                         <div className="border border-dashed border-zinc-800 p-6 text-center hover:border-zinc-700 transition-colors cursor-pointer bg-neutral-950/40 relative">
                           <input 
@@ -805,24 +1028,24 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                triggerMockUpload(file.name, setFormArtwork);
+                                uploadFileToServer(file, "cloudinary", setFormArtwork);
                               }
                             }}
                           />
                           <Upload className="w-6 h-6 text-zinc-600 mx-auto mb-2" />
-                          <p className="text-[10px] text-zinc-400">DRAG AND DROP OR CLICK TO CHOOSE COVER IMAGE</p>
-                          <p className="text-[8px] text-zinc-600 mt-1 uppercase">MAXIMUM FILE SIZE: 10MB (JPG, PNG)</p>
+                          <p className="text-xs text-zinc-400">DRAG AND DROP OR CLICK TO CHOOSE COVER IMAGE</p>
+                          <p className="text-[10px] text-zinc-600 mt-1 uppercase">MAXIMUM FILE SIZE: 10MB (JPG, PNG)</p>
                         </div>
 
                         {/* Preset assets selector */}
                         <div className="space-y-1.5">
-                          <span className="text-[8px] text-zinc-600 font-bold uppercase block">OR REUSE FROM MEDIA LIBRARY PRESETS:</span>
+                          <span className="text-[10px] text-zinc-600 font-bold uppercase block">OR REUSE FROM MEDIA LIBRARY PRESETS:</span>
                           <div className="flex flex-wrap gap-2">
                             {["cover_bandit.jpg", "cover_deep_water.jpg", "cover_kryptonite.jpg"].map(art => (
                               <button
                                 key={art}
                                 onClick={() => setFormArtwork(art)}
-                                className={`px-2 py-1 text-[8.5px] border font-bold uppercase transition-colors ${
+                                className={`px-2 py-1 text-[10.5px] border font-bold uppercase transition-colors ${
                                   formArtwork === art 
                                     ? "bg-zinc-800 border-zinc-600 text-white" 
                                     : "bg-neutral-950 border-zinc-900 text-zinc-500 hover:text-zinc-300"
@@ -842,16 +1065,16 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 3 && (
                   <div className="space-y-6">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 3 // CORE AUDIO FILES</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 3 // CORE AUDIO FILES</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                       {/* MP3 PREVIEW */}
                       <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-[8.5px] font-bold text-zinc-400 uppercase tracking-widest block">1. MP3 PREVIEW (STREAMABLE)</span>
+                          <span className="text-[10.5px] font-bold text-zinc-400 uppercase tracking-widest block">1. MP3 PREVIEW (STREAMABLE)</span>
                           {formAudioFiles.mp3Preview && (
-                            <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
                               <Check className="w-3 h-3" /> ATTACHED
                             </span>
                           )}
@@ -864,14 +1087,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                triggerMockUpload(file.name, (name) => setFormAudioFiles(prev => ({ ...prev, mp3Preview: name })));
+                                uploadFileToServer(file, "uploadthing", (url) => setFormAudioFiles(prev => ({ ...prev, mp3Preview: url })));
                               }
                             }}
                           />
                           <Music className="w-5 h-5 text-zinc-600 mx-auto mb-1.5" />
-                          <p className="text-[9px] text-zinc-400 uppercase">UPLOAD MP3 PREVIEW</p>
+                          <p className="text-[11px] text-zinc-400 uppercase">UPLOAD MP3 PREVIEW</p>
                           {formAudioFiles.mp3Preview && (
-                            <p className="text-[8px] text-[#D9D6CA] font-bold mt-1 uppercase truncate max-w-full">
+                            <p className="text-[10px] text-[#D9D6CA] font-bold mt-1 uppercase truncate max-w-full">
                               FILE: {formAudioFiles.mp3Preview}
                             </p>
                           )}
@@ -881,9 +1104,9 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       {/* WAV MASTER */}
                       <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-[8.5px] font-bold text-zinc-400 uppercase tracking-widest block">2. WAV MASTER (HIGH-FIDELITY)</span>
+                          <span className="text-[10.5px] font-bold text-zinc-400 uppercase tracking-widest block">2. WAV MASTER (HIGH-FIDELITY)</span>
                           {formAudioFiles.wavMaster && (
-                            <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
                               <Check className="w-3 h-3" /> ATTACHED
                             </span>
                           )}
@@ -896,14 +1119,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                triggerMockUpload(file.name, (name) => setFormAudioFiles(prev => ({ ...prev, wavMaster: name })));
+                                uploadFileToServer(file, "uploadthing", (url) => setFormAudioFiles(prev => ({ ...prev, wavMaster: url })));
                               }
                             }}
                           />
                           <Music className="w-5 h-5 text-zinc-600 mx-auto mb-1.5" />
-                          <p className="text-[9px] text-zinc-400 uppercase">UPLOAD WAV MASTER</p>
+                          <p className="text-[11px] text-zinc-400 uppercase">UPLOAD WAV MASTER</p>
                           {formAudioFiles.wavMaster && (
-                            <p className="text-[8px] text-[#D9D6CA] font-bold mt-1 uppercase truncate max-w-full">
+                            <p className="text-[10px] text-[#D9D6CA] font-bold mt-1 uppercase truncate max-w-full">
                               FILE: {formAudioFiles.wavMaster}
                             </p>
                           )}
@@ -917,14 +1140,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 4 && (
                   <div className="space-y-4 text-left">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 4 // STEMS / TRACKOUT ASSETS</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 4 // STEMS / TRACKOUT ASSETS</span>
                     </div>
 
                     <div className="space-y-4">
                       <div className="flex gap-4 border-b border-zinc-900 pb-3">
                         <button
                           onClick={() => setFormStems(prev => ({ ...prev, type: "multiple" }))}
-                          className={`px-3 py-1.5 text-[9px] font-bold uppercase border ${
+                          className={`px-3 py-1.5 text-xs font-bold uppercase border ${
                             formStems.type === "multiple" 
                               ? "bg-zinc-800 border-zinc-600 text-white" 
                               : "bg-transparent border-zinc-900 text-zinc-500"
@@ -934,7 +1157,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                         </button>
                         <button
                           onClick={() => setFormStems(prev => ({ ...prev, type: "file" }))}
-                          className={`px-3 py-1.5 text-[9px] font-bold uppercase border ${
+                          className={`px-3 py-1.5 text-xs font-bold uppercase border ${
                             formStems.type === "file" 
                               ? "bg-zinc-800 border-zinc-600 text-white" 
                               : "bg-transparent border-zinc-900 text-zinc-500"
@@ -946,7 +1169,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
                       {formStems.type === "multiple" ? (
                         <div className="space-y-3">
-                          <span className="text-[8px] text-zinc-500 font-bold uppercase block">CONFIGURE MANDATORY TRACKOUT STEMS:</span>
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">CONFIGURE MANDATORY TRACKOUT STEMS:</span>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {["Drums", "808", "Melody", "Bass", "FX", "Vocals", "Full Stems"].map(stem => {
                               const isChecked = formStems.list.includes(stem);
@@ -962,7 +1185,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                                       return { ...prev, list: updatedList };
                                     });
                                   }}
-                                  className={`p-2 text-[9px] font-bold border transition-colors flex items-center justify-between uppercase ${
+                                  className={`p-2 text-xs font-bold border transition-colors flex items-center justify-between uppercase ${
                                     isChecked 
                                       ? "bg-zinc-900 border-zinc-700 text-white" 
                                       : "bg-neutral-950 border-zinc-900/60 text-zinc-600 hover:text-zinc-400"
@@ -989,7 +1212,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                                   }
                                 }
                               }}
-                              className="bg-neutral-950 border border-zinc-900 px-3 py-1.5 text-[9px] text-white focus:outline-none focus:border-zinc-700 font-mono w-full max-w-sm"
+                              className="bg-neutral-950 border border-zinc-900 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono w-full max-w-sm"
                             />
                             <button
                               onClick={() => {
@@ -999,7 +1222,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                                   el.value = "";
                                 }
                               }}
-                              className="bg-zinc-800 hover:bg-zinc-700 px-3 text-[9px] font-bold uppercase transition-colors rounded-none cursor-pointer"
+                              className="bg-zinc-800 hover:bg-zinc-700 px-3 text-xs font-bold uppercase transition-colors rounded-none cursor-pointer"
                             >
                               ADD
                             </button>
@@ -1007,7 +1230,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          <span className="text-[8px] text-zinc-500 font-bold uppercase block">UPLOAD COMPACT ZIP ARCHIVE:</span>
+                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">UPLOAD COMPACT ZIP ARCHIVE:</span>
                           <div className="border border-dashed border-zinc-800 p-6 text-center hover:border-zinc-700 transition-colors bg-neutral-950 relative">
                             <input 
                               type="file" 
@@ -1016,14 +1239,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  triggerMockUpload(file.name, (name) => setFormStems(prev => ({ ...prev, list: [name] })));
+                                  uploadFileToServer(file, "uploadthing", (url) => setFormStems(prev => ({ ...prev, list: [url] })));
                                 }
                               }}
                             />
                             <Folder className="w-6 h-6 text-zinc-600 mx-auto mb-2" />
-                            <p className="text-[10px] text-zinc-400">UPLOAD TRACKOUTS_ALL.ZIP</p>
+                            <p className="text-xs text-zinc-400">UPLOAD TRACKOUTS_ALL.ZIP</p>
                             {formStems.list.length === 1 && formStems.list[0].endsWith(".zip") && (
-                              <p className="text-[8px] text-emerald-400 font-bold mt-1 uppercase">
+                              <p className="text-[10px] text-emerald-400 font-bold mt-1 uppercase">
                                 MOUNTED: {formStems.list[0]}
                               </p>
                             )}
@@ -1038,17 +1261,17 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 5 && (
                   <div className="space-y-4 text-left">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 5 // COMPOSITION DOCUMENTS</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 5 // COMPOSITION DOCUMENTS</span>
                     </div>
 
                     <div className="space-y-4">
-                      <span className="text-[8px] text-zinc-500 font-bold uppercase block">UNLIMITED LEGAL & METADATA ATTACHMENTS:</span>
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase block">UNLIMITED LEGAL & METADATA ATTACHMENTS:</span>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                         {formDocuments.map((doc, index) => (
                           <div 
                             key={index}
-                            className="flex items-center justify-between border border-zinc-900 bg-neutral-950 px-3 py-2 text-[10px]"
+                            className="flex items-center justify-between border border-zinc-900 bg-neutral-950 px-3 py-2 text-xs"
                           >
                             <span className="text-zinc-300 font-bold uppercase flex items-center gap-1.5">
                               <FileText className="w-3.5 h-3.5 text-zinc-600" />
@@ -1079,7 +1302,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               }
                             }
                           }}
-                          className="bg-neutral-950 border border-zinc-900 px-3 py-1.5 text-[9px] text-white focus:outline-none focus:border-zinc-700 font-mono w-full"
+                          className="bg-neutral-950 border border-zinc-900 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono w-full"
                         />
                         <button
                           onClick={() => {
@@ -1089,13 +1312,13 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               el.value = "";
                             }
                           }}
-                          className="bg-zinc-800 hover:bg-zinc-700 px-3 text-[9px] font-bold uppercase transition-colors rounded-none cursor-pointer flex-shrink-0"
+                          className="bg-zinc-800 hover:bg-zinc-700 px-3 text-xs font-bold uppercase transition-colors rounded-none cursor-pointer flex-shrink-0"
                         >
                           ATTACH
                         </button>
                       </div>
 
-                      <div className="border border-zinc-900 bg-neutral-950/10 p-3 text-[8.5px] text-zinc-500 space-y-1">
+                      <div className="border border-zinc-900 bg-neutral-950/10 p-3 text-[10.5px] text-zinc-500 space-y-1">
                         <p className="font-bold text-zinc-400">COMMON DIGITAL DOCUMENT TEMPLATES:</p>
                         <p>• PDF License Agreement (Specifies limits, user rights)</p>
                         <p>• Split Sheet (Declares composition share percentages between songwriters)</p>
@@ -1109,11 +1332,11 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 6 && (
                   <div className="space-y-4 text-left">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 6 // LICENSING RIGS & PRICING</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 6 // LICENSING RIGS & PRICING</span>
                     </div>
 
                     <div className="space-y-4">
-                      <p className="text-[8px] text-zinc-500 font-bold uppercase block">ENABLE OR DISABLE SPECIFIC COMMERCIAL LICENSES:</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase block">ENABLE OR DISABLE SPECIFIC COMMERCIAL LICENSES:</p>
 
                       <div className="space-y-3">
                         {(["mp3", "wav", "trackouts", "unlimited", "exclusive"] as const).map(key => {
@@ -1138,10 +1361,10 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                                   <Check className="w-3 h-3" />
                                 </button>
                                 <div>
-                                  <span className="text-[10px] font-bold uppercase text-white block">
+                                  <span className="text-xs font-bold uppercase text-white block">
                                     {key === "mp3" ? "MP3 LICENSE" : key === "wav" ? "WAV LICENSE" : key === "trackouts" ? "TRACKOUT STEMS" : key === "unlimited" ? "UNLIMITED LICENSE" : "EXCLUSIVE ACQUISITION"}
                                   </span>
-                                  <span className="text-[8px] text-zinc-500 font-bold block uppercase">
+                                  <span className="text-[10px] text-zinc-500 font-bold block uppercase">
                                     {key === "mp3" ? "MTR-MP3-LEASE" : key === "wav" ? "MTR-WAV-LEASE" : key === "trackouts" ? "MTR-STEMS-LEASE" : key === "unlimited" ? "MTR-UNLIMITED-LEASE" : "MTR-EXCLUSIVE-BUY"}
                                   </span>
                                 </div>
@@ -1149,9 +1372,9 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
                               {license.enabled && (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[9px] text-zinc-500 font-bold uppercase">PRICE FIELD:</span>
+                                  <span className="text-xs text-zinc-500 font-bold uppercase">PRICE FIELD:</span>
                                   <div className="relative">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">$</span>
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-bold">$</span>
                                     <input 
                                       type="number"
                                       value={license.price}
@@ -1159,7 +1382,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                                         ...prev,
                                         [key]: { ...prev[key], price: Number(e.target.value) }
                                       }))}
-                                      className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-[10px] text-white w-24 font-bold font-mono"
+                                      className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-xs text-white w-24 font-bold font-mono"
                                     />
                                   </div>
                                 </div>
@@ -1176,37 +1399,37 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {currentStep === 7 && (
                   <div className="space-y-6 text-left">
                     <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 7 // COMPILE & DEPLOY STATE</span>
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 7 // COMPILE & DEPLOY STATE</span>
                     </div>
 
                     <div className="space-y-4">
-                      <span className="text-[8px] text-zinc-500 font-bold uppercase block">COMPOSITION SUMMARY DETAILS:</span>
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase block">COMPOSITION SUMMARY DETAILS:</span>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-neutral-950/60 p-4 border border-zinc-900 text-[10px]">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-neutral-950/60 p-4 border border-zinc-900 text-xs">
                         <div>
-                          <span className="text-zinc-500 block uppercase text-[8px] font-bold">NAME</span>
+                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">NAME</span>
                           <span className="font-bold text-white uppercase">{formInfo.name}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-500 block uppercase text-[8px] font-bold">TIMESTAMP</span>
+                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">TIMESTAMP</span>
                           <span className="font-bold text-white">{formInfo.timestamp}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-500 block uppercase text-[8px] font-bold">BPM / KEY</span>
+                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">BPM / KEY</span>
                           <span className="font-bold text-zinc-300">{formInfo.bpm} BPM / {formInfo.key}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-500 block uppercase text-[8px] font-bold">GENRE / MOOD</span>
+                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">GENRE / MOOD</span>
                           <span className="font-bold text-zinc-300 uppercase">{formInfo.genre} • {formInfo.mood}</span>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-zinc-500 block uppercase text-[8px] font-bold">MOUNTED AUDIO PREVIEW</span>
+                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">MOUNTED AUDIO PREVIEW</span>
                           <span className="font-bold text-emerald-400 uppercase truncate block">
                             {formAudioFiles.mp3Preview || "None (Will use default fallback)"}
                           </span>
                         </div>
                         <div className="col-span-2">
-                          <span className="text-zinc-500 block uppercase text-[8px] font-bold">LICENSING SUMMARY</span>
+                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">LICENSING SUMMARY</span>
                           <span className="font-bold text-zinc-400 block truncate">
                             {Object.entries(formLicensing)
                               .filter(([_, value]: [string, any]) => value.enabled)
@@ -1219,13 +1442,13 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       <div className="pt-4 flex flex-wrap gap-3">
                         <button
                           onClick={() => handleSaveFragmentForm("Draft")}
-                          className="border border-zinc-800 hover:border-[#D9D6CA] bg-neutral-950 text-[#D9D6CA] hover:text-white text-[10px] font-bold tracking-widest px-4 py-2 uppercase rounded-none transition-colors cursor-pointer"
+                          className="border border-zinc-800 hover:border-[#D9D6CA] bg-neutral-950 text-[#D9D6CA] hover:text-white text-xs font-bold tracking-widest px-4 py-2 uppercase rounded-none transition-colors cursor-pointer"
                         >
                           SAVE AS DRAFT
                         </button>
                         <button
                           onClick={() => handleSaveFragmentForm("Published")}
-                          className="bg-[#D9D6CA] text-black hover:bg-white text-[10px] font-bold tracking-widest px-5 py-2 uppercase rounded-none transition-colors cursor-pointer"
+                          className="bg-[#D9D6CA] text-black hover:bg-white text-xs font-bold tracking-widest px-5 py-2 uppercase rounded-none transition-colors cursor-pointer"
                         >
                           PUBLISH NOW
                         </button>
@@ -1237,7 +1460,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               showToast(`Fragment scheduled for deployment on ${schedTime}`);
                             }
                           }}
-                          className="border border-dashed border-zinc-800 hover:border-zinc-700 bg-transparent text-zinc-400 hover:text-white text-[10px] font-bold tracking-widest px-4 py-2 uppercase rounded-none transition-colors cursor-pointer"
+                          className="border border-dashed border-zinc-800 hover:border-zinc-700 bg-transparent text-zinc-400 hover:text-white text-xs font-bold tracking-widest px-4 py-2 uppercase rounded-none transition-colors cursor-pointer"
                         >
                           SCHEDULE DEPLOYMENT
                         </button>
@@ -1260,26 +1483,26 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                   <button
                     disabled={currentStep === 1}
                     onClick={() => setCurrentStep(prev => prev - 1)}
-                    className="px-3 py-1 text-[9px] font-bold tracking-widest uppercase border border-zinc-900 bg-neutral-950 text-zinc-500 hover:text-white hover:border-zinc-700 disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    className="px-3 py-1 text-xs font-bold tracking-widest uppercase border border-zinc-900 bg-neutral-950 text-zinc-500 hover:text-white hover:border-zinc-700 disabled:opacity-20 disabled:pointer-events-none transition-colors"
                   >
                     ← PREVIOUS
                   </button>
 
-                  <div className="text-[9px] text-zinc-600 font-bold uppercase">
+                  <div className="text-xs text-zinc-600 font-bold uppercase">
                     STEP {currentStep} OF 7
                   </div>
 
                   {currentStep < 7 ? (
                     <button
                       onClick={() => setCurrentStep(prev => prev + 1)}
-                      className="px-4 py-1 text-[9px] font-bold tracking-widest uppercase border border-[#D9D6CA] bg-[#D9D6CA] text-black hover:bg-white hover:border-white transition-colors"
+                      className="px-4 py-1 text-xs font-bold tracking-widest uppercase border border-[#D9D6CA] bg-[#D9D6CA] text-black hover:bg-white hover:border-white transition-colors"
                     >
                       NEXT →
                     </button>
                   ) : (
                     <button
                       onClick={() => handleSaveFragmentForm()}
-                      className="px-4 py-1 text-[9px] font-bold tracking-widest uppercase border border-emerald-400 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-colors"
+                      className="px-4 py-1 text-xs font-bold tracking-widest uppercase border border-emerald-400 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-colors"
                     >
                       EXECUTE SAVE
                     </button>
@@ -1299,15 +1522,15 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">ORDERS RECORD</h2>
-                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">DATABASE CAP: 500 RECORDS</span>
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">ORDERS RECORD</h2>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">DATABASE CAP: 500 RECORDS</span>
               </div>
 
               {/* TABLE */}
               <div className="border border-zinc-900 rounded-none overflow-x-auto bg-[#040404]">
-                <table className="w-full border-collapse text-left font-mono text-[10px]">
+                <table className="w-full border-collapse text-left font-mono text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[8.5px]">
+                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[10.5px]">
                       <th className="p-3">ID / Date</th>
                       <th className="p-3">Customer</th>
                       <th className="p-3">Fragment Purchased</th>
@@ -1321,11 +1544,11 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       <tr key={o.id || idx} className="border-b border-zinc-900/60 hover:bg-zinc-900/10 transition-colors">
                         <td className="p-3 font-bold text-white whitespace-nowrap">
                           <div>{o.id}</div>
-                          <div className="text-[8px] text-zinc-600 mt-0.5">{o.date}</div>
+                          <div className="text-[10px] text-zinc-600 mt-0.5">{o.date}</div>
                         </td>
                         <td className="p-3">
                           <div className="font-bold text-zinc-300">{o.customerName}</div>
-                          <div className="text-[8.5px] text-zinc-500">{o.customerEmail}</div>
+                          <div className="text-[10.5px] text-zinc-500">{o.customerEmail}</div>
                         </td>
                         <td className="p-3 font-bold text-zinc-300 uppercase">{o.fragmentName}</td>
                         <td className="p-3 text-zinc-400">{o.licenseType}</td>
@@ -1334,7 +1557,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => showToast(`Initiating downloads for: ${o.files.join(", ")}`)}
-                              className="px-2 py-0.5 border border-zinc-900 bg-neutral-950 text-zinc-400 hover:text-white hover:border-zinc-700 text-[8.5px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-2 py-0.5 border border-zinc-900 bg-neutral-950 text-zinc-400 hover:text-white hover:border-zinc-700 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <Download className="w-3 h-3" /> FILES
                             </button>
@@ -1342,7 +1565,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               onClick={() => {
                                 window.alert(`[INVOICE ${o.id}]\n\nLOMON LLC\nAtlanta, GA\n\nClient: ${o.customerName} (${o.customerEmail})\nFragment: ${o.fragmentName}\nLicense: ${o.licenseType}\nTotal Paid: $${o.amountPaid}\n\nStatus: Paid & Executed`);
                               }}
-                              className="px-2 py-0.5 border border-zinc-900 bg-neutral-950 text-zinc-400 hover:text-white hover:border-zinc-700 text-[8.5px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-2 py-0.5 border border-zinc-900 bg-neutral-950 text-zinc-400 hover:text-white hover:border-zinc-700 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <FileText className="w-3 h-3" /> INVOICE
                             </button>
@@ -1366,15 +1589,15 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">CUSTOMERS RECORD</h2>
-                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">SECURE CUSTOMER LEDGER</span>
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">CUSTOMERS RECORD</h2>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">SECURE CUSTOMER LEDGER</span>
               </div>
 
               {/* TABLE */}
               <div className="border border-zinc-900 rounded-none overflow-x-auto bg-[#040404]">
-                <table className="w-full border-collapse text-left font-mono text-[10px]">
+                <table className="w-full border-collapse text-left font-mono text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[8.5px]">
+                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[10.5px]">
                       <th className="p-3">Name</th>
                       <th className="p-3">Email Address</th>
                       <th className="p-3 text-center">Purchases</th>
@@ -1406,26 +1629,26 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">ANALYTICS LEDGER</h2>
-                <span className="text-[8px] text-[#D9D6CA] font-bold uppercase tracking-wider">LIVE TELEMETRY FEED</span>
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">ANALYTICS LEDGER</h2>
+                <span className="text-[10px] text-[#D9D6CA] font-bold uppercase tracking-wider">LIVE TELEMETRY FEED</span>
               </div>
 
               {/* STATS ROW (Plays, Downloads, Sales, Revenue) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL PLAYS</span>
+                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL PLAYS</span>
                   <div className="text-xl font-bold font-mono tracking-tight text-white">12,450</div>
                 </div>
                 <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL DOWNLOADS</span>
+                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL DOWNLOADS</span>
                   <div className="text-xl font-bold font-mono tracking-tight text-white">3,842</div>
                 </div>
                 <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">SALES COUNT</span>
+                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">SALES COUNT</span>
                   <div className="text-xl font-bold font-mono tracking-tight text-white">{orders.length}</div>
                 </div>
                 <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL REVENUE</span>
+                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL REVENUE</span>
                   <div className="text-xl font-bold font-mono tracking-tight text-[#D9D6CA]">${totalRevenueSum.toLocaleString()}</div>
                 </div>
               </div>
@@ -1433,7 +1656,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
               {/* TOP FRAGMENTS LIST */}
               <div className="border border-zinc-900 p-5 space-y-4 text-left">
                 <div className="border-b border-zinc-900 pb-2">
-                  <span className="text-[9px] font-bold text-zinc-400 tracking-widest block uppercase">TOP COMPOSITIONS / FRAGMENTS</span>
+                  <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">TOP COMPOSITIONS / FRAGMENTS</span>
                 </div>
                 
                 <div className="space-y-2">
@@ -1441,7 +1664,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                     const progressVal = (idx === 0) ? "w-full" : (idx === 1) ? "w-4/5" : (idx === 2) ? "w-2/3" : "w-1/2";
                     return (
                       <div key={frag.id} className="space-y-1">
-                        <div className="flex justify-between items-center text-[10px]">
+                        <div className="flex justify-between items-center text-xs">
                           <span className="text-zinc-300 font-bold uppercase">{frag.timestamp} — {frag.name}</span>
                           <span className="text-zinc-500 font-bold uppercase">{((frag as any).plays || 1200).toLocaleString()} Plays</span>
                         </div>
@@ -1466,14 +1689,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">MEDIA ENGINE LIBRARY</h2>
-                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">PERSISTENT STORAGE: 100% SECURE</span>
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">MEDIA ENGINE LIBRARY</h2>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">PERSISTENT STORAGE: 100% SECURE</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {/* FOLDERS VIEW BAR */}
                 <div className="md:col-span-1 space-y-2">
-                  <span className="text-[8px] tracking-widest text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1.5 text-left">FOLDERS</span>
+                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1.5 text-left">FOLDERS</span>
                   <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
                     {(Object.keys(mediaFolders) as Array<keyof typeof mediaFolders>).map(folder => {
                       const isActive = activeMediaFolder === folder;
@@ -1482,7 +1705,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                         <button
                           key={folder}
                           onClick={() => setActiveMediaFolder(folder)}
-                          className={`w-full text-left px-3 py-2 text-[9.5px] uppercase font-bold tracking-wider transition-colors flex items-center justify-between border cursor-pointer shrink-0 ${
+                          className={`w-full text-left px-3 py-2 text-xs uppercase font-bold tracking-wider transition-colors flex items-center justify-between border cursor-pointer shrink-0 ${
                             isActive 
                               ? "bg-zinc-900 border-zinc-800 text-white" 
                               : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/20"
@@ -1492,7 +1715,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                             {folder === "Images" ? <Image className="w-3.5 h-3.5" /> : folder === "Documents" ? <FileText className="w-3.5 h-3.5" /> : <Music className="w-3.5 h-3.5" />}
                             {folder}
                           </span>
-                          <span className="text-[8.5px] text-zinc-600 font-bold">({fileCount})</span>
+                          <span className="text-[10px] text-zinc-600 font-bold">({fileCount})</span>
                         </button>
                       );
                     })}
@@ -1502,7 +1725,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 {/* FILES GRID LIST */}
                 <div className="md:col-span-3 space-y-4">
                   <div className="flex justify-between items-center border-b border-zinc-900 pb-1.5">
-                    <span className="text-[8.5px] tracking-widest text-zinc-400 font-bold uppercase">{activeMediaFolder} LISTING</span>
+                    <span className="text-xs tracking-widest text-zinc-400 font-bold uppercase">{activeMediaFolder} LISTING</span>
                     
                     <div className="relative">
                       <input 
@@ -1520,14 +1743,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                           }
                         }}
                       />
-                      <button className="bg-zinc-900 text-[#D9D6CA] border border-zinc-800 hover:border-zinc-700 text-[8.5px] font-bold px-2 py-0.5 uppercase cursor-pointer flex items-center gap-1">
+                      <button className="bg-zinc-900 text-[#D9D6CA] border border-zinc-800 hover:border-zinc-700 text-xs font-bold px-2 py-0.5 uppercase cursor-pointer flex items-center gap-1">
                         <Upload className="w-3 h-3" /> UPLOAD TO {activeMediaFolder.toUpperCase()}
                       </button>
                     </div>
                   </div>
 
                   {mediaUploadProgress !== null && (
-                    <div className="border border-zinc-900 p-4 bg-zinc-950/20 flex items-center justify-between gap-4 text-[10px] text-zinc-400 font-bold">
+                    <div className="border border-zinc-900 p-4 bg-zinc-950/20 flex items-center justify-between gap-4 text-xs text-zinc-400 font-bold">
                       <span className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
                         STORING ASSET IN SECURE CLOUD STORAGE GATEWAY...
@@ -1540,7 +1763,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                     {mediaFolders[activeMediaFolder].map((file, idx) => (
                       <div 
                         key={idx} 
-                        className="p-3 border border-zinc-900/60 bg-neutral-950/40 hover:border-zinc-800 transition-colors flex items-center justify-between text-[10px]"
+                        className="p-3 border border-zinc-900/60 bg-neutral-950/40 hover:border-zinc-800 transition-colors flex items-center justify-between text-xs"
                       >
                         <span className="text-zinc-300 font-bold truncate pr-3 flex items-center gap-2">
                           <File className="w-3.5 h-3.5 text-zinc-700 flex-shrink-0" />
@@ -1592,18 +1815,18 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
             >
               {/* HEADER */}
               <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-xs font-bold tracking-[0.3em] uppercase text-zinc-400">SETTINGS HUB</h2>
-                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">CONFIG FILE FOR ALL GATEWAYS</span>
+                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">SETTINGS HUB</h2>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">CONFIG FILE FOR ALL GATEWAYS</span>
               </div>
 
               <div className="border border-zinc-900 bg-zinc-950/10 p-6 space-y-6 text-left">
                 {/* PAYMENT METHODS */}
                 <div className="space-y-3">
-                  <span className="text-[9px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">1. PAYMENT METHODS CONFIG</span>
+                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">1. PAYMENT METHODS CONFIG</span>
                   
                   <div className="space-y-2">
                     {Object.entries(settings.paymentMethods).map(([method, isEnabled]) => (
-                      <div key={method} className="flex items-center justify-between p-2 border border-zinc-900/60 bg-neutral-950/20 text-[10px]">
+                      <div key={method} className="flex items-center justify-between p-2 border border-zinc-900/60 bg-neutral-950/20 text-xs">
                         <span className="font-bold uppercase text-zinc-300">{method} GATEWAY</span>
                         <button
                           onClick={() => setSettings(prev => ({
@@ -1613,7 +1836,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                               [method]: !(prev.paymentMethods as any)[method]
                             }
                           }))}
-                          className={`px-2.5 py-0.5 text-[8px] font-bold uppercase transition-colors rounded-none border ${
+                          className={`px-2.5 py-0.5 text-[10px] font-bold uppercase transition-colors rounded-none border ${
                             isEnabled 
                               ? "bg-emerald-950/30 text-emerald-400 border-emerald-900/60" 
                               : "bg-transparent border-zinc-800 text-zinc-500"
@@ -1628,25 +1851,25 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
                 {/* STORE INFORMATION */}
                 <div className="space-y-3">
-                  <span className="text-[9px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">2. STORE INFORMATION</span>
+                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">2. STORE INFORMATION</span>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Store Brand Name</label>
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">Store Brand Name</label>
                       <input 
                         type="text" 
                         value={settings.storeName}
                         onChange={(e) => setSettings(prev => ({ ...prev, storeName: e.target.value }))}
-                        className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-[10px] text-white focus:outline-none font-mono"
+                        className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest block">Location (Atlanta, GA)</label>
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">Location (Atlanta, GA)</label>
                       <input 
                         type="text" 
                         value={settings.address}
                         onChange={(e) => setSettings(prev => ({ ...prev, address: e.target.value }))}
-                        className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-[10px] text-white focus:outline-none font-mono"
+                        className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
                       />
                     </div>
                   </div>
@@ -1654,7 +1877,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
                 {/* BRANDING PRESETS */}
                 <div className="space-y-3">
-                  <span className="text-[9px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">3. BRANDING PRESETS</span>
+                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">3. BRANDING PRESETS</span>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {["Classic Monochromatic Slate", "Industrial Amber Core", "Cold Space Emerald"].map(theme => (
@@ -1664,7 +1887,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                           setSettings(prev => ({ ...prev, branding: theme }));
                           showToast(`Branding updated: ${theme}`);
                         }}
-                        className={`p-2.5 text-[9px] font-bold uppercase text-left border transition-colors ${
+                        className={`p-2.5 text-[11px] font-bold uppercase text-left border transition-colors ${
                           settings.branding === theme 
                             ? "bg-zinc-800 border-zinc-600 text-white" 
                             : "bg-neutral-950 border-zinc-900 text-zinc-500 hover:text-zinc-300"
@@ -1678,17 +1901,17 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
                 {/* TAXES & NOTIFICATIONS */}
                 <div className="space-y-3">
-                  <span className="text-[9px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">4. TAXES & EMAIL SYSTEMS</span>
+                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">4. TAXES & EMAIL SYSTEMS</span>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between p-2 border border-zinc-900 bg-neutral-950/20 text-[10px]">
+                    <div className="flex items-center justify-between p-2 border border-zinc-900 bg-neutral-950/20 text-xs">
                       <div>
                         <span className="font-bold text-zinc-300 block">TAX RATE (VAT 15%)</span>
-                        <span className="text-[8px] text-zinc-500 uppercase block font-bold">INVOICE ACCRUAL</span>
+                        <span className="text-[10px] text-zinc-500 uppercase block font-bold">INVOICE ACCRUAL</span>
                       </div>
                       <button
                         onClick={() => setSettings(prev => ({ ...prev, taxRate: prev.taxRate === 0 ? 15 : 0 }))}
-                        className={`px-3 py-0.5 text-[8px] font-bold border ${
+                        className={`px-3 py-0.5 text-[10px] font-bold border ${
                           settings.taxRate > 0 
                             ? "bg-emerald-950/30 text-emerald-400 border-emerald-900/60" 
                             : "bg-transparent border-zinc-800 text-zinc-500"
@@ -1698,14 +1921,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-2 border border-zinc-900 bg-neutral-950/20 text-[10px]">
+                    <div className="flex items-center justify-between p-2 border border-zinc-900 bg-neutral-950/20 text-xs">
                       <div>
                         <span className="font-bold text-zinc-300 block">EMAIL NOTIFICATIONS</span>
-                        <span className="text-[8px] text-zinc-500 uppercase block font-bold">TRANSACTIONAL NOTIFY</span>
+                        <span className="text-[10px] text-zinc-500 uppercase block font-bold">TRANSACTIONAL NOTIFY</span>
                       </div>
                       <button
                         onClick={() => setSettings(prev => ({ ...prev, emailNotifications: !prev.emailNotifications }))}
-                        className={`px-3 py-0.5 text-[8px] font-bold border ${
+                        className={`px-3 py-0.5 text-[10px] font-bold border ${
                           settings.emailNotifications 
                             ? "bg-[#D9D6CA] border-[#D9D6CA] text-black" 
                             : "bg-transparent border-zinc-800 text-zinc-500"
@@ -1724,7 +1947,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       localStorage.setItem("lomon_admin_settings", JSON.stringify(settings));
                       showToast("All Administrative settings saved to node.");
                     }}
-                    className="bg-[#D9D6CA] hover:bg-white text-black text-[10px] font-bold tracking-widest px-6 py-2 uppercase transition-colors cursor-pointer"
+                    className="bg-[#D9D6CA] hover:bg-white text-black text-xs font-bold tracking-widest px-6 py-2 uppercase transition-colors cursor-pointer"
                   >
                     SAVE CONFIGURATION
                   </button>

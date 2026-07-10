@@ -244,6 +244,20 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
 export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProps) {
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
+  const [fragments, setFragments] = useState<Fragment[]>(FRAGMENTS);
+
+  useEffect(() => {
+    fetch("/api/fragments")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.fragments)) {
+          setFragments(data.fragments);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load fragments in OwlClock storefront:", err);
+      });
+  }, []);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
   const [showMutePrompt, setShowMutePrompt] = useState<boolean>(false);
@@ -487,7 +501,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   };
 
   const handleRowClick = (item: ClockFragment) => {
-    const matchedFrag = FRAGMENTS.find(f => f.id === item.mappedId);
+    const matchedFrag = fragments.find(f => f.id === item.mappedId);
     if (matchedFrag && onSelectFragment) {
       onSelectFragment(matchedFrag);
     } else {
@@ -577,7 +591,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   });
 
   const exactActualFrag = exactClockFragment
-    ? (FRAGMENTS.find(f => f.id === exactClockFragment.mappedId) || null)
+    ? (fragments.find(f => f.id === exactClockFragment.mappedId) || null)
     : null;
 
   const handleImmediateCheck = () => {
