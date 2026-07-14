@@ -250,7 +250,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     fetch("/api/fragments")
       .then(res => res.json())
       .then(data => {
-        if (data.success && Array.isArray(data.fragments)) {
+        if (data.success && Array.isArray(data.fragments) && data.fragments.length > 0) {
           setFragments(data.fragments);
         }
       })

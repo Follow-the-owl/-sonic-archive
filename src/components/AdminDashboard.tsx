@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import FragmentDetailPage from "./FragmentDetailPage";
 import { 
   Folder, File, Image, Music, FileText, Check, Plus, Trash2, 
   Copy, Archive, Edit2, Download, ExternalLink, Settings as SettingsIcon, 
   Activity, Users, ShoppingBag, Database, ArrowUpRight, BarChart3, Upload, Loader2, Play, X
 } from "lucide-react";
 import { Fragment } from "../data";
+import { DEFAULT_LICENSE_TEMPLATES, LicenseTemplate } from "../licenses";
 
 // Type definitions matching user specifications
 export type AdminTab = 
@@ -173,9 +175,47 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
   const [activeMediaFolder, setActiveMediaFolder] = useState<keyof typeof mediaFolders>("Images");
   const [mediaUploadProgress, setMediaUploadProgress] = useState<number | null>(null);
 
-  // New Fragment Creation / Editing State
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [editingFragmentId, setEditingFragmentId] = useState<string | null>(null);
+  // New Fragment Creation / Editing State with local storage restore (Rule 2)
+  const [currentStep, setCurrentStep] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_wizard_currentStep");
+      if (saved) return parseInt(saved, 10) || 1;
+    }
+    return 1;
+  });
+  const [editingFragmentId, setEditingFragmentId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lomon_wizard_editingFragmentId");
+    }
+    return null;
+  });
+
+  // Custom interactive publishing validation and preview states
+  const [ownershipConfirmed, setOwnershipConfirmed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lomon_wizard_ownershipConfirmed") === "true";
+    }
+    return false;
+  });
+  const [publicPreviewApproved, setPublicPreviewApproved] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lomon_wizard_publicPreviewApproved") === "true";
+    }
+    return false;
+  });
+  const [previewFragmentObj, setPreviewFragmentObj] = useState<Fragment | null>(null);
+  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
+  const [globalTemplates, setGlobalTemplates] = useState<LicenseTemplate[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_license_templates");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return DEFAULT_LICENSE_TEMPLATES;
+  });
 
   // Step-by-Step Form state
   const [formInfo, setFormInfo] = useState<{
@@ -188,38 +228,290 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     mood: string;
     status: string;
     duration: string;
-  }>({
-    timestamp: "",
-    name: "",
-    classification: "",
-    bpm: "",
-    key: "",
-    genre: "",
-    mood: "",
-    status: "Draft",
-    duration: ""
+  }>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_wizard_formInfo");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return {
+      timestamp: "",
+      name: "",
+      classification: "",
+      bpm: "",
+      key: "",
+      genre: "",
+      mood: "",
+      status: "Draft",
+      duration: ""
+    };
   });
 
-  const [formArtwork, setFormArtwork] = useState<string>("");
-  const [formAudioFiles, setFormAudioFiles] = useState({
-    mp3Preview: "",
-    wavMaster: ""
+  const [formArtwork, setFormArtwork] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lomon_wizard_formArtwork") || "";
+    }
+    return "";
+  });
+  const [formAudioFiles, setFormAudioFiles] = useState<{ mp3Preview: string; wavMaster: string }>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_wizard_formAudioFiles");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return {
+      mp3Preview: "",
+      wavMaster: ""
+    };
   });
 
-  const [formStems, setFormStems] = useState<{ type: "file" | "multiple"; list: string[] }>({
-    type: "multiple",
-    list: []
+  const [formStems, setFormStems] = useState<{ type: "file" | "multiple"; list: string[] }>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_wizard_formStems");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return {
+      type: "multiple",
+      list: []
+    };
   });
 
-  const [formDocuments, setFormDocuments] = useState<string[]>([]);
-
-  const [formLicensing, setFormLicensing] = useState({
-    mp3: { enabled: true, price: 50 },
-    wav: { enabled: true, price: 150 },
-    trackouts: { enabled: true, price: 300 },
-    unlimited: { enabled: true, price: 750 },
-    exclusive: { enabled: true, price: 1500 }
+  const [formDocuments, setFormDocuments] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_wizard_formDocuments");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return [];
   });
+
+  const [formLicensing, setFormLicensing] = useState<Record<string, { enabled: boolean; price: number; overrides?: Partial<LicenseTemplate> }>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_wizard_formLicensing");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return {
+      access: { enabled: true, price: 100 },
+      release: { enabled: true, price: 250 },
+      commercial: { enabled: true, price: 500 },
+      exclusive: { enabled: true, price: 2500 },
+      sync: { enabled: true, price: 750 },
+      clearance: { enabled: true, price: 150 }
+    };
+  });
+
+  // Keep Wizard state synchronized to localStorage to prevent losing it (Rules 1 & 2)
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_formInfo", JSON.stringify(formInfo));
+  }, [formInfo]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_formArtwork", formArtwork);
+  }, [formArtwork]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_formAudioFiles", JSON.stringify(formAudioFiles));
+  }, [formAudioFiles]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_formStems", JSON.stringify(formStems));
+  }, [formStems]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_formDocuments", JSON.stringify(formDocuments));
+  }, [formDocuments]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_formLicensing", JSON.stringify(formLicensing));
+  }, [formLicensing]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_currentStep", String(currentStep));
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (editingFragmentId) {
+      localStorage.setItem("lomon_wizard_editingFragmentId", editingFragmentId);
+    } else {
+      localStorage.removeItem("lomon_wizard_editingFragmentId");
+    }
+  }, [editingFragmentId]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_ownershipConfirmed", String(ownershipConfirmed));
+  }, [ownershipConfirmed]);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_wizard_publicPreviewApproved", String(publicPreviewApproved));
+  }, [publicPreviewApproved]);
+
+  const clearWizardStorage = () => {
+    localStorage.removeItem("lomon_wizard_formInfo");
+    localStorage.removeItem("lomon_wizard_formArtwork");
+    localStorage.removeItem("lomon_wizard_formAudioFiles");
+    localStorage.removeItem("lomon_wizard_formStems");
+    localStorage.removeItem("lomon_wizard_formDocuments");
+    localStorage.removeItem("lomon_wizard_formLicensing");
+    localStorage.removeItem("lomon_wizard_currentStep");
+    localStorage.removeItem("lomon_wizard_editingFragmentId");
+    localStorage.removeItem("lomon_wizard_ownershipConfirmed");
+    localStorage.removeItem("lomon_wizard_publicPreviewApproved");
+  };
+
+  // Rule 3: Show completion status on every tab helper
+  const isStepCompleted = (stepNum: number): boolean => {
+    switch (stepNum) {
+      case 1:
+        return !!formInfo.name && !!formInfo.timestamp;
+      case 2:
+        return !!formArtwork;
+      case 3:
+        return !!formAudioFiles.mp3Preview && !!formAudioFiles.wavMaster;
+      case 4:
+        return formStems.list.length > 0;
+      case 5:
+        return formDocuments.length > 0;
+      case 6:
+        return Object.values(formLicensing).some((l: any) => l.enabled);
+      case 7:
+        return ownershipConfirmed && publicPreviewApproved;
+      default:
+        return false;
+    }
+  };
+
+  // Rule 6: Structured activity log tracking
+  const [activityLogs, setActivityLogs] = useState<{ id: string; timestamp: string; action: string; details: string }[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("lomon_activity_logs");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+    }
+    return [
+      { id: "log-1", timestamp: new Date().toISOString(), action: "SYSTEM_START", details: "Lomon Archive Management Engine v3.0 started." },
+      { id: "log-2", timestamp: new Date().toISOString(), action: "AUTH_SUCCESS", details: `Secure session established for terminal ${currentUserEmail}` }
+    ];
+  });
+
+  const logActivity = (action: string, details: string) => {
+    const newLog = {
+      id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString(),
+      action,
+      details
+    };
+    setActivityLogs(prev => {
+      const updated = [newLog, ...prev];
+      localStorage.setItem("lomon_activity_logs", JSON.stringify(updated));
+      return updated;
+    });
+    const timeStr = new Date().toLocaleTimeString();
+    setTerminalLogs(prev => [...prev, `[${timeStr}] ${action}: ${details}`]);
+  };
+
+  // Rule 1: Autosave step as draft on database (and local state)
+  const handleAutosaveDraft = () => {
+    if (!formInfo.name) return; // Must have name to save draft
+
+    const targetId = editingFragmentId || formInfo.timestamp.replace(/\s+/g, "").toLowerCase() || `frag_draft_${Date.now()}`;
+    const licenseOverridesObj: Record<string, any> = {};
+    Object.entries(formLicensing).forEach(([key, value]: [string, any]) => {
+      licenseOverridesObj[key] = {
+        enabled: value.enabled,
+        priceOverride: value.price,
+        overrides: value.overrides || {}
+      };
+    });
+
+    const draftPayload = {
+      id: targetId,
+      timestamp: formInfo.timestamp || new Date().toISOString().slice(0, 10).replace(/-/g, "/"),
+      name: formInfo.name,
+      classification: formInfo.classification || "THRESHOLD COIL",
+      bpm: formInfo.bpm ? Number(formInfo.bpm) : 120,
+      key: formInfo.key || "C Minor",
+      genre: formInfo.genre || "Ambient",
+      mood: formInfo.mood || "Mysterious",
+      status: "Draft", // Step progress wizard autosaves are drafts
+      duration: formInfo.duration || "4:00",
+      artwork: formArtwork || "cover_bandit.jpg",
+      mp3Preview: formAudioFiles.mp3Preview || "bandit_preview.mp3",
+      wavMaster: formAudioFiles.wavMaster || "bandit_master.wav",
+      stems: formStems.list,
+      documents: formDocuments,
+      licensing: {
+        mp3: { enabled: formLicensing.access?.enabled ?? false, price: formLicensing.access?.price ?? 100 },
+        wav: { enabled: formLicensing.release?.enabled ?? false, price: formLicensing.release?.price ?? 250 },
+        trackouts: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
+        unlimited: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
+        exclusive: { enabled: formLicensing.exclusive?.enabled ?? false, price: formLicensing.exclusive?.price ?? 2500 }
+      },
+      licenseOverrides: licenseOverridesObj,
+      plays: editingFragmentId ? (fragments.find(f => f.id === editingFragmentId) as any)?.plays || 0 : 0,
+      revenue: editingFragmentId ? (fragments.find(f => f.id === editingFragmentId) as any)?.revenue || 0 : 0
+    };
+
+    // Save locally
+    setFragments(prev => {
+      const exists = prev.some(f => f.id === targetId);
+      if (exists) {
+        return prev.map(f => f.id === targetId ? (draftPayload as any) : f);
+      } else {
+        return [draftPayload as any, ...prev];
+      }
+    });
+
+    if (!editingFragmentId) {
+      setEditingFragmentId(targetId);
+    }
+
+    const method = editingFragmentId ? "PUT" : "POST";
+    const url = editingFragmentId ? `/api/fragments/${editingFragmentId}` : "/api/fragments";
+
+    fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draftPayload)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        console.log("[Autosave DB saved successful]", data.fragment);
+        logActivity("AUTOSAVE_DRAFT", `Autosaved draft composition "${formInfo.name}" to database (Step ${currentStep})`);
+      }
+    })
+    .catch(err => {
+      console.warn("[Autosave DB failed, remaining in state/localStorage]", err);
+    });
+  };
+
+  // Autosave when stepping through the wizard
+  useEffect(() => {
+    if (formInfo.name && activeTab === "New Fragment") {
+      handleAutosaveDraft();
+    }
+  }, [currentStep]);
+
 
   // Calculate Metrics
   const totalFragmentsCount = fragments.length;
@@ -266,6 +558,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     "> state: safe, ready for composition registration"
   ]);
   const [isDiagnosticRunning, setIsDiagnosticRunning] = useState<boolean>(false);
+  const [logQuery, setLogQuery] = useState<string>("");
   const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
 
   const chartData = [
@@ -282,6 +575,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     if (isDiagnosticRunning) return;
     setIsDiagnosticRunning(true);
     showToast("Initializing Diagnostics...");
+    logActivity("DIAGNOSTICS", "Initiated comprehensive system diagnostic scan.");
 
     // Clear logs and run step-by-step
     setTerminalLogs([
@@ -304,6 +598,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         if (step.log.startsWith("SYSTEM JOURNAL [SYSTEM STABILIZED]")) {
           setIsDiagnosticRunning(false);
           showToast("Diagnostics complete. System secure.");
+          logActivity("DIAGNOSTICS", "Diagnostics complete. System health 100% operational.");
         }
       }, step.delay);
     });
@@ -311,22 +606,32 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
 
   // Operations inside Fragment Library
   const handleDeleteFragment = (id: string) => {
-    if (window.confirm(`Are you sure you want to delete fragment ${id}?`)) {
-      fetch(`/api/fragments/${id}`, { method: "DELETE" })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            setFragments(prev => prev.filter(f => f.id !== id));
-            showToast(`Fragment ${id} deleted successfully.`);
-          } else {
-            showToast(`Error: ${data.error}`);
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          setFragments(prev => prev.filter(f => f.id !== id));
-          showToast(`Fragment ${id} deleted locally.`);
-        });
+    if (window.confirm(`[LOMON COMPLIANCE PROTOCOL]
+Permanent deletion is disabled by default to protect historical order records.
+This operation will soft-delete the fragment and transition it to "Archived" status.
+
+Proceed with soft deletion?`)) {
+      fetch(`/api/fragments/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Archived" })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setFragments(prev => prev.map(f => f.id === id ? { ...f, status: "Archived" } : f));
+          showToast(`Fragment ${id} soft-deleted and archived.`);
+          logActivity("SOFT_DELETE", `Soft-deleted and archived fragment ID: ${id}`);
+        } else {
+          showToast(`Error: ${data.error}`);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        setFragments(prev => prev.map(f => f.id === id ? { ...f, status: "Archived" } : f));
+        showToast(`Fragment ${id} soft-deleted locally.`);
+        logActivity("SOFT_DELETE", `Soft-deleted fragment ID: ${id} locally (offline fallback)`);
+      });
     }
   };
 
@@ -345,7 +650,8 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     .then(data => {
       if (data.success) {
         setFragments(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f));
-        showToast(`Fragment ${id} archive status updated in database.`);
+        showToast(`Fragment ${id} archive status updated to ${nextStatus}.`);
+        logActivity("ARCHIVE_STATUS", `Archived status of ${id} set to "${nextStatus}"`);
       } else {
         showToast(`Error: ${data.error}`);
       }
@@ -354,6 +660,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       console.error(err);
       setFragments(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f));
       showToast(`Fragment ${id} archive status updated locally.`);
+      logActivity("ARCHIVE_STATUS", `Archived status of ${id} set to "${nextStatus}" locally (offline fallback)`);
     });
   };
 
@@ -408,22 +715,51 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       mp3Preview: (frag as any).mp3Preview || "bandit_preview.mp3",
       wavMaster: (frag as any).wavMaster || "bandit_master.wav"
     });
-    setFormLicensing((frag as any).licensing || {
-      mp3: { enabled: true, price: 50 },
-      wav: { enabled: true, price: 150 },
-      trackouts: { enabled: true, price: 300 },
-      unlimited: { enabled: true, price: 750 },
-      exclusive: { enabled: true, price: 1500 }
-    });
+    let initialLicensing = {
+      access: { enabled: true, price: 100, overrides: {} },
+      release: { enabled: true, price: 250, overrides: {} },
+      commercial: { enabled: true, price: 500, overrides: {} },
+      exclusive: { enabled: true, price: 2500, overrides: {} },
+      sync: { enabled: true, price: 750, overrides: {} },
+      clearance: { enabled: true, price: 150, overrides: {} }
+    };
+
+    if ((frag as any).licenseOverrides) {
+      Object.entries((frag as any).licenseOverrides).forEach(([key, value]: [string, any]) => {
+        if (initialLicensing[key as keyof typeof initialLicensing]) {
+          initialLicensing[key as keyof typeof initialLicensing] = {
+            enabled: value.enabled !== false,
+            price: value.priceOverride !== undefined ? value.priceOverride : (value.price || 0),
+            overrides: value.overrides || {}
+          };
+        }
+      });
+    } else if ((frag as any).licensing) {
+      const legacy = (frag as any).licensing;
+      initialLicensing.access = { enabled: !!legacy.mp3?.enabled, price: legacy.mp3?.price || 100, overrides: {} };
+      initialLicensing.release = { enabled: !!legacy.wav?.enabled, price: legacy.wav?.price || 250, overrides: {} };
+      initialLicensing.commercial = { enabled: !!legacy.trackouts?.enabled, price: legacy.trackouts?.price || 500, overrides: {} };
+      initialLicensing.exclusive = { enabled: !!legacy.exclusive?.enabled, price: legacy.exclusive?.price || 2500, overrides: {} };
+    }
+    setFormLicensing(initialLicensing);
     setCurrentStep(1);
     setActiveTab("New Fragment");
   };
 
-  const handleSaveFragmentForm = (finalStatus?: "Draft" | "Published") => {
+  const handleSaveFragmentForm = (finalStatus?: string) => {
     const statusToUse = finalStatus || (formInfo.status as any) || "Draft";
     
     const targetId = editingFragmentId || formInfo.timestamp.replace(" ", "").toLowerCase();
     
+    const licenseOverridesObj: Record<string, any> = {};
+    Object.entries(formLicensing).forEach(([key, value]: [string, any]) => {
+      licenseOverridesObj[key] = {
+        enabled: value.enabled,
+        priceOverride: value.price,
+        overrides: value.overrides || {}
+      };
+    });
+
     const newFragData: Fragment = {
       id: targetId,
       name: formInfo.name,
@@ -432,7 +768,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       observation: `Handled via admin portal by ${currentUserEmail}.`,
       duration: formInfo.duration,
       description: `Custom ${formInfo.mood} fragment with BPM ${formInfo.bpm} in KEY ${formInfo.key}.`,
-      isExclusive: formLicensing.exclusive.enabled,
+      isExclusive: formLicensing.exclusive?.enabled ?? false,
       frequency: 220,
       synthType: "keys",
       bpm: Number(formInfo.bpm),
@@ -444,7 +780,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       wavMaster: formAudioFiles.wavMaster || "bandit_master.wav",
       stems: formStems.list,
       documents: formDocuments,
-      licensing: formLicensing,
+      licensing: {
+        mp3: { enabled: formLicensing.access?.enabled ?? false, price: formLicensing.access?.price ?? 100 },
+        wav: { enabled: formLicensing.release?.enabled ?? false, price: formLicensing.release?.price ?? 250 },
+        trackouts: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
+        unlimited: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
+        exclusive: { enabled: formLicensing.exclusive?.enabled ?? false, price: formLicensing.exclusive?.price ?? 2500 }
+      },
+      licenseOverrides: licenseOverridesObj,
       key: formInfo.key,
       genre: formInfo.genre,
       mood: formInfo.mood
@@ -461,6 +804,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         if (data.success) {
           setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
           showToast(`Fragment ${formInfo.name} updated in database.`);
+          logActivity("FRAGMENT_UPDATE", `Updated composition "${newFragData.name}" (ID: ${newFragData.id}, Status: ${statusToUse})`);
         } else {
           showToast(`DB Error: ${data.error}`);
         }
@@ -469,11 +813,12 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         console.error(err);
         setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
         showToast(`Fragment ${formInfo.name} updated locally.`);
+        logActivity("FRAGMENT_UPDATE", `Updated composition "${newFragData.name}" locally (ID: ${newFragData.id}, Status: ${statusToUse})`);
       });
     } else {
       const finalId = fragments.some(f => f.id === targetId)
-        ? `${targetId}-${Math.floor(Math.random() * 100)}`
-        : targetId;
+         ? `${targetId}-${Math.floor(Math.random() * 100)}`
+         : targetId;
       newFragData.id = finalId;
 
       fetch("/api/fragments", {
@@ -486,6 +831,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         if (data.success) {
           setFragments(prev => [newFragData, ...prev]);
           showToast(`New Fragment ${formInfo.name} saved to database.`);
+          logActivity("FRAGMENT_CREATE", `Registered new composition "${newFragData.name}" (ID: ${newFragData.id}, Status: ${statusToUse})`);
         } else {
           showToast(`DB Error: ${data.error}`);
         }
@@ -494,6 +840,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         console.error(err);
         setFragments(prev => [newFragData, ...prev]);
         showToast(`New Fragment ${formInfo.name} added locally.`);
+        logActivity("FRAGMENT_CREATE", `Registered new composition "${newFragData.name}" locally (ID: ${newFragData.id}, Status: ${statusToUse})`);
       });
     }
 
@@ -522,6 +869,10 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
       list: []
     });
     setFormDocuments([]);
+    setOwnershipConfirmed(false);
+    setPublicPreviewApproved(false);
+    setPreviewFragmentObj(null);
+    clearWizardStorage(); // Clear the localStorage backup (Rule 1 & 2)
     setActiveTab("Fragments");
   };
 
@@ -678,7 +1029,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
         {steps.map((step, idx) => {
           const stepNum = idx + 1;
           const isActive = currentStep === stepNum;
-          const isCompleted = currentStep > stepNum;
+          const isDone = isStepCompleted(stepNum);
           return (
             <button
               key={step}
@@ -686,13 +1037,17 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
               className={`py-2 text-[10px] tracking-[0.1em] font-mono font-bold uppercase transition-colors text-center border ${
                 isActive 
                   ? "bg-zinc-800 text-white border-zinc-700" 
-                  : isCompleted 
-                    ? "bg-zinc-900/40 text-emerald-400 border-zinc-900" 
+                  : isDone 
+                    ? "bg-zinc-900/40 text-emerald-400 border-zinc-950 hover:bg-zinc-900/60" 
                     : "bg-transparent text-zinc-600 border-transparent hover:text-zinc-400"
               }`}
             >
-              <div className="block sm:hidden">{stepNum}</div>
-              <div className="hidden sm:block">{stepNum}. {step}</div>
+              <div className="block sm:hidden">
+                {stepNum}{isDone ? "✓" : ""}
+              </div>
+              <div className="hidden sm:block">
+                {stepNum}. {step} {isDone ? "✓" : ""}
+              </div>
             </button>
           );
         })}
@@ -728,6 +1083,42 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
           <nav className="flex flex-col gap-1">
             {(["Dashboard", "Fragments", "New Fragment", "Orders", "Customers", "Analytics", "Media Library", "Settings"] as AdminTab[]).map(tab => {
               const isActive = activeTab === tab;
+              
+              const getTabBadge = () => {
+                switch (tab) {
+                  case "Dashboard":
+                    return { text: "LIVE", className: "bg-emerald-950/40 text-emerald-400 border border-emerald-900/40" };
+                  case "Fragments":
+                    return { text: `${fragments.length} SEC`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
+                  case "New Fragment": {
+                    const completedSteps = [1, 2, 3, 4, 5, 6].filter(s => isStepCompleted(s)).length;
+                    const isAll = completedSteps === 6;
+                    return {
+                      text: isAll ? "READY" : `${completedSteps}/7 OK`,
+                      className: isAll 
+                        ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/40 animate-pulse" 
+                        : "bg-amber-950/20 text-amber-500 border border-amber-900/20"
+                    };
+                  }
+                  case "Orders":
+                    return { text: `${orders.length} OK`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
+                  case "Customers":
+                    return { text: `${customers.length} REG`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
+                  case "Analytics":
+                    return { text: "ACTIVE", className: "bg-emerald-950/20 text-emerald-500 border border-emerald-900/10" };
+                  case "Media Library": {
+                    const totalFilesCount = Object.values(mediaFolders).flat().length;
+                    return { text: `${totalFilesCount} FL`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
+                  }
+                  case "Settings":
+                    return { text: "SECURE", className: "bg-emerald-950/20 text-emerald-500 border border-emerald-900/10" };
+                  default:
+                    return { text: "", className: "" };
+                }
+              };
+              
+              const badge = getTabBadge();
+
               return (
                 <button
                   key={tab}
@@ -765,7 +1156,14 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                   }`}
                 >
                   <span>{tab}</span>
-                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#D9D6CA]" />}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {badge.text && (
+                      <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 leading-none ${badge.className}`}>
+                        {badge.text}
+                      </span>
+                    )}
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#D9D6CA]" />}
+                  </div>
                 </button>
               );
             })}
@@ -856,6 +1254,141 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                   </div>
                 </div>
               </div>
+
+              {/* SYSTEM DIAGNOSTICS & SYSTEM JOURNAL LOGS */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-6">
+                {/* SYSTEM JOURNAL LOG TERMINAL (8 COLS) */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-4 col-span-1 lg:col-span-8 flex flex-col justify-between">
+                  <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[10px] tracking-widest text-zinc-400 font-bold uppercase">SYSTEM JOURNAL / AUDIT DEED</span>
+                    </div>
+                    <span className="text-[9px] text-zinc-600 font-mono uppercase">SECURE SHELL JOURNAL</span>
+                  </div>
+
+                  {/* Search and control buttons */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-950/40 p-2.5 border border-zinc-900/60">
+                    <div className="relative flex-grow max-w-sm">
+                      <input
+                        type="text"
+                        placeholder="FILTER SYSTEM JOURNAL LOGS..."
+                        id="log-search-input"
+                        className="bg-neutral-950 border border-zinc-900 text-[10px] text-zinc-300 focus:outline-none focus:border-zinc-700 px-3 py-1.5 font-mono w-full"
+                        onChange={(e) => {
+                          const val = e.target.value.toLowerCase();
+                          setLogQuery(val);
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleRunDiagnostics}
+                        disabled={isDiagnosticRunning}
+                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 rounded-none cursor-pointer"
+                      >
+                        {isDiagnosticRunning ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" /> RUNNING...
+                          </>
+                        ) : (
+                          <>
+                            <Activity className="w-3 h-3 text-emerald-400" /> RUN DIAGNOSTICS
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to purge local system activity logs? This is irreversible.")) {
+                            setActivityLogs([
+                              { id: "log-reset", timestamp: new Date().toISOString(), action: "LOGS_CLEARED", details: "Administrative activity logs cleared by user." }
+                            ]);
+                            localStorage.setItem("lomon_activity_logs", JSON.stringify([{ id: "log-reset", timestamp: new Date().toISOString(), action: "LOGS_CLEARED", details: "Administrative activity logs cleared by user." }]));
+                            showToast("System Activity Logs cleared.");
+                          }
+                        }}
+                        className="bg-zinc-900/50 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-800 text-zinc-500 hover:text-zinc-400 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-none cursor-pointer"
+                      >
+                        PURGE JOURNAL
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Terminal console window */}
+                  <div className="bg-[#030303] border border-zinc-900 p-4 h-64 overflow-y-auto font-mono text-[10.5px] leading-relaxed relative flex flex-col text-left">
+                    <div className="space-y-1.5">
+                      {activityLogs
+                        .filter(log => {
+                          if (!logQuery) return true;
+                          return (
+                            log.action.toLowerCase().includes(logQuery) ||
+                            log.details.toLowerCase().includes(logQuery) ||
+                            log.timestamp.includes(logQuery)
+                          );
+                        })
+                        .map((log) => {
+                          const timeStr = new Date(log.timestamp).toLocaleTimeString();
+                          return (
+                            <div key={log.id} className="grid grid-cols-12 gap-1 group py-0.5 hover:bg-zinc-900/30">
+                              <span className="col-span-2 text-zinc-600 font-bold select-none">{timeStr}</span>
+                              <span className={`col-span-3 font-bold ${
+                                log.action.includes("ERROR") || log.action.includes("BLOCKED")
+                                  ? "text-red-500" 
+                                  : log.action.includes("CREATE") || log.action.includes("ATTACH") || log.action.includes("AUTH")
+                                    ? "text-emerald-400" 
+                                    : "text-amber-500"
+                              }`}>
+                                [{log.action}]
+                              </span>
+                              <span className="col-span-7 text-zinc-300 break-all">{log.details}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    {/* Retro Scanline effect overlay */}
+                    <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_100%)] opacity-10" />
+                  </div>
+                </div>
+
+                {/* SYSTEM INTEGRITY AND TELEMETRY (4 COLS) */}
+                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-4 col-span-1 lg:col-span-4 text-left">
+                  <span className="text-[10px] tracking-widest text-zinc-400 font-bold uppercase block border-b border-zinc-900 pb-2">
+                    INTEGRITY TELEMETRY
+                  </span>
+                  
+                  <div className="space-y-3.5 pt-1.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 uppercase font-bold">DATABASE ENGINES</span>
+                      <span className="text-emerald-400 font-bold">MONGODB SECURE</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 uppercase font-bold">GATEWAY (PAYSTACK)</span>
+                      <span className="text-emerald-400 font-bold">ONLINE (LIVE)</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 uppercase font-bold">GATEWAY (STRIPE)</span>
+                      <span className="text-zinc-600 font-bold">OFFLINE (MAINT)</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 uppercase font-bold">WIZARD PERSISTENCE</span>
+                      <span className="text-emerald-400 font-bold">localStorage STABLE</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 uppercase font-bold">ADMIN ENCRYPTION</span>
+                      <span className="text-zinc-400 font-mono">RSA-4096-AES-GCM</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-500 uppercase font-bold">ADMINISTRATIVE ID</span>
+                      <span className="text-zinc-400 font-mono truncate max-w-[120px]">{currentUserEmail}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-neutral-950 p-3.5 border border-zinc-900 text-[10px] text-zinc-500 space-y-1 font-mono uppercase">
+                    <p className="font-bold text-zinc-400">LLC OPERATIONAL PROTOCOL:</p>
+                    <p>ALL AUDIT ENGINES ARE CO-SIGNED AND PERSISTED LOCALLY AND REMOTE-REPLICATED UPON SECURE DEPLOYMENT ACTIONS.</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -894,6 +1427,9 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       list: []
                     });
                     setFormDocuments([]);
+                    setOwnershipConfirmed(false);
+                    setPublicPreviewApproved(false);
+                    setPreviewFragmentObj(null);
                     setCurrentStep(1);
                     setActiveTab("New Fragment");
                   }}
@@ -1423,138 +1959,369 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                       )}
                     </div>
                   </div>
-                )}
+                )}                {/* STEP 5: DOCUMENTS */}
+                {currentStep === 5 && (() => {
+                  const [newDocName, setNewDocName] = useState("");
+                  const [newDocVersion, setNewDocVersion] = useState("1.0");
 
-                {/* STEP 5: DOCUMENTS */}
-                {currentStep === 5 && (
-                  <div className="space-y-4 text-left">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 5 // COMPOSITION DOCUMENTS</span>
-                    </div>
+                  const handleAddDocument = (name: string, ver: string) => {
+                    const trimmedName = name.trim();
+                    if (!trimmedName) return;
+                    const fullDocString = `${trimmedName} (v${ver})`;
+                    if (formDocuments.includes(fullDocString)) {
+                      showToast("Document with this name and version already attached.");
+                      return;
+                    }
+                    setFormDocuments(prev => [...prev, fullDocString]);
+                    logActivity("DOCUMENT_ATTACHED", `Attached document "${trimmedName}" version ${ver}`);
+                    setNewDocName("");
+                    setNewDocVersion("1.0");
+                  };
 
-                    <div className="space-y-4">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase block">UNLIMITED LEGAL & METADATA ATTACHMENTS:</span>
+                  const handleBumpVersion = (index: number, docString: string) => {
+                    let name = docString;
+                    let ver = "1.0";
+                    const match = docString.match(/^(.*?)\s*\(v([\d\.]+)\)$/);
+                    if (match) {
+                      name = match[1];
+                      ver = match[2];
+                    }
+
+                    const parts = ver.split(".");
+                    let nextVer = "1.1";
+                    if (parts.length === 2) {
+                      const major = parseInt(parts[0], 10);
+                      const minor = parseInt(parts[1], 10);
+                      const option = window.prompt(`Select version bump option for "${name}":
+1. Increment Minor (v${major}.${minor + 1})
+2. Increment Major (v${major + 1}.0)
+Or type a custom version:`, `${major}.${minor + 1}`);
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                        {formDocuments.map((doc, index) => (
-                          <div 
-                            key={index}
-                            className="flex items-center justify-between border border-zinc-900 bg-neutral-950 px-3 py-2 text-xs"
-                          >
-                            <span className="text-zinc-300 font-bold uppercase flex items-center gap-1.5">
-                              <FileText className="w-3.5 h-3.5 text-zinc-600" />
-                              {doc}
-                            </span>
-                            <button
-                              onClick={() => setFormDocuments(prev => prev.filter((_, i) => i !== index))}
-                              className="text-zinc-600 hover:text-red-400 transition-colors"
-                              title="Remove Document"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                      if (!option) return;
+                      if (option === "1") {
+                        nextVer = `${major}.${minor + 1}`;
+                      } else if (option === "2") {
+                        nextVer = `${major + 1}.0`;
+                      } else {
+                        nextVer = option.trim().replace(/^v/, "");
+                      }
+                    } else {
+                      const custom = window.prompt(`Type new version for "${name}" (current: v${ver}):`, "1.1");
+                      if (!custom) return;
+                      nextVer = custom.trim().replace(/^v/, "");
+                    }
+
+                    const updatedString = `${name} (v${nextVer})`;
+                    setFormDocuments(prev => prev.map((d, i) => i === index ? updatedString : d));
+                    logActivity("DOCUMENT_VERSION_BUMP", `Bumped version of "${name}" from v${ver} to v${nextVer}`);
+                    showToast(`Document "${name}" version updated to v${nextVer}`);
+                  };
+
+                  return (
+                    <div className="space-y-4 text-left">
+                      <div className="border-b border-zinc-900 pb-2 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 5 // COMPOSITION DOCUMENTS</span>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono">Rule 8: Legal Versioning</span>
+                      </div>
+
+                      <div className="space-y-4">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase block">UNLIMITED LEGAL & METADATA ATTACHMENTS (VERSIONED):</span>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {formDocuments.map((doc, index) => {
+                            let name = doc;
+                            let ver = "1.0";
+                            const match = doc.match(/^(.*?)\s*\(v([\d\.]+)\)$/);
+                            if (match) {
+                              name = match[1];
+                              ver = match[2];
+                            }
+
+                            return (
+                              <div 
+                                key={index}
+                                className="border border-zinc-900 bg-neutral-950 p-3 text-xs flex flex-col justify-between space-y-2.5"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="space-y-1">
+                                    <span className="text-zinc-300 font-bold uppercase flex items-center gap-1.5 leading-snug">
+                                      <FileText className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                                      {name}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] bg-zinc-900 border border-zinc-800 text-emerald-400 font-mono px-1.5 py-0.5 rounded-none uppercase">
+                                        ACTIVE: v{ver}
+                                      </span>
+                                      <span className="text-[8px] text-zinc-500 uppercase tracking-tight">
+                                        LOMON SECURE RECORD
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm(`Are you sure you want to remove document "${name}"?`)) {
+                                        setFormDocuments(prev => prev.filter((_, i) => i !== index));
+                                        logActivity("DOCUMENT_REMOVED", `Removed document "${name}"`);
+                                      }
+                                    }}
+                                    className="text-zinc-600 hover:text-red-400 transition-colors p-1"
+                                    title="Remove Document"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                <div className="pt-2 border-t border-zinc-900/60 flex items-center justify-between">
+                                  <button
+                                    onClick={() => handleBumpVersion(index, doc)}
+                                    className="text-[9px] bg-neutral-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2 py-0.5 font-bold uppercase transition-all tracking-wider"
+                                  >
+                                    BUMP VERSION
+                                  </button>
+                                  <span className="text-[8px] text-zinc-600 font-mono uppercase">
+                                    VERIFIED AGREEMENT
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {formDocuments.length === 0 && (
+                          <div className="p-6 border border-dashed border-zinc-900 text-center text-zinc-600 text-xs">
+                            NO VERSIONED DOCUMENTS ATTACHED. REQUIRED FOR LEGAL COMPLIANCE BEFORE PUBLISHING.
                           </div>
-                        ))}
-                      </div>
+                        )}
 
-                      <div className="flex gap-2 max-w-md">
-                        <input 
-                          type="text" 
-                          placeholder="ADD DOCUMENT (E.G. CUE SHEET, LICENSE AGREEMENT)" 
-                          id="custom-doc-input"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const val = (e.target as HTMLInputElement).value.trim();
-                              if (val) {
-                                setFormDocuments(prev => [...prev, val]);
-                                (e.target as HTMLInputElement).value = "";
-                              }
-                            }
-                          }}
-                          className="bg-neutral-950 border border-zinc-900 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono w-full"
-                        />
-                        <button
-                          onClick={() => {
-                            const el = document.getElementById("custom-doc-input") as HTMLInputElement;
-                            if (el && el.value.trim()) {
-                              setFormDocuments(prev => [...prev, el.value.trim()]);
-                              el.value = "";
-                            }
-                          }}
-                          className="bg-zinc-800 hover:bg-zinc-700 px-3 text-xs font-bold uppercase transition-colors rounded-none cursor-pointer flex-shrink-0"
-                        >
-                          ATTACH
-                        </button>
-                      </div>
+                        <div className="bg-neutral-950 p-4 border border-zinc-900 space-y-3">
+                          <span className="text-[9px] text-zinc-500 font-bold tracking-wider block uppercase">ATTACH NEW LEGAL AGREEMENT / RECORD</span>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                            <div className="sm:col-span-8 space-y-1">
+                              <label className="text-[8px] text-zinc-600 uppercase font-mono font-bold tracking-wider block">Document Name</label>
+                              <input 
+                                type="text" 
+                                placeholder="E.G. EXCLUSIVE LICENSE AGREEMENT" 
+                                value={newDocName}
+                                onChange={(e) => setNewDocName(e.target.value)}
+                                className="bg-neutral-950 border border-zinc-800 focus:border-zinc-500 px-3 py-1.5 text-xs text-white focus:outline-none font-mono w-full"
+                              />
+                            </div>
+                            <div className="sm:col-span-2 space-y-1">
+                              <label className="text-[8px] text-zinc-600 uppercase font-mono font-bold tracking-wider block">Initial Version</label>
+                              <select
+                                value={newDocVersion}
+                                onChange={(e) => setNewDocVersion(e.target.value)}
+                                className="bg-neutral-950 border border-zinc-800 focus:border-zinc-500 px-2 py-1.5 text-xs text-zinc-300 focus:outline-none font-mono w-full"
+                              >
+                                <option value="1.0">1.0 (Initial)</option>
+                                <option value="1.1">1.1 (Draft Patch)</option>
+                                <option value="2.0">2.0 (Revision)</option>
+                                <option value="0.1">0.1 (Internal)</option>
+                              </select>
+                            </div>
+                            <div className="sm:col-span-2 flex items-end">
+                              <button
+                                onClick={() => handleAddDocument(newDocName, newDocVersion)}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white w-full py-1.5 text-xs font-bold uppercase transition-colors rounded-none cursor-pointer flex-shrink-0"
+                              >
+                                ATTACH
+                              </button>
+                            </div>
+                          </div>
+                        </div>
 
-                      <div className="border border-zinc-900 bg-neutral-950/10 p-3 text-[10.5px] text-zinc-500 space-y-1">
-                        <p className="font-bold text-zinc-400">COMMON DIGITAL DOCUMENT TEMPLATES:</p>
-                        <p>• PDF License Agreement (Specifies limits, user rights)</p>
-                        <p>• Split Sheet (Declares composition share percentages between songwriters)</p>
-                        <p>• Catalog Metadata Registration Record (Declared to PROs: BMI, ASCAP, PRS)</p>
+                        <div className="border border-zinc-900 bg-neutral-950/10 p-3 text-[10.5px] text-zinc-500 space-y-1">
+                          <p className="font-bold text-zinc-400 uppercase tracking-wide">Rule 8: Document Integrity Guidelines:</p>
+                          <p>• Agreements like exclusive contracts and split sheets must carry semantic version identifiers (e.g. v1.0, v2.0).</p>
+                          <p>• Whenever split allocations or administrative overrides change, the document MUST be updated using the "Bump Version" protocol.</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* STEP 6: LICENSING & PRICING */}
                 {currentStep === 6 && (
                   <div className="space-y-4 text-left">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 6 // LICENSING RIGS & PRICING</span>
+                    <div className="border-b border-zinc-900 pb-2 flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 6 // LICENSING RIGS & TEMPLATES</span>
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono">TEMPLATE-DRIVEN</span>
                     </div>
 
                     <div className="space-y-4">
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase block">ENABLE OR DISABLE SPECIFIC COMMERCIAL LICENSES:</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase">CONFIGURE TEMPLATES & OVERRIDES FOR THIS FRAGMENT:</p>
+                        <span className="text-[9px] text-zinc-500 font-mono italic">Edits made below will only affect this specific fragment</span>
+                      </div>
 
-                      <div className="space-y-3">
-                        {(["mp3", "wav", "trackouts", "unlimited", "exclusive"] as const).map(key => {
-                          const license = formLicensing[key];
+                      <div className="space-y-4">
+                        {(["access", "release", "commercial", "exclusive", "sync", "clearance"] as const).map(key => {
+                          const license = formLicensing[key] || { enabled: false, price: 0, overrides: {} };
+                          const defaultTemplate = DEFAULT_LICENSE_TEMPLATES.find(t => t.id === key);
+
+                          const labelMap: Record<string, string> = {
+                            access: "ACCESS LICENSE (MP3)",
+                            release: "RELEASE LICENSE (WAV)",
+                            commercial: "COMMERCIAL LICENSE (STEMS)",
+                            exclusive: "EXCLUSIVE ACQUISITION",
+                            sync: "SYNC LICENSE (FILM/TV)",
+                            clearance: "CUSTOM CLEARANCE"
+                          };
+
+                          const codeMap: Record<string, string> = {
+                            access: "MTR-MP3-LEASE",
+                            release: "MTR-WAV-LEASE",
+                            commercial: "MTR-STEMS-LEASE",
+                            exclusive: "MTR-EXCLUSIVE-BUY",
+                            sync: "MTR-SYNC-BROADCAST",
+                            clearance: "MTR-CUSTOM-JV"
+                          };
+
+                          const fieldsToOverride = [
+                            { id: "fileDelivery", label: "File Delivery" },
+                            { id: "distributionLimit", label: "Distribution Limit" },
+                            { id: "streamingLimit", label: "Streaming Limit" },
+                            { id: "videoUse", label: "Video Use" },
+                            { id: "monetization", label: "Monetization" },
+                            { id: "performanceRights", label: "Performance Rights" },
+                            { id: "term", label: "Term" },
+                            { id: "territory", label: "Territory" },
+                            { id: "publishingSplit", label: "Publishing Split" },
+                            { id: "masterOwnership", label: "Master Ownership" },
+                            { id: "exclusivity", label: "Exclusivity" },
+                            { id: "contractVersion", label: "Contract Version" }
+                          ] as const;
+
+                          const isExpanded = !!expandedOverrides[key];
+
                           return (
                             <div 
                               key={key} 
-                              className="border border-zinc-900 bg-neutral-950/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                              className={`border transition-colors ${
+                                license.enabled 
+                                  ? "bg-neutral-950/40 border-zinc-900" 
+                                  : "bg-neutral-950/10 border-zinc-900/40 opacity-60"
+                              }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => setFormLicensing(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], enabled: !prev[key].enabled }
-                                  }))}
-                                  className={`w-4 h-4 border flex items-center justify-center transition-colors cursor-pointer ${
-                                    license.enabled 
-                                      ? "bg-[#D9D6CA] border-[#D9D6CA] text-black" 
-                                      : "bg-transparent border-zinc-800 text-transparent"
-                                  }`}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </button>
-                                <div>
-                                  <span className="text-xs font-bold uppercase text-white block">
-                                    {key === "mp3" ? "MP3 LICENSE" : key === "wav" ? "WAV LICENSE" : key === "trackouts" ? "TRACKOUT STEMS" : key === "unlimited" ? "UNLIMITED LICENSE" : "EXCLUSIVE ACQUISITION"}
-                                  </span>
-                                  <span className="text-[10px] text-zinc-500 font-bold block uppercase">
-                                    {key === "mp3" ? "MTR-MP3-LEASE" : key === "wav" ? "MTR-WAV-LEASE" : key === "trackouts" ? "MTR-STEMS-LEASE" : key === "unlimited" ? "MTR-UNLIMITED-LEASE" : "MTR-EXCLUSIVE-BUY"}
-                                  </span>
+                              {/* HEADER BAR */}
+                              <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => setFormLicensing(prev => ({
+                                      ...prev,
+                                      [key]: { ...prev[key], enabled: !prev[key].enabled }
+                                    }))}
+                                    className={`w-4 h-4 border flex items-center justify-center transition-colors cursor-pointer ${
+                                      license.enabled 
+                                        ? "bg-[#D9D6CA] border-[#D9D6CA] text-black" 
+                                        : "bg-transparent border-zinc-800 text-transparent hover:border-zinc-700"
+                                    }`}
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                  <div>
+                                    <span className="text-xs font-bold uppercase text-white block">
+                                      {labelMap[key]}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-500 font-bold block uppercase font-mono">
+                                      {codeMap[key]}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3">
+                                  {license.enabled && (
+                                    <>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase">PRICE:</span>
+                                        <div className="relative">
+                                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-bold">$</span>
+                                          <input 
+                                            type="number"
+                                            value={license.price}
+                                            onChange={(e) => setFormLicensing(prev => ({
+                                              ...prev,
+                                              [key]: { ...prev[key], price: Number(e.target.value) }
+                                            }))}
+                                            className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-xs text-white w-24 font-bold font-mono"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        onClick={() => setExpandedOverrides(prev => ({
+                                          ...prev,
+                                          [key]: !prev[key]
+                                        }))}
+                                        className="text-[10px] font-bold uppercase tracking-wider text-[#D9D6CA] hover:text-white border border-[#D9D6CA]/20 hover:border-[#D9D6CA] px-2 py-1 transition-all cursor-pointer"
+                                      >
+                                        {isExpanded ? "COLLAPSE OVERRIDES" : "EDIT OVERRIDES"}
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
 
-                              {license.enabled && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-zinc-500 font-bold uppercase">PRICE FIELD:</span>
-                                  <div className="relative">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-bold">$</span>
-                                    <input 
-                                      type="number"
-                                      value={license.price}
-                                      onChange={(e) => setFormLicensing(prev => ({
-                                        ...prev,
-                                        [key]: { ...prev[key], price: Number(e.target.value) }
-                                      }))}
-                                      className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-xs text-white w-24 font-bold font-mono"
-                                    />
-                                  </div>
-                                </div>
-                              )}
+                              {/* OVERRIDES SUBFORM PANEL */}
+                              <AnimatePresence>
+                                {license.enabled && isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden border-t border-zinc-900/60 bg-zinc-950/80 p-4"
+                                  >
+                                    <div className="mb-3">
+                                      <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
+                                        OVERRIDE DEFAULT PARAMS // {labelMap[key]}
+                                      </span>
+                                      <span className="text-[9px] text-zinc-600 uppercase font-mono block">
+                                        LEAVE EMPTY TO MERGE SYSTEM TEMPLATE DEFAULTS
+                                      </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                      {fieldsToOverride.map((field) => {
+                                        const defaultValue = defaultTemplate ? defaultTemplate[field.id] : "";
+                                        const currentValue = (license.overrides as any)?.[field.id] || "";
+
+                                        return (
+                                          <div key={field.id} className="space-y-1">
+                                            <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider block">
+                                              {field.label}
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={currentValue}
+                                              placeholder={String(defaultValue)}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                setFormLicensing(prev => {
+                                                  const currLicense = prev[key] || { enabled: true, price: 0, overrides: {} };
+                                                  const currOverrides = currLicense.overrides || {};
+                                                  return {
+                                                    ...prev,
+                                                    [key]: {
+                                                      ...currLicense,
+                                                      overrides: {
+                                                        ...currOverrides,
+                                                        [field.id]: val
+                                                      }
+                                                    }
+                                                  };
+                                                });
+                                              }}
+                                              className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none px-2.5 py-1 text-[11px] text-white w-full font-mono placeholder:text-zinc-700"
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                           );
                         })}
@@ -1564,78 +2331,320 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                 )}
 
                 {/* STEP 7: PUBLISH */}
-                {currentStep === 7 && (
-                  <div className="space-y-6 text-left">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 7 // COMPILE & DEPLOY STATE</span>
-                    </div>
+                {currentStep === 7 && (() => {
+                  const checklistItems = [
+                    {
+                      id: "timestamp",
+                      label: "Timestamp assigned",
+                      isVerified: !!formInfo.timestamp,
+                      value: formInfo.timestamp || "Missing",
+                      step: 1,
+                      description: "Configured in Step 1 // Fragment Info",
+                    },
+                    {
+                      id: "composition",
+                      label: "Composition linked",
+                      isVerified: !!formInfo.name,
+                      value: formInfo.name || "Missing",
+                      step: 1,
+                      description: "Configured in Step 1 // Fragment Info",
+                    },
+                    {
+                      id: "artwork",
+                      label: "Artwork uploaded",
+                      isVerified: !!formArtwork,
+                      value: formArtwork ? "Artwork verified" : "Missing",
+                      step: 2,
+                      description: "Uploaded in Step 2 // Artwork",
+                    },
+                    {
+                      id: "preview",
+                      label: "Preview uploaded",
+                      isVerified: !!formAudioFiles.mp3Preview,
+                      value: formAudioFiles.mp3Preview || "Missing",
+                      step: 3,
+                      description: "Configured in Step 3 // Preview Audio",
+                    },
+                    {
+                      id: "master",
+                      label: "Master uploaded",
+                      isVerified: !!formAudioFiles.wavMaster,
+                      value: formAudioFiles.wavMaster || "Missing",
+                      step: 3,
+                      description: "Configured in Step 3 // Master Audio",
+                    },
+                    {
+                      id: "stems",
+                      label: "Stem package verified",
+                      isVerified: !!(formStems.list && formStems.list.length > 0),
+                      value: formStems.list && formStems.list.length > 0 ? `${formStems.list.length} Files` : "Missing",
+                      step: 4,
+                      description: "Verified in Step 4 // Stems Archive",
+                    },
+                    {
+                      id: "ownership",
+                      label: "Ownership confirmed",
+                      isVerified: ownershipConfirmed,
+                      value: ownershipConfirmed ? "Confirmed by Admin" : "Needs Verification",
+                      isInteractive: true,
+                      onToggle: () => setOwnershipConfirmed(!ownershipConfirmed),
+                      description: "Requires administrator verification click",
+                    },
+                    {
+                      id: "documents",
+                      label: "Documents attached",
+                      isVerified: !!(formDocuments && formDocuments.length > 0),
+                      value: formDocuments && formDocuments.length > 0 ? `${formDocuments.length} Deed(s)` : "No Documents",
+                      step: 5,
+                      description: "Configured in Step 5 // Legal Deeds",
+                    },
+                    {
+                      id: "licenses",
+                      label: "Licenses selected",
+                      isVerified: Object.values(formLicensing).some((l: any) => l.enabled),
+                      value: Object.values(formLicensing).filter((l: any) => l.enabled).length + " Tier(s) enabled",
+                      step: 6,
+                      description: "Configured in Step 6 // Licensing Grid",
+                    },
+                    {
+                      id: "prices",
+                      label: "Prices entered",
+                      isVerified: Object.values(formLicensing).filter((l: any) => l.enabled).length > 0 && 
+                                  Object.values(formLicensing).filter((l: any) => l.enabled).every((l: any) => Number(l.price) > 0),
+                      value: "Prices set & verified",
+                      step: 6,
+                      description: "Configured in Step 6 // Licensing Grid",
+                    },
+                    {
+                      id: "metadata",
+                      label: "Metadata complete",
+                      isVerified: !!(formInfo.bpm && formInfo.key && formInfo.genre && formInfo.mood),
+                      value: formInfo.bpm && formInfo.key ? `${formInfo.bpm} BPM // ${formInfo.key}` : "Incomplete",
+                      step: 1,
+                      description: "BPM, Key, Genre, Mood set in Step 1",
+                    },
+                    {
+                      id: "preview_approved",
+                      label: "Public page preview approved",
+                      isVerified: publicPreviewApproved,
+                      value: publicPreviewApproved ? "Approved by Admin" : "Needs Approval",
+                      isInteractive: true,
+                      onToggle: () => setPublicPreviewApproved(!publicPreviewApproved),
+                      description: "Requires administrator review click",
+                    }
+                  ];
 
-                    <div className="space-y-4">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase block">COMPOSITION SUMMARY DETAILS:</span>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-neutral-950/60 p-4 border border-zinc-900 text-xs">
-                        <div>
-                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">NAME</span>
-                          <span className="font-bold text-white uppercase">{formInfo.name}</span>
+                  const handleDeploymentAction = (actionType: string) => {
+                    if (actionType === "preview") {
+                      const targetId = editingFragmentId || formInfo.timestamp.replace(" ", "").toLowerCase() || "temp_preview";
+                      const previewObj: Fragment = {
+                        id: targetId,
+                        name: formInfo.name || "UNNAMED COMPOSITION",
+                        timestamp: formInfo.timestamp || "12:00 AM",
+                        classification: formInfo.classification || "THRESHOLD COIL",
+                        observation: `Previewing administrative draft.`,
+                        duration: formInfo.duration || "04:00",
+                        description: `Custom ${formInfo.mood || "archival"} fragment with BPM ${formInfo.bpm || "120"} in KEY ${formInfo.key || "C minor"}.`,
+                        isExclusive: formLicensing.exclusive.enabled,
+                        frequency: 220,
+                        synthType: "keys",
+                        bpm: Number(formInfo.bpm) || 120,
+                        status: "Draft",
+                        plays: 0,
+                        revenue: 0,
+                        artwork: formArtwork || "cover_bandit.jpg",
+                        mp3Preview: formAudioFiles.mp3Preview || "bandit_preview.mp3",
+                        wavMaster: formAudioFiles.wavMaster || "bandit_master.wav",
+                        stems: formStems.list,
+                        documents: formDocuments,
+                        licensing: formLicensing,
+                        key: formInfo.key || "C minor",
+                        genre: formInfo.genre || "Archival",
+                        mood: formInfo.mood || "Calm"
+                      } as any;
+                      setPreviewFragmentObj(previewObj);
+                      showToast("Opening live client-side page preview...");
+                      return;
+                    }
+
+                    if (actionType === "draft") {
+                      handleSaveFragmentForm("Draft");
+                      showToast(`Fragment saved as Draft.`);
+                      return;
+                    }
+
+                    // Rule 4: Prevent publishing when required assets are missing (Publish, Schedule, Restricted)
+                    if (actionType === "publish" || actionType === "schedule" || actionType === "restricted") {
+                      const missingAssets = [];
+                      if (!formArtwork) missingAssets.push("Artwork (Cover Image)");
+                      if (!formAudioFiles.mp3Preview) missingAssets.push("MP3 Preview File");
+                      if (!formAudioFiles.wavMaster) missingAssets.push("WAV Master File");
+
+                      if (missingAssets.length > 0) {
+                        alert(`[LOMON PUBLISHING BLOCKED]
+Critical assets are missing. Publishing is strictly prohibited until all required assets are uploaded:
+${missingAssets.map(asset => `• ${asset}`).join("\n")}
+
+Please upload these assets in the respective wizard steps before proceeding.`);
+                        logActivity("PUBLISH_BLOCKED", `Publish action blocked for "${formInfo.name || "Unnamed"}" due to missing assets: ${missingAssets.join(", ")}`);
+                        return;
+                      }
+                    }
+
+                    if (actionType === "publish") {
+                      const unverified = checklistItems.filter(item => !item.isInteractive && !item.isVerified);
+                      if (unverified.length > 0) {
+                        showToast(`Warning: Auto-verifications incomplete (${unverified.map(u => u.label).join(", ")}).`);
+                      }
+                      if (!ownershipConfirmed || !publicPreviewApproved) {
+                        const confirmSave = window.confirm("Admin Checklists (Ownership / Preview Approval) are currently incomplete. Force publish anyway?");
+                        if (!confirmSave) return;
+                      }
+                      handleSaveFragmentForm("Published");
+                      showToast(`Fragment published now.`);
+                      return;
+                    }
+
+                    if (actionType === "schedule") {
+                      const schedTime = window.prompt("Enter schedule date/time (e.g., 2026-07-15 12:00 AM):", "2026-07-15 12:00 AM");
+                      if (schedTime) {
+                        handleSaveFragmentForm("Scheduled");
+                        showToast(`Fragment successfully scheduled for deployment on ${schedTime}`);
+                        logActivity("PUBLISH_SCHEDULED", `Scheduled publication for "${formInfo.name}" at ${schedTime}`);
+                      }
+                      return;
+                    }
+
+                    if (actionType === "restricted") {
+                      handleSaveFragmentForm("Restricted");
+                      showToast(`Fragment published with Restricted clearance.`);
+                      logActivity("PUBLISH_RESTRICTED", `Published "${formInfo.name}" with restricted clearance status`);
+                      return;
+                    }
+
+                    if (actionType === "archive") {
+                      handleSaveFragmentForm("Archived");
+                      showToast(`Fragment archived.`);
+                      logActivity("PUBLISH_ARCHIVED", `Archived composition "${formInfo.name}"`);
+                      return;
+                    }
+                  };
+
+                  return (
+                    <div className="space-y-6 text-left">
+                      <div className="border-b border-zinc-900 pb-2 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-zinc-400 tracking-[0.2em] block uppercase">STEP 7 // VALIDATION CHECKLIST & DEPLOYMENT</span>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono">12 ARCHIVAL PROTOCOLS</span>
+                      </div>
+
+                      {/* 12-ITEM VALIDATION CHECKLIST GRID */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">FINAL INTEGRITY CHECKS:</span>
+                          <span className="text-[9px] text-zinc-500 uppercase font-mono italic">Click auto-checks to return to that step</span>
                         </div>
-                        <div>
-                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">TIMESTAMP</span>
-                          <span className="font-bold text-white">{formInfo.timestamp}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">BPM / KEY</span>
-                          <span className="font-bold text-zinc-300">{formInfo.bpm} BPM / {formInfo.key}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">GENRE / MOOD</span>
-                          <span className="font-bold text-zinc-300 uppercase">{formInfo.genre} • {formInfo.mood}</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">MOUNTED AUDIO PREVIEW</span>
-                          <span className="font-bold text-emerald-400 uppercase truncate block">
-                            {formAudioFiles.mp3Preview || "None (Will use default fallback)"}
-                          </span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-zinc-500 block uppercase text-[10px] font-bold">LICENSING SUMMARY</span>
-                          <span className="font-bold text-zinc-400 block truncate">
-                            {Object.entries(formLicensing)
-                              .filter(([_, value]: [string, any]) => value.enabled)
-                              .map(([key, value]: [string, any]) => `${key.toUpperCase()}: $${value.price}`)
-                              .join(" | ")}
-                          </span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {checklistItems.map((item) => {
+                            const IconComponent = item.isVerified ? Check : Activity;
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  if (item.isInteractive && item.onToggle) {
+                                    item.onToggle();
+                                  } else if (item.step) {
+                                    setCurrentStep(item.step);
+                                    showToast(`Jumping back to Step ${item.step}`);
+                                  }
+                                }}
+                                className={`text-left p-3 border transition-all rounded-none flex flex-col justify-between h-24 select-none relative group ${
+                                  item.isVerified 
+                                    ? "bg-emerald-950/10 border-emerald-950/50 hover:bg-emerald-950/20 text-white" 
+                                    : "bg-neutral-950 border-zinc-900 hover:border-zinc-800 text-zinc-400"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between w-full">
+                                  <span className={`text-xs font-bold tracking-wider ${item.isVerified ? "text-emerald-400" : "text-zinc-300"}`}>
+                                    {item.label}
+                                  </span>
+                                  <div className={`p-1 ${item.isVerified ? "bg-emerald-950/40 text-emerald-400" : "bg-zinc-950 text-amber-500 animate-pulse"}`}>
+                                    <IconComponent className="w-3.5 h-3.5" />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-mono block truncate opacity-80 uppercase">
+                                    {item.value}
+                                  </span>
+                                  <span className="text-[8px] text-zinc-500 block uppercase tracking-tight group-hover:text-zinc-400 transition-colors">
+                                    {item.description}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      <div className="pt-4 flex flex-wrap gap-3">
-                        <button
-                          onClick={() => handleSaveFragmentForm("Draft")}
-                          className="border border-zinc-800 hover:border-[#D9D6CA] bg-neutral-950 text-[#D9D6CA] hover:text-white text-xs font-bold tracking-widest px-4 py-2 uppercase rounded-none transition-colors cursor-pointer"
-                        >
-                          SAVE AS DRAFT
-                        </button>
-                        <button
-                          onClick={() => handleSaveFragmentForm("Published")}
-                          className="bg-[#D9D6CA] text-black hover:bg-white text-xs font-bold tracking-widest px-5 py-2 uppercase rounded-none transition-colors cursor-pointer"
-                        >
-                          PUBLISH NOW
-                        </button>
-                        <button
-                          onClick={() => {
-                            const schedTime = window.prompt("Enter schedule date/time (e.g., 2026-07-15 12:00 AM):", "2026-07-15 12:00 AM");
-                            if (schedTime) {
-                              handleSaveFragmentForm("Draft");
-                              showToast(`Fragment scheduled for deployment on ${schedTime}`);
-                            }
-                          }}
-                          className="border border-dashed border-zinc-800 hover:border-zinc-700 bg-transparent text-zinc-400 hover:text-white text-xs font-bold tracking-widest px-4 py-2 uppercase rounded-none transition-colors cursor-pointer"
-                        >
-                          SCHEDULE DEPLOYMENT
-                        </button>
+                      {/* COMPOSITION BRIEF SUMMARY */}
+                      <div className="bg-neutral-950/60 p-4 border border-zinc-900 text-xs rounded-none">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2 tracking-wider">COMPOSITION METADATA SUMMARY</span>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">NAME</span>
+                            <span className="font-bold text-white uppercase">{formInfo.name || "UNNAMED"}</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">TIMESTAMP</span>
+                            <span className="font-bold text-white">{formInfo.timestamp || "None"}</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">BPM / KEY</span>
+                            <span className="font-bold text-zinc-300">{formInfo.bpm ? `${formInfo.bpm} BPM` : "Missing"} / {formInfo.key || "C Minor"}</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">GENRE / MOOD</span>
+                            <span className="font-bold text-zinc-300 uppercase">{formInfo.genre || "Ambient"} • {formInfo.mood || "Mysterious"}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* DEPLOYMENT CONTROLS */}
+                      <div className="space-y-3 pt-2">
+                        <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">DEPLOYMENT CLEARANCE CONTROLS:</span>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {[
+                            { id: "draft", label: "Save as Draft", desc: "Commit wizard state as offline draft", icon: Folder, style: "border-zinc-800 text-zinc-400 hover:border-zinc-500 hover:text-white hover:bg-neutral-900/30" },
+                            { id: "preview", label: "Preview Fragment", desc: "Interactive public client-side layout review", icon: ExternalLink, style: "border-[#D9D6CA]/30 text-[#D9D6CA] hover:border-[#D9D6CA] hover:text-white hover:bg-[#D9D6CA]/5" },
+                            { id: "publish", label: "Publish Now", desc: "Deploy composition directly to active archive", icon: Check, style: "bg-[#D9D6CA] text-black hover:bg-white border-[#D9D6CA] font-extrabold" },
+                            { id: "schedule", label: "Schedule Publication", desc: "Establish timed release timestamp", icon: Activity, style: "border-zinc-800 text-zinc-400 hover:border-zinc-500 hover:text-white hover:bg-neutral-900/30 border-dashed" },
+                            { id: "restricted", label: "Mark Restricted", desc: "Lock visibility to high cryptographic clearance", icon: Database, style: "border-red-950/40 text-red-400 hover:border-red-900 hover:bg-red-950/10" },
+                            { id: "archive", label: "Archive", desc: "Vault composition as cold secondary record", icon: Archive, style: "border-zinc-900 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300 hover:bg-neutral-950/40" }
+                          ].map((opt) => {
+                            const OptIcon = opt.icon;
+                            return (
+                              <button
+                                key={opt.id}
+                                onClick={() => handleDeploymentAction(opt.id)}
+                                className={`p-3.5 border transition-all text-left flex items-start gap-3 select-none cursor-pointer ${opt.style}`}
+                              >
+                                <div className="mt-0.5">
+                                  <OptIcon className="w-4 h-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className="text-xs font-bold uppercase tracking-wide block">{opt.label}</span>
+                                  <span className="text-[9px] opacity-75 block leading-tight">{opt.desc}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* BACK / NEXT BUTTON RIGS FOR WIZARD */}
                 {mediaUploadProgress !== null && (
@@ -1669,10 +2678,16 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleSaveFragmentForm()}
-                      className="px-4 py-1 text-xs font-bold tracking-widest uppercase border border-emerald-400 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-colors"
+                      onClick={() => {
+                        if (!ownershipConfirmed || !publicPreviewApproved) {
+                          const force = window.confirm("Admin checklists (Ownership / Preview Approval) are currently incomplete. Force publish anyway?");
+                          if (!force) return;
+                        }
+                        handleSaveFragmentForm("Published");
+                      }}
+                      className="px-4 py-1 text-xs font-bold tracking-widest uppercase border border-emerald-400 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-colors cursor-pointer"
                     >
-                      EXECUTE SAVE
+                      PUBLISH FRAGMENT
                     </button>
                   )}
                 </div>
@@ -2108,18 +3123,133 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
                   </div>
                 </div>
 
+                {/* GLOBAL LICENSE TEMPLATE DEFAULTS */}
+                <div className="space-y-3">
+                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">5. GLOBAL LICENSE TEMPLATE DEFAULTS</span>
+                  
+                  <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-4">
+                    <p className="text-[10px] text-zinc-500 uppercase font-bold font-mono">
+                      Modify global default prices & values applied automatically to all fragments.
+                    </p>
+
+                    <div className="space-y-4">
+                      {globalTemplates.map((tpl, tplIdx) => {
+                        return (
+                          <div key={tpl.id} className="border border-zinc-900 bg-neutral-950 p-4 space-y-3">
+                            <div className="flex items-center justify-between border-b border-zinc-900/40 pb-2">
+                              <div>
+                                <span className="text-xs font-bold text-white block uppercase">{tpl.title}</span>
+                                <span className="text-[10px] text-zinc-500 font-mono block uppercase">{tpl.subtitle}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase">DEFAULT PRICE:</span>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-bold font-mono">$</span>
+                                  <input 
+                                    type="number"
+                                    value={tpl.price}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setGlobalTemplates(prev => {
+                                        const updated = [...prev];
+                                        updated[tplIdx] = { ...updated[tplIdx], price: val };
+                                        return updated;
+                                      });
+                                    }}
+                                    className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-xs text-white w-24 font-bold font-mono"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                              {[
+                                { id: "fileDelivery", label: "File Delivery" },
+                                { id: "distributionLimit", label: "Distribution Limit" },
+                                { id: "streamingLimit", label: "Streaming Limit" },
+                                { id: "videoUse", label: "Video Use" },
+                                { id: "monetization", label: "Monetization" },
+                                { id: "performanceRights", label: "Performance Rights" },
+                                { id: "term", label: "Term" },
+                                { id: "territory", label: "Territory" },
+                                { id: "publishingSplit", label: "Publishing Split" },
+                                { id: "masterOwnership", label: "Master Ownership" },
+                                { id: "exclusivity", label: "Exclusivity" },
+                                { id: "contractVersion", label: "Contract Version" }
+                              ].map((field) => (
+                                <div key={field.id} className="space-y-1">
+                                  <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider block">
+                                    {field.label}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={(tpl as any)[field.id] || ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setGlobalTemplates(prev => {
+                                        const updated = [...prev];
+                                        updated[tplIdx] = { ...updated[tplIdx], [field.id]: val };
+                                        return updated;
+                                      });
+                                    }}
+                                    className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none px-2.5 py-1 text-[11px] text-white w-full font-mono"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
                 {/* SAVE BUTTON */}
                 <div className="pt-4 border-t border-zinc-900 flex justify-end">
                   <button
                     onClick={() => {
                       localStorage.setItem("lomon_admin_settings", JSON.stringify(settings));
-                      showToast("All Administrative settings saved to node.");
+                      localStorage.setItem("lomon_license_templates", JSON.stringify(globalTemplates));
+                      showToast("All Administrative settings and global templates saved to node.");
                     }}
                     className="bg-[#D9D6CA] hover:bg-white text-black text-xs font-bold tracking-widest px-6 py-2 uppercase transition-colors cursor-pointer"
                   >
                     SAVE CONFIGURATION
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Full screen client preview portal */}
+        <AnimatePresence>
+          {previewFragmentObj && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 overflow-y-auto bg-black flex flex-col"
+            >
+              <div className="bg-zinc-950/95 border-b border-zinc-900 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                  <span className="inline-block w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></span>
+                  <span className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase">
+                    ADMIN PREVIEW GATEWAY // PREVIEWING {previewFragmentObj.name}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setPreviewFragmentObj(null)}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-xs text-[#D9D6CA] border border-zinc-800 hover:border-zinc-700 transition-colors uppercase font-mono cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" /> CLOSE PREVIEW
+                </button>
+              </div>
+              <div className="flex-1 bg-black">
+                <FragmentDetailPage
+                  fragment={previewFragmentObj}
+                  onBack={() => setPreviewFragmentObj(null)}
+                />
               </div>
             </motion.div>
           )}

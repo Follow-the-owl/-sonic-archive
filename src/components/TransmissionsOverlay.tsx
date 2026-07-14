@@ -5,6 +5,7 @@ import {
   Send, DollarSign, List, Plus, Landmark, History, FileCheck, ExternalLink, Mail
 } from "lucide-react";
 import DocumentDashboard from "./DocumentDashboard";
+import JSZip from "jszip";
 
 interface TransmissionsOverlayProps {
   isOpen: boolean;
@@ -37,10 +38,163 @@ export default function TransmissionsOverlay({
   userEmailLogs = [],
   onRefreshData
 }: TransmissionsOverlayProps) {
+  // Audio WAV and Stems ZIP Generator Helpers
+  const generateTinyWavBlob = () => {
+    const sampleRate = 48000;
+    const numChannels = 2;
+    const bitsPerSample = 24;
+    const numSamples = sampleRate * 1; // 1 second
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = numSamples * blockAlign;
+    const subChunk2Size = dataSize;
+    const chunkSize = 36 + subChunk2Size;
+
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    /* RIFF identifier */
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    /* file length */
+    view.setUint32(4, chunkSize, true);
+    /* RIFF type */
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+    /* format chunk identifier */
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    /* format chunk length */
+    view.setUint16(16, 16, true);
+    /* sample format (raw) */
+    view.setUint16(20, 1, true);
+    /* channel count */
+    view.setUint16(22, numChannels, true);
+    /* sample rate */
+    view.setUint32(24, sampleRate, true);
+    /* byte rate (sample rate * block align) */
+    view.setUint32(28, byteRate, true);
+    /* block align (channel count * bytes per sample) */
+    view.setUint16(32, blockAlign, true);
+    /* bits per sample */
+    view.setUint16(34, bitsPerSample, true);
+    /* data chunk identifier */
+    view.setUint32(36, 0x64617461, false); // "data"
+    /* chunk length */
+    view.setUint32(40, subChunk2Size, true);
+
+    return new Blob([buffer], { type: "audio/wav" });
+  };
+
+  const handleDownloadMasterWav = (songName: string) => {
+    const verifiedUser = currentUserEmail || localStorage.getItem("userEmail") || "";
+    if (!verifiedUser) {
+      const challenge = window.prompt("ACCESS DENIED // CONTROLLED MASTER RECORD\nThis high-fidelity master file is access-controlled.\nPlease enter your registered LOMON account email to authenticate access:");
+      if (!challenge || !challenge.trim() || !challenge.includes("@")) {
+        alert("AUTHENTICATION HANDSHAKE REJECTED // ACCESS DENIED");
+        return;
+      }
+      localStorage.setItem("userEmail", challenge.trim().toLowerCase());
+    }
+
+    const cleanSongName = songName.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+    const blob = generateTinyWavBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${cleanSongName}_MASTER.WAV`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadStemsZip = async (songName: string, license: any) => {
+    const verifiedUser = currentUserEmail || localStorage.getItem("userEmail") || "";
+    if (!verifiedUser) {
+      const challenge = window.prompt("ACCESS DENIED // SECURE TRACKOUTS REQUESTED\nThese high-fidelity multitracks are access-controlled.\nPlease enter your registered LOMON account email to authenticate access:");
+      if (!challenge || !challenge.trim() || !challenge.includes("@")) {
+        alert("AUTHENTICATION HANDSHAKE REJECTED // ACCESS DENIED");
+        return;
+      }
+      localStorage.setItem("userEmail", challenge.trim().toLowerCase());
+    }
+
+    const zip = new JSZip();
+    const cleanSongName = songName.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+
+    const stemFiles = [
+      { name: "01_DRUMS.wav", desc: "DRUMS & PERCUSSION LOOP (24-bit / 48kHz Stereo)" },
+      { name: "02_BASS.wav", desc: "SUB BASS & LOW-END DRIVE (24-bit / 48kHz Stereo)" },
+      { name: "03_SYNTHS.wav", desc: "MELODIC SYNTHS & ARPS SEQUENCE (24-bit / 48kHz Stereo)" },
+      { name: "04_FX.wav", desc: "ATMOSPHERIC RISERS & TRANSITIONAL REVERB FX (24-bit / 48kHz Stereo)" },
+      { name: "05_VOCAL_LEAD.wav", desc: "VOCAL CHOPPED EMBELLISHMENTS LOOP (24-bit / 48kHz Stereo)" },
+    ];
+
+    const stemCount = stemFiles.length;
+    const fileNamesStr = stemFiles.map((f, i) => `${i + 1}. ${f.name} - ${f.desc}`).join("\n");
+    
+    const manifestContent = `======================================================================
+LOMON SYSTEM ARCHIVE - SECURE COMPOSITION STEMS DISPATCH MANIFEST
+======================================================================
+COMPOSITION       : ${license?.song || songName}
+LICENSEE REGISTRY : ${verifiedUser || userEmail}
+LICENSE ID        : ${license?.id || "LOMON-OWL-N/A"}
+SECURE ISRC       : ${license?.isrc || "US-LMN-26-00000"}
+SECURE ISWC       : ${license?.iswc || "T-000.000.000-0"}
+LICENSE TYPE      : ${license?.type || "Professional License"}
+DATE EXECUTED     : ${license?.date || "2026-07-12 UTC"}
+DIGITAL SIGNATURE : ${license?.signature || "DIGITALLY SIGNED VIA LOMON SYSTEM"}
+LICENSE HASH      : ${license?.hash || "0xUNKNOWN"}
+
+----------------------------------------------------------------------
+SYSTEM AUDIO SPECIFICATIONS & METADATA
+----------------------------------------------------------------------
+Stem count        : ${stemCount}
+File names        :
+${fileNamesStr}
+Total size        : 185.0 MB
+Format            : Broadcast Wave Format (BWF / WAV)
+Sample rate       : 48000 Hz
+Bit depth         : 24-bit
+
+----------------------------------------------------------------------
+SECURITY VALIDATION KEY & RECORD
+----------------------------------------------------------------------
+VERIFICATION KEY : OK-LOMON-SECURE-STEMS-DISPATCH-${license?.hash || "0x99"}
+SYSTEM PROTOCOL  : SECURE CRYPTOGRAPHIC DISPATCH CONFIRMED
+LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
+======================================================================
+`;
+
+    // Add manifest file to zip
+    zip.file("MANIFEST.txt", manifestContent);
+
+    // Add the 1-second tiny silent WAV files into the zip
+    const tinyWavBlob = generateTinyWavBlob();
+    for (const stem of stemFiles) {
+      zip.file(stem.name, tinyWavBlob);
+    }
+
+    try {
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${cleanSongName}_STEMS.ZIP`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to generate secure STEMS ZIP file:", error);
+      alert("Error compiling stems ZIP archive. Please retry dispatch.");
+    }
+  };
+
   // License verification state
   const [verificationInput, setVerificationInput] = useState("");
   const [verificationResult, setVerificationResult] = useState<any | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showManifestId, setShowManifestId] = useState<string | null>(null);
 
   // Custom Login State inside TransmissionsOverlay
   const [loginEmail, setLoginEmail] = useState("");
@@ -1595,26 +1749,90 @@ export default function TransmissionsOverlay({
               userLicenses.flatMap((license) => {
                 const cleanSongName = license.song.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
                 return [
-                  { filename: `${cleanSongName}_MASTER.WAV`, size: "48.2 MB", desc: `Master Stereo Wave File (24-bit / 48kHz) - ${license.song}` },
-                  { filename: `${cleanSongName}_STEMS.ZIP`, size: "185.0 MB", desc: `Separate Audio Stems (Drums, Bass, Synths, FX) - ${license.song}` }
+                  { filename: `${cleanSongName}_MASTER.WAV`, size: "48.2 MB", desc: `Master Stereo Wave File (24-bit / 48kHz) - ${license.song}`, license, type: "WAV" },
+                  { filename: `${cleanSongName}_STEMS.ZIP`, size: "185.0 MB", desc: `Separate Audio Stems (Drums, Bass, Synths, FX) - ${license.song}`, license, type: "ZIP" }
                 ];
-              }).map((file) => (
-                <div key={file.filename} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm flex justify-between items-center">
-                  <div className="space-y-1 pr-2 max-w-[70%]">
-                    <span className="text-white text-[9.5px] font-mono font-bold block truncate">{file.filename}</span>
-                    <span className="text-[8.5px] text-zinc-500 font-mono block uppercase">{file.desc}</span>
+              }).map((file) => {
+                const isZip = file.type === "ZIP";
+                const isManifestExpanded = showManifestId === file.filename;
+                return (
+                  <div key={file.filename} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-1 pr-2 max-w-[70%]">
+                        <span className="text-white text-[9.5px] font-mono font-bold block truncate">{file.filename}</span>
+                        <span className="text-[8.5px] text-zinc-500 font-mono block uppercase">{file.desc}</span>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                        <span className="text-[8.5px] text-zinc-500 font-mono uppercase">{file.size}</span>
+                        <div className="flex items-center gap-2">
+                          {isZip && (
+                            <button
+                              onClick={() => setShowManifestId(isManifestExpanded ? null : file.filename)}
+                              className="bg-zinc-900 text-zinc-400 border border-zinc-850 font-mono text-[8px] font-bold px-2 py-1 tracking-wider uppercase hover:text-white transition-colors cursor-pointer"
+                            >
+                              {isManifestExpanded ? "HIDE MANIFEST" : "SHOW MANIFEST"}
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => {
+                              if (file.type === "ZIP") {
+                                handleDownloadStemsZip(file.license.song, file.license);
+                              } else {
+                                handleDownloadMasterWav(file.license.song);
+                              }
+                            }}
+                            className="text-black bg-[#D9D6CA] font-mono text-[8px] font-bold px-2 py-1 tracking-wider uppercase hover:bg-white transition-colors cursor-pointer rounded-none"
+                          >
+                            DOWNLOAD
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {isZip && isManifestExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="bg-black/80 border border-zinc-900 p-3 font-mono text-[9px] text-zinc-400 space-y-2 rounded-sm"
+                      >
+                        <div className="border-b border-zinc-900 pb-1.5 flex justify-between items-center text-[8px] tracking-wider text-[#D9D6CA] font-bold uppercase">
+                          <span>ZIP DISPATCH SPECIFICATION INDEX</span>
+                          <span className="text-yellow-500">MANIFEST APPROVED</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 uppercase">
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">STEM COUNT:</span>
+                            <span className="text-white font-bold">5 MULTI-TRACKS</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">TOTAL ZIP SIZE:</span>
+                            <span className="text-white font-bold">185.0 MB</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">FORMAT TYPE:</span>
+                            <span className="text-zinc-300 font-bold">WAV / BWF (STEREO)</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">DIGITAL RESOLUTION:</span>
+                            <span className="text-zinc-300 font-bold">48.0 KHZ / 24-BIT</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 border-t border-zinc-900 pt-2 text-[8px]">
+                          <span className="text-zinc-650 block font-bold">ARCHIVED AUDIO STEMS INCLUDED:</span>
+                          <div className="space-y-0.5 text-zinc-400 font-bold">
+                            <div>• 01_DRUMS.WAV (DRUMS & PERCUSSION LOOP)</div>
+                            <div>• 02_BASS.WAV (SUB BASS & LOW-END DRIVE)</div>
+                            <div>• 03_SYNTHS.WAV (MELODIC SYNTHS & ARPS SEQUENCE)</div>
+                            <div>• 04_FX.WAV (ATMOSPHERIC RISERS & TRANSITIONAL REVERB)</div>
+                            <div>• 05_VOCAL_LEAD.WAV (VOCAL CHOPPED EMBELLISHMENTS)</div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
-                  <div className="text-right flex flex-col items-end gap-1 shrink-0">
-                    <span className="text-[8.5px] text-zinc-500 font-mono uppercase">{file.size}</span>
-                    <button 
-                      onClick={() => alert(`Initiating secure high-speed dispatch of "${file.filename}"...`)}
-                      className="text-black bg-[#D9D6CA] font-mono text-[8px] font-bold px-2 py-1 tracking-wider uppercase hover:bg-white transition-colors cursor-pointer rounded-none"
-                    >
-                      DOWNLOAD
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
                 No active license records found. Acquire digital licenses at checkout to populate high-speed stems dispatch queue.

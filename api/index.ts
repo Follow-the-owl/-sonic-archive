@@ -253,15 +253,33 @@ async function initializeDatabase() {
       dbErrorDetail = "";
       useMockDb = false;
       
-      // Seed default mock licenses for seed admin email if they don't exist
+      // Seed default mock databases individually if they don't exist
       const licensesCol = db.collection("licenses");
-      const count = await licensesCol.countDocuments().catch(() => 0);
-      if (count === 0) {
+      const licensesCount = await licensesCol.countDocuments().catch(() => 0);
+      if (licensesCount === 0) {
         await licensesCol.insertMany(mockLicenses).catch(() => {});
-        await db.collection("requests").insertMany(mockRequests).catch(() => {});
-        await db.collection("payments").insertMany(mockPayments).catch(() => {});
-        await db.collection("fragments").insertMany(mockFragments).catch(() => {});
-        console.log("[DATABASE] Seeded default credentials, licenses, payments, and fragments to MongoDB collections.");
+        console.log("[DATABASE] Seeded default licenses to MongoDB.");
+      }
+
+      const requestsCol = db.collection("requests");
+      const requestsCount = await requestsCol.countDocuments().catch(() => 0);
+      if (requestsCount === 0) {
+        await requestsCol.insertMany(mockRequests).catch(() => {});
+        console.log("[DATABASE] Seeded default requests to MongoDB.");
+      }
+
+      const paymentsCol = db.collection("payments");
+      const paymentsCount = await paymentsCol.countDocuments().catch(() => 0);
+      if (paymentsCount === 0) {
+        await paymentsCol.insertMany(mockPayments).catch(() => {});
+        console.log("[DATABASE] Seeded default payments to MongoDB.");
+      }
+
+      const fragmentsCol = db.collection("fragments");
+      const fragmentsCount = await fragmentsCol.countDocuments().catch(() => 0);
+      if (fragmentsCount === 0) {
+        await fragmentsCol.insertMany(mockFragments).catch(() => {});
+        console.log("[DATABASE] Seeded default fragments to MongoDB.");
       }
     } catch (error: any) {
       const errorMsg = error?.message || String(error);

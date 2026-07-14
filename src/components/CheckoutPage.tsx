@@ -5,28 +5,7 @@ import {
   Building, CreditCard, ShieldCheck, ChevronDown, Check, Info 
 } from "lucide-react";
 import { CartItem } from "../App";
-
-// Static license terms to show when user clicks "Review License"
-const LICENSE_TEMPLATES: Record<string, { title: string; usage: string; streams: string; files: string }> = {
-  access: {
-    title: "ACCESS LICENSE (MP3 ONLY)",
-    usage: "Non-commercial/concept testing releases only. Standard mechanical usage restrictions apply.",
-    streams: "Up to 100,000 Streams",
-    files: "MP3 Download, Non-exclusive"
-  },
-  release: {
-    title: "RELEASE LICENSE (WAV + MP3)",
-    usage: "Professional independent commercial releases. Includes broadcast rights and live performance permissions.",
-    streams: "Up to 1,000,000 Streams",
-    files: "WAV Download, MP3 Download, Non-exclusive"
-  },
-  commercial: {
-    title: "COMMERCIAL LICENSE (STEMS + MASTER)",
-    usage: "Unlimited commercial campaigns, brand integrations, online promotional distribution, and synchronization rights.",
-    streams: "Unlimited Streams",
-    files: "Full WAV Stems, Uncompressed Master WAV, MP3, Non-exclusive"
-  }
-};
+import { DEFAULT_LICENSE_TEMPLATES } from "../licenses";
 
 interface CheckoutPageProps {
   cart: CartItem[];
@@ -962,28 +941,67 @@ export default function CheckoutPage({
                 </button>
               </div>
 
-              <div className="space-y-4 text-[10.5px] leading-relaxed">
-                <div>
-                  <span className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block mb-1">CONTRACT LEVEL</span>
-                  <p className="text-white font-bold uppercase">{LICENSE_TEMPLATES[reviewLicenseItem.tierId]?.title || "STANDARD UNLIMITED LICENSE"}</p>
-                </div>
+              <div className="space-y-4 text-[10.5px] leading-relaxed max-h-[350px] overflow-y-auto pr-1">
+                {(() => {
+                  const template = DEFAULT_LICENSE_TEMPLATES.find(t => t.id === reviewLicenseItem.tierId);
+                  return (
+                    <>
+                      <div>
+                        <span className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block mb-1">CONTRACT LEVEL</span>
+                        <p className="text-white font-bold uppercase">{template?.title || "CUSTOM CLEARANCE"}</p>
+                        <p className="text-zinc-400 text-[9px] font-mono italic">{template?.subtitle}</p>
+                      </div>
 
-                <div>
-                  <span className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block mb-1">CALIBRATED FILES DELIVERED</span>
-                  <p className="text-zinc-300 font-sans">{LICENSE_TEMPLATES[reviewLicenseItem.tierId]?.files || "WAV, MP3, Track Stems"}</p>
-                </div>
+                      <div className="grid grid-cols-2 gap-3 border-t border-zinc-900 pt-3">
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">FILE DELIVERY</span>
+                          <p className="text-zinc-300 font-sans">{template?.fileDelivery}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">DISTRIBUTION LIMIT</span>
+                          <p className="text-zinc-300 font-sans">{template?.distributionLimit}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">STREAMING LIMIT</span>
+                          <p className="text-zinc-300 font-sans">{template?.streamingLimit}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">VIDEO USE</span>
+                          <p className="text-zinc-300 font-sans">{template?.videoUse}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">MONETIZATION</span>
+                          <p className="text-zinc-300 font-sans">{template?.monetization}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">PERFORMANCE RIGHTS</span>
+                          <p className="text-zinc-300 font-sans">{template?.performanceRights}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">TERM & TERRITORY</span>
+                          <p className="text-zinc-300 font-sans">{template?.term} / {template?.territory}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">PUBLISHING SPLIT</span>
+                          <p className="text-zinc-300 font-sans">{template?.publishingSplit}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">MASTER OWNERSHIP</span>
+                          <p className="text-zinc-300 font-sans">{template?.masterOwnership}</p>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">EXCLUSIVITY</span>
+                          <p className="text-zinc-300 font-sans">{template?.exclusivity}</p>
+                        </div>
+                      </div>
 
-                <div>
-                  <span className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block mb-1">STREAMING/AUDIENCE RIGHTS</span>
-                  <p className="text-[#00E676] font-bold">{LICENSE_TEMPLATES[reviewLicenseItem.tierId]?.streams || "Unlimited Streams"}</p>
-                </div>
-
-                <div>
-                  <span className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block mb-1">VALIDATION TERM SUMMARY</span>
-                  <p className="text-zinc-400 font-sans font-light">
-                    {LICENSE_TEMPLATES[reviewLicenseItem.tierId]?.usage || "Professional independent mechanical release authorization. Contract validation clears all watermarks, audio tags, and master restrictions."}
-                  </p>
-                </div>
+                      <div className="border-t border-zinc-900 pt-3 flex justify-between items-center text-[8.5px] font-mono text-zinc-500">
+                        <span>CONTRACT VERSION: {template?.contractVersion}</span>
+                        <span>PRICE: ${template?.price}</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               <button

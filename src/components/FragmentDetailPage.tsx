@@ -4,6 +4,8 @@ import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, V
 import { Fragment } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
+import { getLicensesForFragment, LicenseTemplate } from "../licenses";
+
 const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782454702/Owl_2_c5ebif.png";
 const fragmentPageBackground = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
 
@@ -13,90 +15,6 @@ const waveHeights = [
   38, 26, 14, 8, 22, 34, 18, 12, 10, 6
 ];
 
-const CONTRACT_TIERS = [
-  { 
-    id: "access", 
-    title: "ACCESS LICENSE", 
-    price: "$100", 
-    subtitle: "For artists testing concepts.", 
-    includes: [
-      "MP3 Download",
-      "Non-exclusive",
-      "1 Commercial Release",
-      "Up to 100,000 Streams",
-      "1 Music Video",
-      "Live Performances Allowed"
-    ],
-    restrictions: [
-      "No Stems",
-      "No Content ID",
-      "No TV/Film",
-      "No Transfer"
-    ],
-    extraNote: "Upgrade required if limits are exceeded."
-  },
-  { 
-    id: "release", 
-    title: "RELEASE LICENSE", 
-    price: "$250", 
-    subtitle: "For professional independent releases.", 
-    includes: [
-      "WAV Download",
-      "MP3 Download",
-      "Non-exclusive",
-      "1 Commercial Release",
-      "Up to 1,000,000 Streams",
-      "2 Music Videos",
-      "Live Performances",
-      "Radio Use"
-    ],
-    restrictions: [
-      "No Content ID",
-      "No Transfer",
-      "No Sync Licensing"
-    ],
-    extraNote: ""
-  },
-  { 
-    id: "commercial", 
-    title: "COMMERCIAL LICENSE", 
-    price: "$500", 
-    subtitle: "For brands, creators, and larger campaigns.", 
-    includes: [
-      "WAV",
-      "MP3",
-      "Stems",
-      "Commercial Advertising",
-      "Online Campaigns",
-      "Unlimited Streams",
-      "Unlimited Videos"
-    ],
-    restrictions: [
-      "Non-exclusive",
-      "No Ownership Transfer"
-    ],
-    extraNote: ""
-  },
-  { 
-    id: "exclusive", 
-    title: "EXCLUSIVE ACQUISITION", 
-    price: "Starting at $2,500", 
-    subtitle: "Exclusive rights and beat removal.", 
-    includes: [
-      "Exclusive Rights",
-      "Beat Removed From Archive",
-      "WAV",
-      "MP3",
-      "Stems",
-      "Commercial Exploitation Rights",
-      "Unlimited Streams",
-      "Unlimited Videos"
-    ],
-    restrictions: [],
-    extraNote: "Ownership of composition and publishing does not automatically transfer. Separate negotiation required."
-  }
-] as const;
-
 interface FragmentDetailPageProps {
   fragment: Fragment;
   onBack: () => void;
@@ -104,6 +22,7 @@ interface FragmentDetailPageProps {
 }
 
 export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: FragmentDetailPageProps) {
+  const CONTRACT_TIERS = getLicensesForFragment(fragment);
   const [isPlayingBeat, setIsPlayingBeat] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showLicensePanel, setShowLicensePanel] = useState(false);
@@ -112,7 +31,9 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     "access": false,
     "release": false,
     "commercial": false,
-    "exclusive": false
+    "exclusive": false,
+    "sync": false,
+    "clearance": false
   });
   const [licenseSuccess, setLicenseSuccess] = useState(false);
   const [clientEmail, setClientEmail] = useState("evianaconcepts1@gmail.com");
@@ -900,14 +821,14 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                               <button
                                 onClick={() => {
                                   if (onAddToCart) {
-                                    onAddToCart(fragment, tier.id, tier.title, tier.price);
+                                    onAddToCart(fragment, tier.id, tier.title, `$${tier.price}`);
                                   }
                                   setShowLicensePanel(false);
                                 }}
                                 className="bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-4 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0"
                               >
                                 <ShoppingBag size={10} className="fill-current text-current" />
-                                <span>+ {tier.price}</span>
+                                <span>+ ${tier.price}</span>
                               </button>
                             </div>
 
@@ -936,41 +857,57 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                     transition={{ duration: 0.2 }}
                                     className="overflow-hidden"
                                   >
-                                    <div className="mt-4 pl-3 border-l border-[#D9D6CA]/35 space-y-3.5 py-0.5">
-                                      {/* Includes */}
-                                      {tier.includes.length > 0 && (
-                                        <div className="space-y-1">
-                                          <span className="text-[#D9D6CA] text-[8px] font-mono font-bold tracking-widest block uppercase">
-                                            INCLUDES:
-                                          </span>
-                                          <ul className="text-zinc-300 text-[10px] font-mono space-y-1 pl-1 list-disc list-inside">
-                                            {tier.includes.map((inc, i) => (
-                                              <li key={i}>{inc}</li>
-                                            ))}
-                                          </ul>
+                                    <div className="mt-4 pl-3 border-l border-[#D9D6CA]/35 py-1 text-[10px] font-mono text-zinc-300">
+                                      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">File Delivery</span>
+                                          <span className="text-zinc-200">{tier.fileDelivery}</span>
                                         </div>
-                                      )}
-
-                                      {/* Restrictions */}
-                                      {tier.restrictions.length > 0 && (
-                                        <div className="space-y-1">
-                                          <span className="text-red-500/80 text-[8px] font-mono font-bold tracking-widest block uppercase">
-                                            RESTRICTIONS:
-                                          </span>
-                                          <ul className="text-zinc-400 text-[10px] font-mono space-y-1 pl-1 list-disc list-inside">
-                                            {tier.restrictions.map((rest, i) => (
-                                              <li key={i} className="text-zinc-400/90">{rest}</li>
-                                            ))}
-                                          </ul>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Distribution Limit</span>
+                                          <span className="text-zinc-200">{tier.distributionLimit}</span>
                                         </div>
-                                      )}
-
-                                      {/* Extra Note */}
-                                      {tier.extraNote && (
-                                        <p className="text-[10px] text-zinc-500 font-sans italic leading-relaxed">
-                                          {tier.extraNote}
-                                        </p>
-                                      )}
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Streaming Limit</span>
+                                          <span className="text-zinc-200">{tier.streamingLimit}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Video Use</span>
+                                          <span className="text-zinc-200">{tier.videoUse}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Monetization</span>
+                                          <span className="text-zinc-200">{tier.monetization}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Performance Rights</span>
+                                          <span className="text-zinc-200">{tier.performanceRights}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Term</span>
+                                          <span className="text-zinc-200">{tier.term}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Territory</span>
+                                          <span className="text-zinc-200">{tier.territory}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Publishing Split</span>
+                                          <span className="text-zinc-200">{tier.publishingSplit}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Master Ownership</span>
+                                          <span className="text-zinc-200">{tier.masterOwnership}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Exclusivity</span>
+                                          <span className="text-zinc-200">{tier.exclusivity}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Contract Version</span>
+                                          <span className="text-zinc-200">{tier.contractVersion}</span>
+                                        </div>
+                                      </div>
                                     </div>
                                   </motion.div>
                                 )}
@@ -1028,7 +965,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                               CONTRACT DEED // TIER SELECTED
                             </span>
                             <div className="text-white text-xs font-bold tracking-wide">
-                              {getTierDetails(selectedTier).title.toUpperCase()} — {getTierDetails(selectedTier).price}
+                              {getTierDetails(selectedTier).title.toUpperCase()} — ${getTierDetails(selectedTier).price}
                             </div>
                           </div>
 

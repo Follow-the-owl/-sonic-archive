@@ -10,6 +10,13 @@ export interface Fragment {
   frequency: number; // For synth generation
   synthType: "drone" | "keys" | "bell" | "noise" | "pulse";
   bpm: number;
+  licenseOverrides?: {
+    [templateId: string]: {
+      enabled?: boolean;
+      priceOverride?: number;
+      overrides?: Partial<Record<string, any>>;
+    };
+  };
 }
 
 export interface JournalEntry {
@@ -68,7 +75,15 @@ export const FRAGMENTS: Fragment[] = [
     isExclusive: false,
     frequency: 110, // A2 (deep drone)
     synthType: "drone",
-    bpm: 78
+    bpm: 78,
+    licenseOverrides: {
+      access: {
+        priceOverride: 75,
+        overrides: {
+          subtitle: "PROMO RATE: For testing deep concepts."
+        }
+      }
+    }
   },
   {
     id: "07:46",
@@ -81,7 +96,19 @@ export const FRAGMENTS: Fragment[] = [
     isExclusive: true,
     frequency: 329.63, // E4
     synthType: "pulse",
-    bpm: 160
+    bpm: 160,
+    licenseOverrides: {
+      access: { enabled: false },
+      release: { enabled: false },
+      commercial: { enabled: false },
+      sync: { enabled: false },
+      exclusive: {
+        priceOverride: 3200,
+        overrides: {
+          subtitle: "PREMIUM BANDIT EXCLUSIVE ACQUISITION"
+        }
+      }
+    }
   },
   {
     id: "02:17",
