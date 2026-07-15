@@ -298,6 +298,9 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     return [];
   });
 
+  const [newDocName, setNewDocName] = useState("");
+  const [newDocVersion, setNewDocVersion] = useState("1.0");
+
   const [formLicensing, setFormLicensing] = useState<Record<string, { enabled: boolean; price: number; overrides?: Partial<LicenseTemplate> }>>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("lomon_wizard_formLicensing");
@@ -1961,9 +1964,6 @@ Proceed with soft deletion?`)) {
                   </div>
                 )}                {/* STEP 5: DOCUMENTS */}
                 {currentStep === 5 && (() => {
-                  const [newDocName, setNewDocName] = useState("");
-                  const [newDocVersion, setNewDocVersion] = useState("1.0");
-
                   const handleAddDocument = (name: string, ver: string) => {
                     const trimmedName = name.trim();
                     if (!trimmedName) return;

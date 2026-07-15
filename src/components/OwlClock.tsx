@@ -716,16 +716,22 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         </div>
 
         {/* Beautiful full-bleed, organic Owl image and elegant writeup grouped to keep them tight on mobile */}
-        <div className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2">
+        <div 
+          onClick={handleOwlCall}
+          className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 cursor-pointer"
+        >
           <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative">
             <motion.div 
-              className="w-full aspect-[16/10] relative overflow-hidden cursor-pointer bg-black group flex items-center justify-center"
+              className="w-full aspect-[16/10] relative overflow-hidden bg-black group flex items-center justify-center"
               style={{
                 rotateX,
                 rotateY,
                 perspective: 1200
               }}
-              onClick={handleOwlCall}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOwlCall();
+              }}
             >
               <motion.img
                 src={owlBgImage}
