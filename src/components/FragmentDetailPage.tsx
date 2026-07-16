@@ -112,6 +112,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   const humOscRef = useRef<OscillatorNode | null>(null);
   const humGainRef = useRef<GainNode | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
 
   // Canvas visualizer reference
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -186,7 +187,9 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       if (!ctx || !analyser) return;
 
       const step = stepTrackerRef.current % 8;
-      triggerBeatStep(ctx, analyser, step);
+      if (!fragment.mp3Preview) {
+        triggerBeatStep(ctx, analyser, step);
+      }
       setCurrentStep(step);
       stepTrackerRef.current += 1;
     }, stepTimeMs);
@@ -197,7 +200,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
         beatIntervalRef.current = null;
       }
     };
-  }, [bpm, isPlayingBeat]);
+  }, [bpm, isPlayingBeat, fragment.mp3Preview]);
 
   const startBeatPlay = () => {
     try {
@@ -237,9 +240,26 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       // Start the interactive visualization loop
       startWaveformRender();
 
-      // Background drone hum
-      if (!humOscRef.current) {
-        startConsoleHum(ctx, analyserRef.current);
+      // MP3 audio playback if preview URL exists
+      if (fragment.mp3Preview) {
+        if (!audioElRef.current) {
+          const audioEl = new Audio(fragment.mp3Preview);
+          audioEl.crossOrigin = "anonymous";
+          audioEl.loop = true;
+          
+          const source = ctx.createMediaElementSource(audioEl);
+          source.connect(analyserRef.current);
+          audioElRef.current = audioEl;
+        }
+        
+        audioElRef.current.play().catch(e => {
+          console.error("Error playing detail page MP3 preview:", e);
+        });
+      } else {
+        // Background drone hum
+        if (!humOscRef.current) {
+          startConsoleHum(ctx, analyserRef.current);
+        }
       }
 
     } catch (e) {
@@ -253,6 +273,12 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     if (beatIntervalRef.current) {
       clearInterval(beatIntervalRef.current);
       beatIntervalRef.current = null;
+    }
+
+    if (audioElRef.current) {
+      try {
+        audioElRef.current.pause();
+      } catch (e) {}
     }
 
     // Stop background drone hum nodes so it is silent when paused
@@ -289,6 +315,13 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     }
     humGainRef.current = null;
 
+    if (audioElRef.current) {
+      try {
+        audioElRef.current.pause();
+        audioElRef.current.currentTime = 0;
+      } catch (e) {}
+    }
+
     // 4. Close context to free systemic sound pipelines and clear visualizer analyzer values
     if (audioCtxRef.current) {
       try {
@@ -296,15 +329,18 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           audioCtxRef.current = null;
           analyserRef.current = null;
           masterGainRef.current = null;
+          audioElRef.current = null;
         });
       } catch (e) {
         audioCtxRef.current = null;
         analyserRef.current = null;
         masterGainRef.current = null;
+        audioElRef.current = null;
       }
     } else {
       analyserRef.current = null;
       masterGainRef.current = null;
+      audioElRef.current = null;
     }
 
     setCurrentStep(0);

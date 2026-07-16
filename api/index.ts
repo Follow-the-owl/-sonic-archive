@@ -206,6 +206,10 @@ interface Fragment {
   artwork?: string;
   mp3Preview?: string;
   wavMaster?: string;
+  tonalSignature?: string;
+  recoveryState?: string;
+  fullRecoveryDate?: string;
+  archivist?: string;
 }
 
 const mockFragments: Fragment[] = [
@@ -215,6 +219,7 @@ const mockFragments: Fragment[] = [
   { id: "05:58", name: "TORE UP", timestamp: "05:58 AM", classification: "SUNRISE SIREN", observation: "Triggered as eastern sky changed.", duration: "7:20", description: "Evolving majestic low-bass drone.", isExclusive: false, frequency: 146.83, synthType: "pulse", bpm: 128, status: "Published", plays: 1980, revenue: 50 },
   { id: "03:33", name: "OCTANE", timestamp: "03:33 AM", classification: "WATCH CORE", observation: "Low frequency exhaust vibrations.", duration: "5:45", description: "High-energy industrial trap.", isExclusive: false, frequency: 220, synthType: "bell", bpm: 140, status: "Published", plays: 2100, revenue: 300 },
   { id: "10:14", name: "GLOCK", timestamp: "10:14 PM", classification: "RESTLESS COID", observation: "Dynamic chamber echoes.", duration: "4:32", description: "Dark ambient sub-harmonic landscape.", isExclusive: false, frequency: 98.0, synthType: "drone", bpm: 120, status: "Draft", plays: 450, revenue: 0 },
+  { id: "10:00", name: "LOMON RECOVERY", timestamp: "10:00 PM", classification: "RECOVERY STATE", observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.", duration: "6:15", description: "A majestic, fully recovered 10:00 PM transmission carrying a pure E♭ Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.", isExclusive: false, frequency: 311.13, synthType: "keys", bpm: 100, status: "Published", plays: 1200, revenue: 200, tonalSignature: "E♭ Major", recoveryState: "Fully Recovered", fullRecoveryDate: "2025.07.14", archivist: "Lomon", mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3" },
   { id: "11:28", name: "HARDSTONE NATIONAL", timestamp: "11:28 PM", classification: "CHRONO ANTHEM", observation: "Simultaneous signal broadcasted.", duration: "5:00", description: "Heavy majestic ambient motorcycle synth.", isExclusive: true, frequency: 196.0, synthType: "drone", bpm: 120, status: "Draft", plays: 320, revenue: 0 },
   { id: "11:59", name: "LAST LAUGH", timestamp: "11:59 PM", classification: "DEVIANT KEYS", observation: "Recorded during electrical blackout.", duration: "8:11", description: "Decaying celestial chord sequence.", isExclusive: true, frequency: 440, synthType: "keys", bpm: 105, status: "Draft", plays: 100, revenue: 750 }
 ];

@@ -622,7 +622,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   });
 
   const exactActualFrag = exactClockFragment
-    ? (fragments.find(f => f.id === exactClockFragment.mappedId) || null)
+    ? (fragments.find(f => f.id === exactClockFragment.mappedId) || FRAGMENTS.find(f => f.id === exactClockFragment.mappedId) || null)
     : null;
 
   const handleImmediateCheck = () => {

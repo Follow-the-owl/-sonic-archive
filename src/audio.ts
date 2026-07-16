@@ -1,4 +1,5 @@
 // Web Audio API Cinematic Synthesizer Engine for UNKNOWN
+import { FRAGMENTS } from "./data";
 
 let audioCtx: AudioContext | null = null;
 let currentNodes: {
@@ -6,6 +7,7 @@ let currentNodes: {
   gainNodes: GainNode[];
   filterNode?: BiquadFilterNode;
   delayNode?: DelayNode;
+  audioElement?: HTMLAudioElement;
 } | null = null;
 
 let lfoOsc: OscillatorNode | null = null;
@@ -101,6 +103,12 @@ export function stopAudio() {
         try { lfoOsc.stop(); } catch (e) {}
         lfoOsc = null;
       }
+      if (localNodes.audioElement) {
+        try {
+          localNodes.audioElement.pause();
+          localNodes.audioElement.remove();
+        } catch (e) {}
+      }
     }, fadeOutTime * 1000 + 50);
   }
   activeId = null;
@@ -131,6 +139,40 @@ export function playFragment(
   stopAudio();
 
   const now = audioCtx.currentTime;
+
+  const fragment = FRAGMENTS.find(f => f.id === id);
+  if (fragment && fragment.mp3Preview) {
+    try {
+      const audioEl = new Audio(fragment.mp3Preview);
+      audioEl.crossOrigin = "anonymous";
+      audioEl.loop = true;
+
+      const source = audioCtx.createMediaElementSource(audioEl);
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0.001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.6, now + 0.5);
+
+      source.connect(gainNode);
+      gainNode.connect(masterGain);
+
+      currentNodes = {
+        oscillators: [],
+        gainNodes: [gainNode],
+        audioElement: audioEl
+      };
+
+      audioEl.play().catch(e => {
+        console.error("Error playing MP3 preview:", e);
+      });
+
+      activeId = id;
+      if (activeCallback) activeCallback(true, id);
+      return;
+    } catch (e) {
+      console.error("Failed to set up MP3 playback source. Falling back to synth.", e);
+    }
+  }
+
   const oscillators: OscillatorNode[] = [];
   const gainNodes: GainNode[] = [];
 

@@ -21,6 +21,7 @@ export interface Fragment {
   recoveryState?: string;
   fullRecoveryDate?: string;
   archivist?: string;
+  mp3Preview?: string;
 }
 
 export interface JournalEntry {
@@ -225,7 +226,8 @@ export const FRAGMENTS: Fragment[] = [
     tonalSignature: "E♭ Major",
     recoveryState: "Fully Recovered",
     fullRecoveryDate: "2025.07.14",
-    archivist: "Lomon"
+    archivist: "Lomon",
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3"
   }
 ];
 
