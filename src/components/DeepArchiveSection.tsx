@@ -90,7 +90,7 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
 
             {/* Interactive hour hot-points */}
             {CLOCK_MEANINGS.map((entry, idx) => {
-              const angles = [0, 60, 120, 200, 290]; // Distributed around clock rim
+              const angles = [0, 60, 120, 180, 240, 300]; // Distributed around clock rim for 6 items
               const angle = angles[idx % angles.length];
               const isSelected = activeClockHour === entry.hour;
 

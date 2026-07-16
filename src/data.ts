@@ -17,6 +17,10 @@ export interface Fragment {
       overrides?: Partial<Record<string, any>>;
     };
   };
+  tonalSignature?: string;
+  recoveryState?: string;
+  fullRecoveryDate?: string;
+  archivist?: string;
 }
 
 export interface JournalEntry {
@@ -55,6 +59,11 @@ export const CLOCK_MEANINGS = [
     hour: "05:58",
     name: "TORE UP BEFORE DAWN",
     description: "Evolving synthesizer siren pads layered with cold 05:58 AM sunrise drone elements.",
+  },
+  {
+    hour: "10:00",
+    name: "LOMON RECOVERY",
+    description: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered. Full Recovery: 2025.07.14. Archivist: Lomon.",
   },
   {
     hour: "11:11",
@@ -200,6 +209,23 @@ export const FRAGMENTS: Fragment[] = [
     frequency: 164.81, // E3
     synthType: "noise",
     bpm: 85
+  },
+  {
+    id: "10:00",
+    name: "LOMON RECOVERY",
+    timestamp: "10:00 PM",
+    classification: "RECOVERY STATE",
+    observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.",
+    duration: "6:15",
+    description: "A majestic, fully recovered 10:00 PM transmission carrying a pure E♭ Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.",
+    isExclusive: false,
+    frequency: 311.13, // E♭4
+    synthType: "keys",
+    bpm: 100,
+    tonalSignature: "E♭ Major",
+    recoveryState: "Fully Recovered",
+    fullRecoveryDate: "2025.07.14",
+    archivist: "Lomon"
   }
 ];
 
@@ -213,7 +239,8 @@ export const ARCHIVE_CATEGORIES = [
   "SHADOW HARMONY",
   "RESTLESS COID",
   "DEVIANT KEYS",
-  "CHRONO ANTHEM"
+  "CHRONO ANTHEM",
+  "RECOVERY STATE"
 ];
 
 export const JOURNAL_ENTRIES: JournalEntry[] = [

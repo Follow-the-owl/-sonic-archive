@@ -23,6 +23,14 @@ interface OwlClockProps {
 
 const CLOCK_FRAGMENTS: ClockFragment[] = [
   {
+    id: "frag-10",
+    label: "FRAGMENT 10:00 PM",
+    mappedId: "10:00",
+    synthType: "keys",
+    frequency: 311.13,
+    description: "Lomon Recovery. Pure E♭ Major harmonic pulse, compiled and certified under Archivist Lomon's protocols."
+  },
+  {
     id: "frag-1",
     label: "FRAGMENT 00:50 AM",
     mappedId: "00:50",
@@ -356,11 +364,11 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   ] as const;
 
   // Scroll wheel states
-  const [pickedHour, setPickedHour] = useState<number | null>(null);
-  const [pickedMinute, setPickedMinute] = useState<number | null>(null);
-  const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(null);
+  const [pickedHour, setPickedHour] = useState<number | null>(10);
+  const [pickedMinute, setPickedMinute] = useState<number | null>(0);
+  const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>("PM");
   const [isManual, setIsManual] = useState<boolean>(false);
-  const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("idle");
+  const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("available");
 
   const handleAcquireLicense = (e: React.FormEvent) => {
     e.preventDefault();
@@ -383,7 +391,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     return () => clearInterval(timer);
   }, []);
 
-  // Sync picked values with current active signal or real time if user hasn't gone manual
+  // Sync picked values with current active signal or default to 10:00 PM if user hasn't gone manual
   useEffect(() => {
     if (activePlayId) {
       const activeFrag = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
@@ -399,14 +407,13 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
         setCalibrationState("available");
       }
     } else if (!isManual) {
-      let h = currentTime.getHours();
-      const am = h >= 12 ? "PM" : "AM";
-      h = h % 12;
-      setPickedHour(h);
-      setPickedMinute(currentTime.getMinutes());
-      setPickedAMPM(am);
+      // Overridden previous logic to let 10:00 PM be the first initial available fragment rather than current time
+      setPickedHour(10);
+      setPickedMinute(0);
+      setPickedAMPM("PM");
+      setCalibrationState("available");
     }
-  }, [activePlayId, currentTime, isManual]);
+  }, [activePlayId, isManual]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -521,10 +528,33 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
 
   const activeFragment = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
 
+  // Parse active fragment timestamp if available
+  let activeFragH = 2;
+  let activeFragM = 17;
+  let activeFragAMPM: "AM" | "PM" = "AM";
+  if (activeFragment) {
+    const matched = FRAGMENTS.find(f => f.id === activeFragment.mappedId);
+    if (matched && matched.timestamp) {
+      const timeParts = matched.timestamp.split(" ");
+      if (timeParts.length === 2) {
+        const hhmm = timeParts[0].split(":");
+        if (hhmm.length === 2) {
+          const h12 = parseInt(hhmm[0], 10);
+          const m = parseInt(hhmm[1], 10);
+          if (!isNaN(h12) && !isNaN(m)) {
+            activeFragH = h12 % 12;
+            activeFragM = m;
+            activeFragAMPM = timeParts[1].toUpperCase() === "PM" ? "PM" : "AM";
+          }
+        }
+      }
+    }
+  }
+
   // Dynamic variables for Clock Wheel Selector Card
-  const displayHour = pickedHour !== null ? pickedHour : (activeFragment ? 2 : currentTime.getHours() % 12);
-  const displayMinute = pickedMinute !== null ? pickedMinute : (activeFragment ? 17 : currentTime.getMinutes());
-  const displayAMPM = pickedAMPM !== null ? pickedAMPM : (activeFragment ? "AM" : (currentTime.getHours() >= 12 ? "PM" : "AM"));
+  const displayHour = pickedHour !== null ? pickedHour : (activeFragment ? activeFragH : currentTime.getHours() % 12);
+  const displayMinute = pickedMinute !== null ? pickedMinute : (activeFragment ? activeFragM : currentTime.getMinutes());
+  const displayAMPM = pickedAMPM !== null ? pickedAMPM : (activeFragment ? activeFragAMPM : (currentTime.getHours() >= 12 ? "PM" : "AM"));
 
   const prevHour = displayHour === 0 ? 11 : displayHour - 1;
   const prevMinute = displayMinute === 0 ? 59 : displayMinute - 1;
@@ -586,8 +616,9 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     const [timeStr, ampmStr] = cleaned.split(" ");
     const [hStr, mStr] = timeStr.split(":");
     let itemH = parseInt(hStr, 10) % 12;
+    let itemM = parseInt(mStr, 10);
     const itemAMPM = (ampmStr || "AM") as "AM" | "PM";
-    return itemH === displayHour && itemAMPM === displayAMPM;
+    return itemH === displayHour && itemM === displayMinute && itemAMPM === displayAMPM;
   });
 
   const exactActualFrag = exactClockFragment
@@ -629,8 +660,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     }
   };
 
-  const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[2]; // fallback to 02:17 AM
-  const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS[2];
+  const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[0]; // fallback to 10:00 PM
+  const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS.find(f => f.id === "10:00") || FRAGMENTS[0];
   const formattedTitle = matchedFrag.name.toUpperCase();
   const isPlayingBeat = !!activePlayId;
 
@@ -667,7 +698,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               value={displayHour}
               options={Array.from({ length: 12 }, (_, i) => i)}
               onChange={(h) => handleHourClick(h)}
-              format={fmt}
+              format={(h) => fmt(h === 0 ? 12 : h)}
               loop={true}
             />
 

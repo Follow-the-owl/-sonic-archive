@@ -707,6 +707,34 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             </div>
           </div>
 
+          {/* HIGH-FIDELITY DETAILED TEMPORAL METADATA GRID */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px w-full border border-zinc-900 bg-zinc-900 rounded-sm overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.3)] font-mono text-[9px] sm:text-[10px] tracking-wider mt-4">
+            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">TONAL SIGNATURE</span>
+              <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+                {fragment.tonalSignature || "CHROMATIC MINOR"}
+              </span>
+            </div>
+            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">PULSE (TEMPO)</span>
+              <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+                {fragment.bpm || 110} BPM
+              </span>
+            </div>
+            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
+              <span className={`font-semibold tracking-widest uppercase truncate ${fragment.recoveryState ? "text-emerald-400" : "text-zinc-400"}`}>
+                {fragment.recoveryState || "FULLY RECOVERED"}
+              </span>
+            </div>
+            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST CO-SIGN</span>
+              <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+                {fragment.archivist || "LOMON SYSTEM"}
+              </span>
+            </div>
+          </div>
+
           {/* METADATA GRID SECTION (No Recovered Artist, Full Width Request Clearance) */}
           <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] !mt-24 sm:!mt-4">
             {/* Request Clearance Button */}
