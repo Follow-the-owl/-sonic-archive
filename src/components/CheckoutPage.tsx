@@ -18,6 +18,7 @@ interface CheckoutPageProps {
   onLoginSuccess: (email: string, token: string) => void;
   initialStep?: "cart" | "auth" | "billing" | "paystack" | "success";
   emailPreviewUrl?: string;
+  onOpenTerms?: () => void;
 }
 
 type CheckoutStep = "cart" | "auth" | "billing" | "paystack" | "success";
@@ -32,13 +33,18 @@ export default function CheckoutPage({
   authToken,
   onLoginSuccess,
   initialStep = "cart",
-  emailPreviewUrl = ""
+  emailPreviewUrl = "",
+  onOpenTerms
 }: CheckoutPageProps) {
   const [step, setStep] = useState<CheckoutStep>(initialStep);
   const [couponChecked, setCouponChecked] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
+
+  // Terms agreement state (MUST NOT be preselected)
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [termsError, setTermsError] = useState("");
 
   // Authentication states
   const [isSigningUp, setIsSigningUp] = useState(false);
@@ -138,6 +144,11 @@ export default function CheckoutPage({
       alert("Please fill in all required fields.");
       return;
     }
+    if (!agreedToTerms) {
+      setTermsError("You must read and agree to the Terms of Use and License Agreement before completing your purchase.");
+      return;
+    }
+    setTermsError("");
     setStep("paystack");
   };
 
@@ -786,6 +797,39 @@ export default function CheckoutPage({
                 </div>
               </div>
 
+              {/* Terms agreement checkbox (MUST NOT be preselected) */}
+              {(step === "cart" || step === "billing") && (
+                <div className="space-y-2 pt-1 border-t border-zinc-900">
+                  <label className="flex items-start gap-2.5 cursor-pointer group select-none text-left">
+                    <input 
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={(e) => {
+                        setAgreedToTerms(e.target.checked);
+                        if (e.target.checked) setTermsError("");
+                      }}
+                      className="w-4 h-4 rounded-[3px] border border-zinc-700 bg-neutral-950 accent-[#D9D6CA] cursor-pointer mt-0.5 shrink-0"
+                    />
+                    <span className="text-[11px] leading-snug text-zinc-300 group-hover:text-white transition-colors font-sans">
+                      I have read and agree to the{" "}
+                      <button 
+                        type="button" 
+                        onClick={onOpenTerms} 
+                        className="underline text-[#D6C291] hover:text-white font-semibold cursor-pointer bg-transparent border-0 p-0 inline font-sans"
+                      >
+                        Terms of Use
+                      </button>{" "}
+                      and the applicable License Agreement.
+                    </span>
+                  </label>
+                  {termsError && (
+                    <div className="text-[10.5px] text-red-400 font-mono uppercase bg-red-950/40 border border-red-900/60 p-2.5 rounded-[3px] text-center leading-tight">
+                      {termsError}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Dynamic button & disclaimer based on current step */}
               <div className="space-y-5 font-sans">
                 {step === "cart" && (
@@ -795,6 +839,11 @@ export default function CheckoutPage({
                         alert("Your media bag is empty.");
                         return;
                       }
+                      if (!agreedToTerms) {
+                        setTermsError("You must read and agree to the Terms of Use and License Agreement before proceeding.");
+                        return;
+                      }
+                      setTermsError("");
                       if (isLoggedIn) {
                         setStep("billing");
                       } else {

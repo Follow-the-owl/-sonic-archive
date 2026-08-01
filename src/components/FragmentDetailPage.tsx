@@ -806,7 +806,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
               {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-900 px-6 py-5 bg-[#050505]">
                 <h3 className="text-sm sm:text-base font-mono font-bold tracking-[0.15em] text-[#D9D6CA] uppercase">
-                  Choose contract type
+                  CHOOSE CLEARANCE TYPE
                 </h3>
                 <button
                   onClick={() => {
@@ -885,14 +885,15 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                               <button
                                 onClick={() => {
                                   if (onAddToCart) {
-                                    onAddToCart(fragment, tier.id, tier.title, `$${tier.price}`);
+                                    const displayPrice = tier.priceDisplay || (tier.price ? `$${tier.price}` : "CUSTOM");
+                                    onAddToCart(fragment, tier.id, tier.title, displayPrice);
                                   }
                                   setShowLicensePanel(false);
                                 }}
-                                className="bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-4 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0"
+                                className="bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-3.5 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0 uppercase"
                               >
                                 <ShoppingBag size={10} className="fill-current text-current" />
-                                <span>+ ${tier.price}</span>
+                                <span>{tier.priceDisplay || `$${tier.price}`}</span>
                               </button>
                             </div>
 
@@ -921,56 +922,93 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                     transition={{ duration: 0.2 }}
                                     className="overflow-hidden"
                                   >
-                                    <div className="mt-4 pl-3 border-l border-[#D9D6CA]/35 py-1 text-[10px] font-mono text-zinc-300">
-                                      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                    <div className="mt-4 pl-3 border-l border-[#D9D6CA]/35 py-1 text-[10px] font-mono text-zinc-300 space-y-4">
+                                      {tier.usageTerms && tier.usageTerms.length > 0 && (
                                         <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">File Delivery</span>
-                                          <span className="text-zinc-200">{tier.fileDelivery}</span>
+                                          <span className="text-[#D9D6CA] text-[8.5px] uppercase tracking-wider block font-bold mb-1.5">
+                                            Usage Terms
+                                          </span>
+                                          <ul className="list-disc pl-4 space-y-1 text-zinc-300 text-[10px]">
+                                            {tier.usageTerms.map((term, idx) => (
+                                              <li key={idx}>{term}</li>
+                                            ))}
+                                          </ul>
                                         </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Distribution Limit</span>
-                                          <span className="text-zinc-200">{tier.distributionLimit}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Streaming Limit</span>
-                                          <span className="text-zinc-200">{tier.streamingLimit}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Video Use</span>
-                                          <span className="text-zinc-200">{tier.videoUse}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Monetization</span>
-                                          <span className="text-zinc-200">{tier.monetization}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Performance Rights</span>
-                                          <span className="text-zinc-200">{tier.performanceRights}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Term</span>
-                                          <span className="text-zinc-200">{tier.term}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Territory</span>
-                                          <span className="text-zinc-200">{tier.territory}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Publishing Split</span>
-                                          <span className="text-zinc-200">{tier.publishingSplit}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Master Ownership</span>
-                                          <span className="text-zinc-200">{tier.masterOwnership}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Exclusivity</span>
-                                          <span className="text-zinc-200">{tier.exclusivity}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Contract Version</span>
-                                          <span className="text-zinc-200">{tier.contractVersion}</span>
-                                        </div>
+                                      )}
+
+                                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 border-t border-zinc-900/60">
+                                        {tier.fileDelivery && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">File Delivery</span>
+                                            <span className="text-zinc-200">{tier.fileDelivery}</span>
+                                          </div>
+                                        )}
+                                        {tier.distributionLimit && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Distribution Limit</span>
+                                            <span className="text-zinc-200">{tier.distributionLimit}</span>
+                                          </div>
+                                        )}
+                                        {tier.streamingLimit && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Streaming Limit</span>
+                                            <span className="text-zinc-200">{tier.streamingLimit}</span>
+                                          </div>
+                                        )}
+                                        {tier.videoUse && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Video Use</span>
+                                            <span className="text-zinc-200">{tier.videoUse}</span>
+                                          </div>
+                                        )}
+                                        {tier.monetization && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Monetization</span>
+                                            <span className="text-zinc-200">{tier.monetization}</span>
+                                          </div>
+                                        )}
+                                        {tier.performanceRights && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Performance Rights</span>
+                                            <span className="text-zinc-200">{tier.performanceRights}</span>
+                                          </div>
+                                        )}
+                                        {tier.term && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Term</span>
+                                            <span className="text-zinc-200">{tier.term}</span>
+                                          </div>
+                                        )}
+                                        {tier.territory && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Territory</span>
+                                            <span className="text-zinc-200">{tier.territory}</span>
+                                          </div>
+                                        )}
+                                        {tier.publishingSplit && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Publishing Split</span>
+                                            <span className="text-zinc-200">{tier.publishingSplit}</span>
+                                          </div>
+                                        )}
+                                        {tier.masterOwnership && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Master Ownership</span>
+                                            <span className="text-zinc-200">{tier.masterOwnership}</span>
+                                          </div>
+                                        )}
+                                        {tier.exclusivity && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Exclusivity</span>
+                                            <span className="text-zinc-200">{tier.exclusivity}</span>
+                                          </div>
+                                        )}
+                                        {tier.contractVersion && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Contract Version</span>
+                                            <span className="text-zinc-200">{tier.contractVersion}</span>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   </motion.div>

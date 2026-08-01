@@ -21,6 +21,7 @@ interface TransmissionsOverlayProps {
   userRequests?: any[];
   userEmailLogs?: any[];
   onRefreshData?: () => void;
+  onOpenTerms?: () => void;
 }
 
 export default function TransmissionsOverlay({
@@ -36,7 +37,8 @@ export default function TransmissionsOverlay({
   userLicenses = [],
   userRequests = [],
   userEmailLogs = [],
-  onRefreshData
+  onRefreshData,
+  onOpenTerms
 }: TransmissionsOverlayProps) {
   // Audio WAV and Stems ZIP Generator Helpers
   const generateTinyWavBlob = () => {
@@ -245,6 +247,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
   const [clearanceStep, setClearanceStep] = useState<"choose" | "review" | "approval" | "final">("choose");
   const [selectedContractType, setSelectedContractType] = useState<string | null>(null);
   const [contractSignature, setContractSignature] = useState("");
+  const [clearanceAgreedToTerms, setClearanceAgreedToTerms] = useState(false);
 
   // Publishing form state
   const [isPublishingSubmitting, setIsPublishingSubmitting] = useState(false);
@@ -953,11 +956,12 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
     // ----------------------------------------------------
     if (slug === "request-clearance") {
       const contractTypes = [
-        { id: "Access", name: "Access License Agreement", desc: "Non-commercial evaluation, private streaming, and architectural study." },
-        { id: "Release", name: "Release License Agreement", desc: "Indie release rights, streaming distribution up to 50,000 plays." },
-        { id: "Commercial", name: "Commercial License Agreement", desc: "Global DSP distribution, broadcast rights, unlimited streaming." },
-        { id: "Exclusive", name: "Exclusive Acquisition Agreement", desc: "Full buyout, complete ownership transfer, catalog removal." },
-        { id: "Sync", name: "Sync License Agreement", desc: "Master synchronization rights for films, games, series, and advertising." }
+        { id: "Access", name: "Archive Access License", price: "$150", desc: "For songwriting, demos, rehearsals, and private creative development." },
+        { id: "Release", name: "Commercial Release License", price: "$500", desc: "For approved commercial releases on digital music platforms." },
+        { id: "Commercial", name: "Commercial Exploitation License", price: "$1,000", desc: "For professional releases, monetized content, live performance, and promotional use." },
+        { id: "Sync", name: "Synchronization & Master License", price: "CUSTOM PROPOSAL", desc: "For film, television, advertising, brand campaigns, games, and broadcast media." },
+        { id: "Exclusive", name: "Exclusive Archive Acquisition", price: "$5,000", desc: "For exclusive control and permanent removal from future public licensing." },
+        { id: "Collaboration", name: "Producer Collaboration", price: "REVIEW", desc: "Selected projects may qualify for collaboration without an upfront licensing fee." }
       ];
 
       return (
@@ -966,7 +970,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
             <div className="space-y-4">
               <div className="space-y-1">
                 <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
-                  [ STEP 1: CHOOSE CONTRACT TYPE ]
+                  [ STEP 1: CHOOSE CLEARANCE TYPE ]
                 </span>
                 <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
                   Select the required license archetype to initiate the clearance procedure.
@@ -984,14 +988,19 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                     className="w-full text-left border border-zinc-850 hover:border-[#D9D6CA]/40 bg-black hover:bg-zinc-950 p-3.5 transition-all flex justify-between items-center group cursor-pointer"
                   >
                     <div className="space-y-1 min-w-0 pr-4">
-                      <div className="text-[11px] font-bold text-white group-hover:text-[#D9D6CA] uppercase tracking-wider">
-                        {c.name}
+                      <div className="flex items-center gap-2">
+                        <div className="text-[11px] font-bold text-white group-hover:text-[#D9D6CA] uppercase tracking-wider">
+                          {c.name}
+                        </div>
+                        <span className="text-[9px] font-mono text-[#D6C291] font-bold px-1.5 py-0.5 bg-zinc-900 border border-[#D6C291]/30 rounded">
+                          {c.price}
+                        </span>
                       </div>
                       <div className="text-[9px] text-zinc-500 uppercase leading-snug">
                         {c.desc}
                       </div>
                     </div>
-                    <span className="text-[#D9D6CA] text-[10px] tracking-widest shrink-0 uppercase group-hover:translate-x-1 transition-transform">
+                    <span className="text-[#D9D6CA] text-[10px] tracking-widest shrink-0 uppercase group-hover:translate-x-1 transition-transform ml-2">
                       SELECT &gt;
                     </span>
                   </button>
@@ -1057,16 +1066,37 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                   className="w-full bg-black border border-zinc-850 px-3.5 py-3 text-[11px] font-mono text-[#D9D6CA] focus:outline-none focus:border-red-500/40 uppercase placeholder-zinc-700"
                 />
 
+                {/* Mandatory Terms Agreement Checkbox (Not preselected) */}
+                <label className="flex items-start gap-2.5 cursor-pointer group select-none py-1.5 text-left border-t border-zinc-900 pt-3">
+                  <input 
+                    type="checkbox"
+                    checked={clearanceAgreedToTerms}
+                    onChange={(e) => setClearanceAgreedToTerms(e.target.checked)}
+                    className="w-4 h-4 rounded-[3px] border border-zinc-800 bg-black accent-red-500 cursor-pointer mt-0.5 shrink-0"
+                  />
+                  <span className="text-[10.5px] text-zinc-400 group-hover:text-white transition-colors leading-snug font-mono">
+                    By submitting this request, I agree to the{" "}
+                    <button 
+                      type="button" 
+                      onClick={() => { onClose(); onOpenTerms?.(); }} 
+                      className="underline text-[#D6C291] hover:text-white font-bold cursor-pointer bg-transparent border-0 p-0 inline font-mono"
+                    >
+                      Terms of Use
+                    </button>{" "}
+                    and confirm that the information provided is accurate.
+                  </span>
+                </label>
+
                 <button
                   onClick={() => {
-                    if (!contractSignature.trim()) return;
+                    if (!contractSignature.trim() || !clearanceAgreedToTerms) return;
                     setClearanceStep("final");
                   }}
-                  disabled={!contractSignature.trim()}
+                  disabled={!contractSignature.trim() || !clearanceAgreedToTerms}
                   className={`w-full font-mono font-bold text-[10px] tracking-widest py-3.5 transition-all text-center uppercase ${
-                    contractSignature.trim() 
+                    contractSignature.trim() && clearanceAgreedToTerms
                       ? "bg-red-500 text-white cursor-pointer hover:bg-red-600" 
-                      : "bg-zinc-900 text-zinc-650 cursor-not-allowed"
+                      : "bg-zinc-900 text-zinc-650 cursor-not-allowed opacity-60"
                   }`}
                 >
                   APPROVE MASTER CLEARANCE AGREEMENT
@@ -2199,8 +2229,17 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
             ))}
           </div>
 
-          <div className="border-t border-zinc-900 pt-4 text-[9px] text-zinc-500 font-mono text-center">
-            LAST MODIFIED: JUNE 2026 • LEGAL DEPT
+          <div className="pt-3 border-t border-zinc-900 space-y-3">
+            <button 
+              type="button" 
+              onClick={() => { onClose(); onOpenTerms?.(); }} 
+              className="w-full bg-[#D6C291] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+            >
+              READ FULL STANDALONE TERMS OF USE →
+            </button>
+            <p className="text-[9px] text-zinc-500 font-mono text-center">
+              All policies are governed by the primary Terms of Use of LOMON LLC (Effective July 28, 2026).
+            </p>
           </div>
         </div>
       );

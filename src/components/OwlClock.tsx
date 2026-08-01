@@ -282,84 +282,98 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const CONTRACT_TIERS = [
     { 
       id: "access", 
-      title: "ACCESS LICENSE", 
-      price: "$100", 
-      subtitle: "For artists testing concepts.", 
-      includes: [
-        "MP3 Download",
-        "Non-exclusive",
-        "1 Commercial Release",
-        "Up to 100,000 Streams",
-        "1 Music Video",
-        "Live Performances Allowed"
+      title: "Archive Access License", 
+      price: "$150", 
+      subtitle: "For songwriting, demos, rehearsals, and private creative development.", 
+      description: "For songwriting, demos, rehearsals, and private creative development.",
+      usageTerms: [
+        "Tagged Reference MP3",
+        "Watermarked WAV",
+        "Archive Access Certificate",
+        "No commercial release",
+        "No distribution",
+        "No monetization",
+        "No public exploitation"
       ],
-      restrictions: [
-        "No Stems",
-        "No Content ID",
-        "No TV/Film",
-        "No Transfer"
-      ],
-      extraNote: "Upgrade required if limits are exceeded."
+      buttonText: "REQUEST ACCESS — $150"
     },
     { 
       id: "release", 
-      title: "RELEASE LICENSE", 
-      price: "$250", 
-      subtitle: "For professional independent releases.", 
-      includes: [
-        "WAV Download",
-        "MP3 Download",
-        "Non-exclusive",
-        "1 Commercial Release",
-        "Up to 1,000,000 Streams",
-        "2 Music Videos",
-        "Live Performances",
-        "Radio Use"
+      title: "Commercial Release License", 
+      price: "$500", 
+      subtitle: "For approved commercial releases on digital music platforms.", 
+      description: "For approved commercial releases on digital music platforms.",
+      usageTerms: [
+        "High-Resolution WAV",
+        "Reference MP3",
+        "License Agreement",
+        "Metadata Package",
+        "Clearance Certificate",
+        "Commercial distribution permitted within the executed agreement"
       ],
-      restrictions: [
-        "No Content ID",
-        "No Transfer",
-        "No Sync Licensing"
-      ],
-      extraNote: ""
+      buttonText: "REQUEST LICENSE — $500"
     },
     { 
       id: "commercial", 
-      title: "COMMERCIAL LICENSE", 
-      price: "$500", 
-      subtitle: "For brands, creators, and larger campaigns.", 
-      includes: [
-        "WAV",
-        "MP3",
-        "Stems",
-        "Commercial Advertising",
-        "Online Campaigns",
-        "Unlimited Streams",
-        "Unlimited Videos"
+      title: "Commercial Exploitation License", 
+      price: "$1,000", 
+      subtitle: "For professional releases, monetized content, live performance, and promotional use.", 
+      description: "For professional releases, monetized content, live performance, and promotional use.",
+      usageTerms: [
+        "High-Resolution WAV",
+        "Production Stems",
+        "License Agreement",
+        "Metadata Package",
+        "Documentation Package",
+        "Clearance Certificate",
+        "Commercial use permitted within the executed agreement"
       ],
-      restrictions: [
-        "Non-exclusive",
-        "No Ownership Transfer"
+      buttonText: "REQUEST LICENSE — $1,000"
+    },
+    { 
+      id: "sync", 
+      title: "Synchronization & Master License", 
+      price: "CUSTOM PROPOSAL", 
+      subtitle: "For film, television, advertising, brand campaigns, games, and broadcast media.", 
+      description: "For film, television, advertising, brand campaigns, games, and broadcast media.",
+      usageTerms: [
+        "Project-Specific License",
+        "Approved Media Usage",
+        "Territory & Term Schedule",
+        "Master & Composition Clearance",
+        "Pricing quoted per project"
       ],
-      extraNote: ""
+      buttonText: "REQUEST PROPOSAL"
     },
     { 
       id: "exclusive", 
-      title: "EXCLUSIVE ACQUISITION", 
-      price: "Starting at $2,500", 
-      subtitle: "Exclusive rights and beat removal.", 
-      includes: [
-        "Exclusive Rights",
-        "Beat Removed From Archive",
-        "WAV",
-        "MP3",
-        "Stems",
-        "Commercial Exploitation Rights",
-        "Unlimited Streams",
-        "Unlimited Videos"
+      title: "Exclusive Archive Acquisition", 
+      price: "$5,000", 
+      subtitle: "For exclusive control and permanent removal from future public licensing.", 
+      description: "For exclusive control and permanent removal from future public licensing.",
+      usageTerms: [
+        "Exclusive Acquisition Agreement",
+        "Full Production Files",
+        "Production Stems",
+        "Metadata Transfer",
+        "Exclusive Clearance Certificate",
+        "Ownership Documentation (where applicable)",
+        "Existing non-exclusive licenses remain valid",
+        "Rights transfer only as stated in the executed agreement"
       ],
-      restrictions: [],
-      extraNote: "Ownership of composition and publishing does not automatically transfer. Separate negotiation required."
+      buttonText: "REQUEST ACQUISITION — $5,000"
+    },
+    { 
+      id: "collaboration", 
+      title: "Producer Collaboration", 
+      price: "REVIEW", 
+      subtitle: "Selected projects may qualify for collaboration without an upfront licensing fee.", 
+      description: "Selected projects may qualify for collaboration without an upfront licensing fee. Writer shares, publishing participation, master ownership, royalties, credits, and administrative responsibilities are negotiated individually and documented before commercial release.",
+      usageTerms: [
+        "Selected projects may qualify for collaboration without an upfront licensing fee",
+        "Writer shares, publishing participation, master ownership, royalties, credits, and administrative responsibilities are negotiated individually and documented before commercial release."
+      ],
+      buttonText: "SUBMIT PROJECT FOR REVIEW"
     }
   ] as const;
 
@@ -844,10 +858,10 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               transition={{ duration: 0.25 }}
               className="relative w-full max-w-[480px] bg-black border border-zinc-900 text-[#D9D6CA] p-6 sm:p-8 flex flex-col items-center select-none font-mono text-center shadow-2xl rounded-2xl"
             >
-              {/* Header section with Choose Contract Type and Close button */}
+              {/* Header section with Choose Clearance Type and Close button */}
               <div className="w-full flex items-center justify-between border-b border-zinc-900 pb-4 mb-5">
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-[#D6C291] uppercase">
-                  CHOOSE CONTRACT TYPE
+                  CHOOSE CLEARANCE TYPE
                 </h3>
                 <button
                   onClick={() => {
@@ -980,35 +994,16 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                     transition={{ duration: 0.18 }}
                                     className="mt-3 text-[10px] leading-relaxed text-[#D9D6CA]/80 font-mono border-t border-zinc-900/40 pt-3 select-text space-y-3"
                                   >
-                                    {tier.includes && tier.includes.length > 0 && (
+                                    {tier.usageTerms && tier.usageTerms.length > 0 && (
                                       <div>
                                         <div className="text-[#D6C291]/90 font-bold tracking-wider text-[9px] uppercase mb-1">
-                                          Includes:
+                                          Usage Terms:
                                         </div>
                                         <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/70">
-                                          {tier.includes.map((item, idx) => (
+                                          {tier.usageTerms.map((item, idx) => (
                                             <li key={idx}>{item}</li>
                                           ))}
                                         </ul>
-                                      </div>
-                                    )}
-
-                                    {tier.restrictions && tier.restrictions.length > 0 && (
-                                      <div>
-                                        <div className="text-red-400/80 font-bold tracking-wider text-[9px] uppercase mb-1">
-                                          Restrictions:
-                                        </div>
-                                        <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/50">
-                                          {tier.restrictions.map((item, idx) => (
-                                            <li key={idx}>{item}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-
-                                    {tier.extraNote && (
-                                      <div className="text-[#D6C291]/60 text-[9px] italic pt-1 border-t border-zinc-900/20 leading-relaxed">
-                                        {tier.extraNote}
                                       </div>
                                     )}
                                   </motion.div>

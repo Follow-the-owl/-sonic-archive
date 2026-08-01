@@ -16,6 +16,7 @@ import TransmissionsOverlay from "./components/TransmissionsOverlay";
 import MockPaystackCheckout from "./components/MockPaystackCheckout";
 import DocumentDashboard from "./components/DocumentDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import TermsOfUsePage from "./components/TermsOfUsePage";
 import { Fragment } from "./data";
 
 
@@ -136,6 +137,27 @@ export default function App() {
   const [emailPreviewUrl, setEmailPreviewUrl] = useState<string>("");
 
   const [infoOverlay, setInfoOverlay] = useState<{ title: string; subtitle: string; body: string; type?: string } | null>(null);
+  const [showTermsPage, setShowTermsPage] = useState<boolean>(() => typeof window !== "undefined" && window.location.pathname === "/terms");
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname === "/terms") {
+        setShowTermsPage(true);
+      } else {
+        setShowTermsPage(false);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleOpenTerms = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    setCheckoutActive(false);
+    window.history.pushState({}, "", "/terms");
+    setShowTermsPage(true);
+  };
   const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
     ARCHIVE: false,
     CLEARANCE: false,
@@ -230,6 +252,17 @@ export default function App() {
 
   if (isMockCheckout) {
     return <MockPaystackCheckout />;
+  }
+
+  if (showTermsPage || (typeof window !== "undefined" && window.location.pathname === "/terms")) {
+    return (
+      <TermsOfUsePage 
+        onBack={() => {
+          window.history.pushState({}, "", "/");
+          setShowTermsPage(false);
+        }} 
+      />
+    );
   }
 
   const isAdminDashboard = typeof window !== "undefined" && window.location.pathname === "/AdminDashboard";
@@ -385,6 +418,10 @@ export default function App() {
 
   const handleLinkClick = (title: string, subtitle: string = "TRANSMISSION", type: string = "") => {
     setMobileMenuOpen(false);
+    if (type === "terms" || title === "Terms" || title.toLowerCase() === "terms of use") {
+      handleOpenTerms();
+      return;
+    }
     setInfoOverlay({
       title,
       subtitle,
@@ -997,6 +1034,7 @@ export default function App() {
                 onLoginSuccess={handleLoginSuccess}
                 initialStep={checkoutSuccess ? "success" : "cart"}
                 emailPreviewUrl={emailPreviewUrl}
+                onOpenTerms={handleOpenTerms}
               />
             ) : selectedFragment ? (
               <FragmentDetailPage 
@@ -1512,6 +1550,7 @@ export default function App() {
               userRequests={userRequests}
               userEmailLogs={userEmailLogs}
               onRefreshData={() => authToken && fetchUserData(authToken)}
+              onOpenTerms={handleOpenTerms}
             />
           </motion.div>
         )}
