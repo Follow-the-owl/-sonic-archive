@@ -153,10 +153,21 @@ export default function App() {
 
   const handleOpenTerms = () => {
     setMobileMenuOpen(false);
-    setInfoOverlay(null);
-    setCheckoutActive(false);
-    window.history.pushState({}, "", "/terms");
+    if (typeof window !== "undefined" && window.location.pathname !== "/terms") {
+      window.history.pushState({ terms: true }, "", "/terms");
+    }
     setShowTermsPage(true);
+  };
+
+  const handleBackFromTerms = () => {
+    setShowTermsPage(false);
+    if (typeof window !== "undefined" && window.location.pathname === "/terms") {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
   };
   const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
     ARCHIVE: false,
@@ -254,13 +265,10 @@ export default function App() {
     return <MockPaystackCheckout />;
   }
 
-  if (showTermsPage || (typeof window !== "undefined" && window.location.pathname === "/terms")) {
+  if (showTermsPage) {
     return (
       <TermsOfUsePage 
-        onBack={() => {
-          window.history.pushState({}, "", "/");
-          setShowTermsPage(false);
-        }} 
+        onBack={handleBackFromTerms} 
       />
     );
   }
@@ -1050,7 +1058,7 @@ export default function App() {
                 id="stage" 
                 className={`flex-grow relative px-4 bg-black transition-all duration-300 ${
                   activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive
-                    ? "py-2 sm:py-4 h-[calc(100vh-84px)] lg:h-[calc(100vh-92px)] overflow-hidden flex flex-col justify-center items-center"
+                    ? "py-8 sm:py-12 min-h-[calc(100vh-160px)] flex flex-col justify-center items-center"
                     : "py-8 lg:py-16"
                 }`}
               >
@@ -1061,7 +1069,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    className={activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive ? "w-full h-full flex flex-col justify-center items-center min-h-0" : ""}
+                    className={activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive ? "w-full flex flex-col justify-center items-center" : ""}
                   >
                     {activeTab === "The Owl Clock" && (
                       <OwlClock 
@@ -1087,8 +1095,7 @@ export default function App() {
             {activeTab !== "The Owl Clock" && !selectedFragment && <AudioControllerWidget />}
 
             {/* STEP 11: Minimal Footer */}
-            {!(activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive) && (
-              <footer id="site-footer" className="bg-black py-16 px-4 md:px-8 select-none flex flex-col">
+            <footer id="site-footer" className="bg-black py-16 px-4 md:px-8 select-none flex flex-col">
                 {/* Upper line decoration */}
                 <div className="flex items-center justify-center gap-3 w-full max-w-7xl mx-auto opacity-25 mb-12">
                   <div className="h-[1px] flex-grow bg-zinc-650" />
@@ -1449,7 +1456,6 @@ export default function App() {
                   </div>
                 </div>
               </footer>
-            )}
 
             {/* Cart Popover Dropdown (Matches user mockup design exactly) */}
             <AnimatePresence>

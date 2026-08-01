@@ -13,6 +13,8 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
   const handleReturn = () => {
     if (onBack) {
       onBack();
+    } else if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
     } else {
       window.location.href = "/";
     }
@@ -30,7 +32,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
             className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
           >
             <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-[#D6C291]" />
-            <span>RETURN TO ARCHIVE</span>
+            <span>RETURN TO PREVIOUS PAGE</span>
           </button>
 
           <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
@@ -454,7 +456,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
             onClick={handleReturn}
             className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-[#D6C291] hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-[#D6C291] px-4 py-2 rounded-sm"
           >
-            <span>← RETURN TO ARCHIVE MAIN</span>
+            <span>← RETURN TO PREVIOUS PAGE</span>
           </button>
         </div>
 

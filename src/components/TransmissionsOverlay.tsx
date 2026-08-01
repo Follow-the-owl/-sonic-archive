@@ -1078,7 +1078,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                     By submitting this request, I agree to the{" "}
                     <button 
                       type="button" 
-                      onClick={() => { onClose(); onOpenTerms?.(); }} 
+                      onClick={() => { onOpenTerms?.(); }} 
                       className="underline text-[#D6C291] hover:text-white font-bold cursor-pointer bg-transparent border-0 p-0 inline font-mono"
                     >
                       Terms of Use
@@ -2232,7 +2232,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
           <div className="pt-3 border-t border-zinc-900 space-y-3">
             <button 
               type="button" 
-              onClick={() => { onClose(); onOpenTerms?.(); }} 
+              onClick={() => { onOpenTerms?.(); }} 
               className="w-full bg-[#D6C291] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
             >
               READ FULL STANDALONE TERMS OF USE →
