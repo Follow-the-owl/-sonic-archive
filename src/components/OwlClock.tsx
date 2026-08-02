@@ -31,6 +31,14 @@ const CLOCK_FRAGMENTS: ClockFragment[] = [
     description: "Lomon Recovery. Pure E♭ Major harmonic pulse, compiled and certified under Archivist Lomon's protocols."
   },
   {
+    id: "frag-1111",
+    label: "FRAGMENT 11:11 PM",
+    mappedId: "11:11",
+    synthType: "keys",
+    frequency: 440,
+    description: "Last Laugh Echoes. Rare celestial fragments decaying inside vintage tape reels at 125 BPM."
+  },
+  {
     id: "frag-1",
     label: "FRAGMENT 00:50 AM",
     mappedId: "00:50",
@@ -493,11 +501,29 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
 
     let count = 0;
     const maxShuffles = 8;
+    const allowedFrags = CLOCK_FRAGMENTS.filter(
+      f => f.mappedId === "10:00" || f.mappedId === "11:11"
+    );
+
+    const frag10 = allowedFrags.find(f => f.mappedId === "10:00") || CLOCK_FRAGMENTS[0];
+    const frag1111 = allowedFrags.find(f => f.mappedId === "11:11") || CLOCK_FRAGMENTS[1] || frag10;
+
+    // Check if we are currently sitting at 10:00 PM or 11:11 PM
+    const currentlyAt10 = displayHour === 10 && displayMinute === 0 && displayAMPM === "PM";
+
     const interval = setInterval(() => {
       count++;
-      // Choose a random available fragment from CLOCK_FRAGMENTS
-      const randomFrag = CLOCK_FRAGMENTS[Math.floor(Math.random() * CLOCK_FRAGMENTS.length)];
-      const cleaned = randomFrag.label.replace("FRAGMENT ", "").trim(); // e.g. "02:17 AM"
+      let randomFrag: ClockFragment;
+
+      if (count < maxShuffles) {
+        // Rapidly alternate during shuffle ticks so user visually sees both 10:00 PM and 11:11 PM spinning
+        randomFrag = count % 2 === 1 ? frag1111 : frag10;
+      } else {
+        // On final tick, if currently at 10:00 PM, land on 11:11 PM (or alternate) to ensure 11:11 PM is randomized into
+        randomFrag = currentlyAt10 ? frag1111 : (Math.random() > 0.5 ? frag1111 : frag10);
+      }
+
+      const cleaned = randomFrag.label.replace("FRAGMENT ", "").trim(); // "10:00 PM" or "11:11 PM"
       const [timeStr, ampmStr] = cleaned.split(" ");
       const [hStr, mStr] = timeStr.split(":");
       const h = parseInt(hStr, 10) % 12;

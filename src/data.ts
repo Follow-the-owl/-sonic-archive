@@ -228,6 +228,24 @@ export const FRAGMENTS: Fragment[] = [
     fullRecoveryDate: "2025.07.14",
     archivist: "Lomon",
     mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3"
+  },
+  {
+    id: "11:11",
+    name: "LAST LAUGH ECHOES",
+    timestamp: "11:11 PM",
+    classification: "DEVIANT KEYS",
+    observation: "Celestial tape reel fragment captured at 11:11 PM under rare alignment.",
+    duration: "5:44",
+    description: "Rare celestial fragments decaying inside vintage tape reels with hopeful harmonic decay vibrating at 125 BPM.",
+    isExclusive: false,
+    frequency: 440,
+    synthType: "keys",
+    bpm: 125,
+    tonalSignature: "A Major",
+    recoveryState: "Fully Recovered",
+    fullRecoveryDate: "2026.08.01",
+    archivist: "Lomon",
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1785646485/11_11_PM_With_Tag_2_b9hx24.mp3"
   }
 ];
 

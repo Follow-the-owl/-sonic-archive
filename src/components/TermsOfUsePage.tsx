@@ -21,7 +21,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-[#D9D6CA] font-mono selection:bg-[#D6C291]/30 selection:text-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="terms-page min-h-screen bg-black text-[#D9D6CA] selection:bg-[#D6C291]/30 selection:text-white py-12 px-4 sm:px-6 lg:px-8">
       {/* Container - Max Width 850px as requested for clean, highly readable layout */}
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
