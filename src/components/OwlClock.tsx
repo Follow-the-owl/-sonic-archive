@@ -695,15 +695,27 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   }, [displayHour, displayMinute, displayAMPM, isManual, exactClockFragment]);
 
   const handleTransmit = () => {
+    if (exactClockFragment) {
+      playFragment(exactClockFragment.mappedId, exactClockFragment.frequency, exactClockFragment.synthType);
+      setActivePlayId(exactClockFragment.id);
+    }
     if (exactActualFrag && onSelectFragment) {
       onSelectFragment(exactActualFrag);
     }
   };
 
-  const currentClockItem = CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[0]; // fallback to 10:00 PM
+  const currentClockItem = exactClockFragment || CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[0]; // fallback to exactClockFragment or active or 10:00 PM
   const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS.find(f => f.id === "10:00") || FRAGMENTS[0];
   const formattedTitle = matchedFrag.name.toUpperCase();
   const isPlayingBeat = !!activePlayId;
+
+  // Seamlessly shift playing audio when the user turns or shuffles the time wheel to a new fragment
+  useEffect(() => {
+    if (activePlayId && exactClockFragment && activePlayId !== exactClockFragment.id) {
+      playFragment(exactClockFragment.mappedId, exactClockFragment.frequency, exactClockFragment.synthType);
+      setActivePlayId(exactClockFragment.id);
+    }
+  }, [exactClockFragment, activePlayId]);
 
   const toggleModalPlay = () => {
     if (isPlayingBeat) {
@@ -835,39 +847,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               </h2>
             </motion.div>
 
-            {/* Hairline spacer with central hollow ring target */}
-            <motion.div 
-              initial={{ opacity: 0, scaleX: 0 }}
-              animate={{ opacity: 0.5, scaleX: 1 }}
-              transition={{ duration: 1.8, delay: 0.5 }}
-              className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
-            >
-              <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-white/20" />
-              {/* Perfectly rendering a sharp geometric miter-joined triangle that glows slowly with organic breathing in elegant white */}
-              <motion.svg
-                viewBox="0 0 12 12"
-                className="w-[11px] h-[11px] text-white flex-shrink-0"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                animate={{
-                  opacity: [0.35, 1, 0.35],
-                  filter: [
-                    "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
-                    "drop-shadow(0 0 5px rgba(255, 255, 255, 0.85))",
-                    "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
-                  ],
-                  scale: [0.95, 1.08, 0.95]
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              >
-                <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
-              </motion.svg>
-              <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-white/20" />
-            </motion.div>
+
           </div>
         </div>
       </div>

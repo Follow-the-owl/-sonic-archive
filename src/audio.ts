@@ -74,6 +74,53 @@ export function getMasterVolume(): number {
   return masterGain ? masterGain.gain.value : 0.5;
 }
 
+export function getCurrentAudioElement(): HTMLAudioElement | null {
+  return currentNodes?.audioElement || null;
+}
+
+export function getCurrentTime(): number {
+  if (currentNodes?.audioElement) {
+    return currentNodes.audioElement.currentTime || 0;
+  }
+  return 0;
+}
+
+export function getDuration(): number {
+  if (currentNodes?.audioElement && !isNaN(currentNodes.audioElement.duration)) {
+    return currentNodes.audioElement.duration || 0;
+  }
+  return 0;
+}
+
+export function seekAudio(seconds: number) {
+  if (currentNodes?.audioElement) {
+    currentNodes.audioElement.currentTime = Math.max(0, Math.min(seconds, currentNodes.audioElement.duration || seconds));
+  }
+}
+
+export function pauseAudio() {
+  if (currentNodes?.audioElement) {
+    currentNodes.audioElement.pause();
+  }
+}
+
+export function resumeAudio() {
+  if (currentNodes?.audioElement) {
+    currentNodes.audioElement.play().catch(e => {
+      if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
+        console.error("Error resuming audio:", e);
+      }
+    });
+  }
+}
+
+export function isAudioPaused(): boolean {
+  if (currentNodes?.audioElement) {
+    return currentNodes.audioElement.paused;
+  }
+  return false;
+}
+
 export function stopAudio() {
   if (currentNodes) {
     const fadeOutTime = 0.5;
@@ -162,7 +209,9 @@ export function playFragment(
       };
 
       audioEl.play().catch(e => {
-        console.error("Error playing MP3 preview:", e);
+        if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
+          console.error("Error playing MP3 preview:", e);
+        }
       });
 
       activeId = id;

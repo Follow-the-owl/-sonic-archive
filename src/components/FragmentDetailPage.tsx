@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, Sliders, Music, Layers, X, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
-import { Fragment } from "../data";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, ShoppingBag, Lock } from "lucide-react";
+import { Fragment, FRAGMENTS } from "../data";
 import { stopAudio } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 import { getLicensesForFragment, LicenseTemplate } from "../licenses";
@@ -22,7 +22,9 @@ interface FragmentDetailPageProps {
 }
 
 export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: FragmentDetailPageProps) {
-  const CONTRACT_TIERS = getLicensesForFragment(fragment);
+  // Active fragment state allowing seamless music shifting right on the detail page
+  const [activeFrag, setActiveFrag] = useState<Fragment>(fragment);
+  const CONTRACT_TIERS = getLicensesForFragment(activeFrag);
   const [isPlayingBeat, setIsPlayingBeat] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showLicensePanel, setShowLicensePanel] = useState(false);
@@ -39,14 +41,33 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   const [clientEmail, setClientEmail] = useState("evianaconcepts1@gmail.com");
   const [isProcessingLicense, setIsProcessingLicense] = useState(false);
   const [volumeLevel, setVolumeLevel] = useState(0.7); // Default high volume
+  const [isMuted, setIsMuted] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  const parseDurationSec = (dur?: string) => {
+    if (!dur) return 103;
+    const parts = dur.split(":").map(p => parseInt(p, 10));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] * 60 + parts[1];
+    }
+    return 103;
+  };
+
+  const [totalDurationSec, setTotalDurationSec] = useState(() => parseDurationSec(activeFrag.duration));
+
+  // Sync activeFrag when parent prop changes
+  useEffect(() => {
+    setActiveFrag(fragment);
+    setTotalDurationSec(parseDurationSec(fragment.duration));
+  }, [fragment]);
+
+  // Track playback time elapsed
   useEffect(() => {
     let interval: any = null;
     if (isPlayingBeat) {
       interval = setInterval(() => {
         setElapsedTime((prev) => {
-          if (prev >= 103) {
+          if (prev >= totalDurationSec) {
             pauseBeatPlay();
             return 0;
           }
@@ -59,14 +80,14 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlayingBeat]);
+  }, [isPlayingBeat, totalDurationSec]);
 
   // Interactive Synthesizer and Sequencer parameters
-  const [bpm, setBpm] = useState(fragment.bpm || 110);
+  const [bpm, setBpm] = useState(activeFrag.bpm || 110);
   const [filterCutoff, setFilterCutoff] = useState(1800);
   const [filterResonance, setFilterResonance] = useState(3.0);
   const [synthType, setSynthType] = useState<"sine" | "triangle" | "sawtooth" | "square">(
-    fragment.synthType === "keys" ? "triangle" : "sine"
+    activeFrag.synthType === "keys" ? "triangle" : "sine"
   );
   const [activeTracks, setActiveTracks] = useState({
     kick: true,
@@ -187,7 +208,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       if (!ctx || !analyser) return;
 
       const step = stepTrackerRef.current % 8;
-      if (!fragment.mp3Preview) {
+      if (!activeFrag.mp3Preview) {
         triggerBeatStep(ctx, analyser, step);
       }
       setCurrentStep(step);
@@ -200,9 +221,10 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
         beatIntervalRef.current = null;
       }
     };
-  }, [bpm, isPlayingBeat, fragment.mp3Preview]);
+  }, [bpm, isPlayingBeat, activeFrag.mp3Preview, activeFrag.id]);
 
-  const startBeatPlay = () => {
+  const startBeatPlay = (fragToPlay?: Fragment) => {
+    const targetFrag = fragToPlay || activeFrag;
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -221,9 +243,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       // Initialize master volume node
       if (!masterGainRef.current) {
         const masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(volumeLevel, ctx.currentTime);
+        masterGain.gain.setValueAtTime(isMuted ? 0 : volumeLevel, ctx.currentTime);
         masterGain.connect(ctx.destination);
         masterGainRef.current = masterGain;
+      } else {
+        masterGainRef.current.gain.setValueAtTime(isMuted ? 0 : volumeLevel, ctx.currentTime);
       }
 
       // Setup analyser
@@ -241,19 +265,37 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       startWaveformRender();
 
       // MP3 audio playback if preview URL exists
-      if (fragment.mp3Preview) {
-        if (!audioElRef.current) {
-          const audioEl = new Audio(fragment.mp3Preview);
-          audioEl.crossOrigin = "anonymous";
-          audioEl.loop = true;
-          
-          const source = ctx.createMediaElementSource(audioEl);
-          source.connect(analyserRef.current);
-          audioElRef.current = audioEl;
+      if (targetFrag.mp3Preview) {
+        if (audioElRef.current) {
+          try { audioElRef.current.pause(); } catch (e) {}
+          audioElRef.current = null;
         }
-        
-        audioElRef.current.play().catch(e => {
-          console.error("Error playing detail page MP3 preview:", e);
+        const audioEl = new Audio(targetFrag.mp3Preview);
+        audioEl.crossOrigin = "anonymous";
+        audioEl.loop = true;
+        audioEl.volume = isMuted ? 0 : volumeLevel;
+
+        audioEl.onloadedmetadata = () => {
+          if (audioEl.duration && !isNaN(audioEl.duration)) {
+            setTotalDurationSec(Math.floor(audioEl.duration));
+          }
+        };
+
+        audioEl.ontimeupdate = () => {
+          setElapsedTime(Math.floor(audioEl.currentTime));
+          if (audioEl.duration && !isNaN(audioEl.duration)) {
+            setTotalDurationSec(Math.floor(audioEl.duration));
+          }
+        };
+
+        const source = ctx.createMediaElementSource(audioEl);
+        source.connect(analyserRef.current);
+        audioElRef.current = audioEl;
+
+        audioEl.play().catch(e => {
+          if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
+            console.error("Error playing detail page MP3 preview:", e);
+          }
         });
       } else {
         // Background drone hum
@@ -320,6 +362,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
         audioElRef.current.pause();
         audioElRef.current.currentTime = 0;
       } catch (e) {}
+      audioElRef.current = null;
     }
 
     // 4. Close context to free systemic sound pipelines and clear visualizer analyzer values
@@ -349,9 +392,81 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
 
   const handleToggleBeat = () => {
     if (isPlayingBeat) {
-      stopBeatPlay();
+      pauseBeatPlay();
     } else {
       startBeatPlay();
+    }
+  };
+
+  // Music Shifting & Audio Controls
+  const handleShiftMusic = (targetFrag: Fragment) => {
+    if (audioElRef.current) {
+      try { audioElRef.current.pause(); } catch (e) {}
+    }
+    setActiveFrag(targetFrag);
+    setBpm(targetFrag.bpm || 110);
+    setTotalDurationSec(parseDurationSec(targetFrag.duration));
+    setElapsedTime(0);
+    setTimeout(() => {
+      startBeatPlay(targetFrag);
+    }, 50);
+  };
+
+  const handleNextTrack = () => {
+    const currentIndex = FRAGMENTS.findIndex(f => f.id === activeFrag.id);
+    const nextIndex = (currentIndex + 1) % FRAGMENTS.length;
+    handleShiftMusic(FRAGMENTS[nextIndex]);
+  };
+
+  const handlePrevTrack = () => {
+    const currentIndex = FRAGMENTS.findIndex(f => f.id === activeFrag.id);
+    const prevIndex = (currentIndex - 1 + FRAGMENTS.length) % FRAGMENTS.length;
+    handleShiftMusic(FRAGMENTS[prevIndex]);
+  };
+
+  const handleSeekTo = (seconds: number) => {
+    setElapsedTime(seconds);
+    if (audioElRef.current) {
+      audioElRef.current.currentTime = seconds;
+    }
+  };
+
+  const handleSeekRelative = (seconds: number) => {
+    if (audioElRef.current) {
+      const cur = audioElRef.current.currentTime;
+      const target = Math.max(0, Math.min(totalDurationSec, cur + seconds));
+      audioElRef.current.currentTime = target;
+      setElapsedTime(Math.floor(target));
+    } else {
+      setElapsedTime(prev => Math.max(0, Math.min(totalDurationSec, prev + seconds)));
+    }
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    setVolumeLevel(newVol);
+    if (masterGainRef.current && audioCtxRef.current) {
+      masterGainRef.current.gain.setValueAtTime(newVol, audioCtxRef.current.currentTime);
+    }
+    if (audioElRef.current) {
+      audioElRef.current.volume = newVol;
+    }
+    if (newVol > 0 && isMuted) {
+      setIsMuted(false);
+    }
+  };
+
+  const handleToggleMute = () => {
+    if (isMuted) {
+      setIsMuted(false);
+      handleVolumeChange(volumeLevel || 0.7);
+    } else {
+      setIsMuted(true);
+      if (masterGainRef.current && audioCtxRef.current) {
+        masterGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
+      }
+      if (audioElRef.current) {
+        audioElRef.current.volume = 0;
+      }
     }
   };
 
@@ -591,7 +706,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     return CONTRACT_TIERS[0];
   };
 
-  const formattedTitle = fragment.name.toUpperCase();
+  const formattedTitle = fragment.timestamp.toUpperCase();
 
   const formattedSegmentId = `0x${fragment.id.replace(":", "")}`;
 
@@ -637,142 +752,110 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             FRAGMENT
           </span>
           <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
-            {fragment.timestamp}
+            {activeFrag.timestamp}
           </h2>
-          
-          {/* Hairline spacer with central geometric arrow divider */}
-          <div className="flex items-center justify-start gap-3 w-[160px] sm:w-[200px] pt-1.5 opacity-60">
-            <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent to-white/30" />
-            <motion.svg
-              viewBox="0 0 12 12"
-              className="w-[10px] h-[10px] text-white flex-shrink-0"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              animate={{
-                opacity: [0.4, 1, 0.4],
-                filter: [
-                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
-                  "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))",
-                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
-                ]
-              }}
-              transition={{
-                duration: 2.8,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
-            </motion.svg>
-            <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent to-white/30" />
-          </div>
         </div>
 
-        {/* PLAYBACK CONTROL BAR DIAL (Matches image play/pause widget block) */}
-        <div className="w-full border border-zinc-900 bg-zinc-950/80 py-3.5 px-4 rounded-sm flex items-center justify-between gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+        {/* PLAYBACK CONTROL BAR DIAL (Sleek original single-row widget with functional scrubber handle, styled in monochrome gray and white) */}
+        <div className="w-full border border-zinc-800 bg-zinc-950/90 py-3.5 px-4 rounded-sm flex items-center justify-between gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.5)] font-mono">
             
             {/* Play/Pause Button */}
             <button
-              onClick={() => {
-                if (isPlayingBeat) {
-                  pauseBeatPlay();
-                } else {
-                  startBeatPlay();
-                }
-              }}
-              className="p-1.5 text-[#D9D6CA] hover:text-white transition-colors cursor-pointer shrink-0 flex items-center justify-center hover:scale-105 active:scale-95 duration-100"
+              onClick={handleToggleBeat}
+              className="p-1.5 text-white hover:text-zinc-300 transition-colors cursor-pointer shrink-0 flex items-center justify-center hover:scale-105 active:scale-95 duration-100"
               title={isPlayingBeat ? "Pause" : "Play"}
             >
               {isPlayingBeat ? (
-                <Pause size={13} className="fill-[#D9D6CA] text-[#D9D6CA]" />
+                <Pause size={13} className="fill-white text-white" />
               ) : (
-                <Play size={13} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0.5" />
+                <Play size={13} className="fill-white text-white ml-0.5" />
               )}
             </button>
 
             {/* Current Playback Marker Elapsed Time */}
-            <span className="text-[9.5px] font-mono text-zinc-500 tracking-wider w-8 select-none">
+            <span className="text-[10px] font-mono text-zinc-300 tracking-wider w-9 select-none shrink-0">
               {formatTime(elapsedTime)}
             </span>
 
-            {/* Sleek Interactive Progress Bar */}
-            <div 
-              id="progress-bar-seeker"
-              className="flex-grow mx-4 h-1 bg-zinc-900 rounded-full relative cursor-pointer group"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const percentage = clickX / rect.width;
-                const targetTime = Math.floor(percentage * 103);
-                setElapsedTime(Math.max(0, Math.min(103, targetTime)));
-              }}
-            >
+            {/* Sleek Interactive Progress Bar with Scrubbing Handle */}
+            <div className="flex-grow mx-1 sm:mx-2 relative flex items-center h-5 group cursor-pointer">
+              <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white rounded-full transition-all duration-75"
+                  style={{ width: `${totalDurationSec > 0 ? (elapsedTime / totalDurationSec) * 100 : 0}%` }}
+                />
+              </div>
+              {/* White dot handle / knob */}
               <div 
-                className="absolute top-0 left-0 h-full bg-[#D9D6CA] rounded-full transition-all duration-150"
-                style={{ width: `${(elapsedTime / 103) * 100}%` }}
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none transition-transform group-hover:scale-125"
+                style={{ left: `calc(${totalDurationSec > 0 ? (elapsedTime / totalDurationSec) * 100 : 0}% - 6px)` }}
               />
-              {/* Little knob that appears on hover */}
-              <div 
-                className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ left: `calc(${(elapsedTime / 103) * 100}% - 4px)` }}
+              <input 
+                type="range"
+                min={0}
+                max={totalDurationSec || 103}
+                value={elapsedTime}
+                onChange={(e) => handleSeekTo(parseInt(e.target.value, 10))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
 
             {/* Total Duration Track length */}
-            <span className="text-[9.5px] font-mono text-zinc-500 tracking-wider select-none shrink-0">
-              01:43
+            <span className="text-[10px] font-mono text-zinc-400 tracking-wider select-none shrink-0">
+              {formatTime(totalDurationSec)}
             </span>
 
             {/* Volume feedback indicator and slider */}
-            <div className="flex items-center gap-1.5 pl-1.5 border-l border-zinc-900 shrink-0">
+            <div className="flex items-center gap-2 pl-2.5 border-l border-zinc-800 shrink-0">
               <button
-                onClick={() => setVolumeLevel(volumeLevel === 0 ? 0.7 : 0)}
-                className="text-zinc-500 hover:text-[#D9D6CA] transition-colors cursor-pointer"
+                onClick={handleToggleMute}
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title={isMuted ? "Unmute" : "Mute"}
               >
-                {volumeLevel === 0 ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                {isMuted || volumeLevel === 0 ? <VolumeX size={12} /> : <Volume2 size={12} />}
               </button>
               <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.05"
-                value={volumeLevel}
-                onChange={(e) => setVolumeLevel(parseFloat(e.target.value))}
-                className="w-12 h-[2px] accent-[#D9D6CA] bg-zinc-800 rounded-lg cursor-pointer appearance-none range-sm focus:outline-none"
+                value={isMuted ? 0 : volumeLevel}
+                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                className="w-14 sm:w-16 h-1 accent-white bg-zinc-800 rounded-lg cursor-pointer appearance-none focus:outline-none"
               />
             </div>
-          </div>
+        </div>
 
-          {/* HIGH-FIDELITY DETAILED TEMPORAL METADATA GRID */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px w-full border border-zinc-900 bg-zinc-900 rounded-sm overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.3)] font-mono text-[9px] sm:text-[10px] tracking-wider mt-4">
-            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">TONAL SIGNATURE</span>
-              <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
-                {fragment.tonalSignature || "CHROMATIC MINOR"}
-              </span>
-            </div>
-            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">PULSE (TEMPO)</span>
-              <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
-                {fragment.bpm || 110} BPM
-              </span>
-            </div>
-            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
-              <span className={`font-semibold tracking-widest uppercase truncate ${fragment.recoveryState ? "text-emerald-400" : "text-zinc-400"}`}>
-                {fragment.recoveryState || "FULLY RECOVERED"}
-              </span>
-            </div>
-            <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-              <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST CO-SIGN</span>
-              <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
-                {fragment.archivist || "LOMON SYSTEM"}
-              </span>
-            </div>
+        {/* HIGH-FIDELITY DETAILED TEMPORAL METADATA GRID */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px w-full border border-zinc-900 bg-zinc-900 rounded-sm overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.3)] font-mono text-[9px] sm:text-[10px] tracking-wider mt-4">
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">TONAL SIGNATURE</span>
+            <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+              {activeFrag.tonalSignature || "CHROMATIC MINOR"}
+            </span>
           </div>
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">PULSE (TEMPO)</span>
+            <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+              {activeFrag.bpm || 110} BPM
+            </span>
+          </div>
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
+            <span className={`font-semibold tracking-widest uppercase truncate ${activeFrag.recoveryState ? "text-emerald-400" : "text-zinc-400"}`}>
+              {activeFrag.recoveryState || "FULLY RECOVERED"}
+            </span>
+          </div>
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST CO-SIGN</span>
+            <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+              {activeFrag.archivist || "LOMON SYSTEM"}
+            </span>
+          </div>
+        </div>
 
           {/* METADATA GRID SECTION (No Recovered Artist, Full Width Request Clearance) */}
-          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] !mt-24 sm:!mt-4">
+          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] mt-3 sm:mt-4">
             {/* Request Clearance Button */}
             <button
               id="request-clearance-btn"

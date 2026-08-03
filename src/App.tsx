@@ -1421,7 +1421,7 @@ export default function App() {
                   {/* Desktop bottom line with multi-column text */}
                   <div className="hidden sm:block space-y-2">
                     <h6 className="text-[#D9D6CA] font-bold text-[11px] uppercase tracking-[0.3em]">
-                      LOMON LLC
+                      THE OWL CLOCK
                     </h6>
                     <p className="text-zinc-500 text-[9px] uppercase">
                       Publishing • Rights Management • Licensing
@@ -1429,18 +1429,15 @@ export default function App() {
                     <p className="text-zinc-600 text-[8.5px] uppercase">
                       Atlanta, Georgia
                     </p>
-                    <p className="text-[#8e8d85] text-[8.5px] font-bold uppercase tracking-[0.25em]">
-                      RESTRICTED
-                    </p>
                     <p className="text-zinc-600 text-[8.5px] pt-4 uppercase">
-                      © 2026 LOMON LLC
+                      © 2026 THE OWL CLOCK
                     </p>
                   </div>
 
                   {/* Mobile bottom line with stacked texts */}
                   <div className="sm:hidden space-y-2">
                     <h6 className="text-[#D9D6CA] font-bold text-[10px] uppercase tracking-[0.25em]">
-                      LOMON LLC
+                      THE OWL CLOCK
                     </h6>
                     <p className="text-zinc-500 text-[8.5px] uppercase">
                       Publishing • Rights Management • Licensing
@@ -1448,11 +1445,8 @@ export default function App() {
                     <p className="text-zinc-500 text-[8.5px] uppercase">
                       Atlanta, Georgia
                     </p>
-                    <p className="text-[#8e8d85] text-[8.5px] font-bold uppercase tracking-[0.25em]">
-                      RESTRICTED
-                    </p>
                     <p className="text-zinc-600 text-[8px] pt-2 uppercase">
-                      © 2026 LOMON LLC
+                      © 2026 THE OWL CLOCK
                     </p>
                   </div>
                 </div>

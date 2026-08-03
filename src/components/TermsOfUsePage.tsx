@@ -450,7 +450,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
         {/* Bottom Action / Return to Archive */}
         <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-zinc-500">
           <div>
-            © 2026 LOMON LLC • All Rights Reserved.
+            © 2026 • All Rights Reserved.
           </div>
           <button
             onClick={handleReturn}
