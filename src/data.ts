@@ -1,3 +1,23 @@
+export interface TimeCapsuleData {
+  entryNo: string;
+  catalogNo: string;
+  title: string;
+  timeOfMark: string;
+  recoveryStamp: string;
+  completionStamp: string;
+  tonalAxis: string;
+  tempoPulse: string;
+  runtime: string;
+  masterControl: string;
+  publishingControl: string;
+  origin: string;
+  thirdPartyAssets: string;
+  clearanceStatus: string;
+  deliverableAssets: string[];
+  recoveryStatus: string;
+  archivist: string;
+}
+
 export interface Fragment {
   id: string; // e.g., "00:50"
   name: string;
@@ -22,6 +42,7 @@ export interface Fragment {
   fullRecoveryDate?: string;
   archivist?: string;
   mp3Preview?: string;
+  timeCapsule?: TimeCapsuleData;
 }
 
 export interface JournalEntry {
@@ -245,9 +266,114 @@ export const FRAGMENTS: Fragment[] = [
     recoveryState: "Fully Recovered",
     fullRecoveryDate: "2026.08.01",
     archivist: "Lomon",
-    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1785646485/11_11_PM_With_Tag_2_b9hx24.mp3"
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1785646485/11_11_PM_With_Tag_2_b9hx24.mp3",
+    timeCapsule: {
+      entryNo: "1111",
+      catalogNo: "TOC-1111-A",
+      title: "11:11 PM",
+      timeOfMark: "11:11:00 PM",
+      recoveryStamp: "JUN 01, 2026",
+      completionStamp: "AUG 01, 2026",
+      tonalAxis: "A MAJOR",
+      tempoPulse: "125 BPM",
+      runtime: "05:44",
+      masterControl: "100% LOMON / THE OWL CLOCK",
+      publishingControl: "100% LOMON / THE OWL CLOCK",
+      origin: "100% ORIGINAL",
+      thirdPartyAssets: "NONE",
+      clearanceStatus: "FULLY CLEARED",
+      deliverableAssets: [
+        "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
+        "02. REFERENCE MP3 [ 320 KBPS ]",
+        "03. UNCOMPRESSED INSTRUMENTAL MASTER",
+        "04. COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      recoveryStatus: "SECURED & INDEXED",
+      archivist: "LOMON"
+    }
+  },
+  {
+    id: "09:41",
+    name: "9:41 PM",
+    timestamp: "09:41 PM",
+    classification: "RECOVERY STATE",
+    observation: "Time Capsule Entry 0941. Captured May 19, 2026. Tonal Axis: B Major. Tempo / Pulse: 103 BPM. Runtime: 03:06. Recovery Status: SECURED & INDEXED.",
+    duration: "03:06",
+    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
+    isExclusive: false,
+    frequency: 246.94, // B3 pitch
+    synthType: "keys",
+    bpm: 103,
+    tonalSignature: "B Major",
+    recoveryState: "Fully Recovered",
+    fullRecoveryDate: "2026.08.08",
+    archivist: "LOMON",
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3",
+    timeCapsule: {
+      entryNo: "0941",
+      catalogNo: "TOC-0941-B",
+      title: "9:41 PM",
+      timeOfMark: "09:41:00 PM",
+      recoveryStamp: "MAY 19, 2026",
+      completionStamp: "AUG 08, 2026",
+      tonalAxis: "B MAJOR",
+      tempoPulse: "103 BPM",
+      runtime: "03:06",
+      masterControl: "100% LOMON / THE OWL CLOCK",
+      publishingControl: "100% LOMON / THE OWL CLOCK",
+      origin: "100% ORIGINAL",
+      thirdPartyAssets: "NONE",
+      clearanceStatus: "FULLY CLEARED",
+      deliverableAssets: [
+        "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
+        "02. REFERENCE MP3 [ 320 KBPS ]",
+        "03. UNCOMPRESSED INSTRUMENTAL MASTER",
+        "04. COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      recoveryStatus: "FULLY RECOVERED",
+      archivist: "LOMON"
+    }
   }
 ];
+
+export function getTimeCapsuleForFragment(fragment: Fragment): TimeCapsuleData {
+  if (fragment.timeCapsule) return fragment.timeCapsule;
+
+  const idClean = fragment.id.replace(/[^0-9]/g, "").padStart(4, "0");
+  const title = fragment.timestamp || fragment.name || "00:00 AM";
+  const catalogNo = `TOC-${idClean}-${fragment.isExclusive ? "EX" : "B"}`;
+  const timeOfMark = `${title.split(" ")[0]}:00 ${title.split(" ")[1] || "PM"}`;
+  const recoveryStamp = fragment.fullRecoveryDate || "MAY 19, 2026";
+  const completionStamp = "AUG 08, 2026";
+  const tonalAxis = (fragment.tonalSignature || "CHROMATIC MINOR").toUpperCase();
+  const tempoPulse = `${fragment.bpm || 110} BPM`;
+  const runtime = fragment.duration ? (fragment.duration.length === 4 ? `0${fragment.duration}` : fragment.duration) : "03:30";
+
+  return {
+    entryNo: idClean,
+    catalogNo,
+    title,
+    timeOfMark,
+    recoveryStamp,
+    completionStamp,
+    tonalAxis,
+    tempoPulse,
+    runtime,
+    masterControl: "100% LOMON / THE OWL CLOCK",
+    publishingControl: "100% LOMON / THE OWL CLOCK",
+    origin: "100% ORIGINAL",
+    thirdPartyAssets: "NONE",
+    clearanceStatus: "FULLY CLEARED",
+    deliverableAssets: [
+      "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
+      "02. REFERENCE MP3 [ 320 KBPS ]",
+      "03. UNCOMPRESSED INSTRUMENTAL MASTER",
+      "04. COMPLETE STEM / TRACKOUT SUITE"
+    ],
+    recoveryStatus: fragment.recoveryState ? fragment.recoveryState.toUpperCase() : "SECURED & INDEXED",
+    archivist: (fragment.archivist || "LOMON").toUpperCase()
+  };
+}
 
 export const ARCHIVE_CATEGORIES = [
   "All",

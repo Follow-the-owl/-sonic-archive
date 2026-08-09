@@ -18,8 +18,27 @@ html, body, #root, * {
   font-family: "Special Elite", system-ui, serif !important;
 }
 
-/* Legible Terms of Use & Legal pages - uses clean Poppins font */
-.terms-page, .terms-page * {
+/* Policy & Protocol pages & Time Capsule Overlay - strictly use Poppins font */
+.poppins-font,
+.poppins-font *,
+.refund-page,
+.refund-page *,
+.privacy-page,
+.privacy-page *,
+.acceptable-use-page,
+.acceptable-use-page *,
+.cookie-page,
+.cookie-page *,
+.terms-page,
+.terms-page *,
+.clearance-guide-page,
+.clearance-guide-page *,
+.about-archive-page,
+.about-archive-page *,
+.contact-page,
+.contact-page *,
+.verification-page,
+.verification-page * {
   font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 

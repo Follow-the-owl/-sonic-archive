@@ -23,6 +23,14 @@ interface OwlClockProps {
 
 const CLOCK_FRAGMENTS: ClockFragment[] = [
   {
+    id: "frag-0941",
+    label: "FRAGMENT 09:41 PM",
+    mappedId: "09:41",
+    synthType: "keys",
+    frequency: 246.94,
+    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM."
+  },
+  {
     id: "frag-10",
     label: "FRAGMENT 10:00 PM",
     mappedId: "10:00",
@@ -264,14 +272,17 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
 
   useEffect(() => {
     fetch("/api/fragments")
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) return null;
+        return res.json();
+      })
       .then(data => {
-        if (data.success && Array.isArray(data.fragments) && data.fragments.length > 0) {
+        if (data && data.success && Array.isArray(data.fragments) && data.fragments.length > 0) {
           setFragments(data.fragments);
         }
       })
-      .catch(err => {
-        console.error("Failed to load fragments in OwlClock storefront:", err);
+      .catch(() => {
+        // Gracefully keep pre-loaded local FRAGMENTS
       });
   }, []);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -500,33 +511,31 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setCalibrationState("idle");
 
     let count = 0;
-    const maxShuffles = 8;
+    const maxShuffles = 9;
     const allowedFrags = CLOCK_FRAGMENTS.filter(
-      f => f.mappedId === "10:00" || f.mappedId === "11:11"
+      f => f.mappedId === "09:41" || f.mappedId === "10:00" || f.mappedId === "11:11"
     );
-
-    const frag10 = allowedFrags.find(f => f.mappedId === "10:00") || CLOCK_FRAGMENTS[0];
-    const frag1111 = allowedFrags.find(f => f.mappedId === "11:11") || CLOCK_FRAGMENTS[1] || frag10;
-
-    // Check if we are currently sitting at 10:00 PM or 11:11 PM
-    const currentlyAt10 = displayHour === 10 && displayMinute === 0 && displayAMPM === "PM";
 
     const interval = setInterval(() => {
       count++;
       let randomFrag: ClockFragment;
 
       if (count < maxShuffles) {
-        // Rapidly alternate during shuffle ticks so user visually sees both 10:00 PM and 11:11 PM spinning
-        randomFrag = count % 2 === 1 ? frag1111 : frag10;
+        // Rapidly cycle through allowed fragments during shuffle ticks
+        randomFrag = allowedFrags[(count - 1) % allowedFrags.length];
       } else {
-        // On final tick, if currently at 10:00 PM, land on 11:11 PM (or alternate) to ensure 11:11 PM is randomized into
-        randomFrag = currentlyAt10 ? frag1111 : (Math.random() > 0.5 ? frag1111 : frag10);
+        // On final tick, select randomly among the allowed recovered fragments
+        const currentCleaned = `${displayHour === 0 ? 12 : displayHour}:${displayMinute.toString().padStart(2, "0")} ${displayAMPM}`;
+        const alternatives = allowedFrags.filter(f => !f.label.includes(currentCleaned));
+        const finalPool = alternatives.length > 0 ? alternatives : allowedFrags;
+        randomFrag = finalPool[Math.floor(Math.random() * finalPool.length)];
       }
 
-      const cleaned = randomFrag.label.replace("FRAGMENT ", "").trim(); // "10:00 PM" or "11:11 PM"
+      const cleaned = randomFrag.label.replace("FRAGMENT ", "").trim(); // "09:41 PM", "10:00 PM", or "11:11 PM"
       const [timeStr, ampmStr] = cleaned.split(" ");
       const [hStr, mStr] = timeStr.split(":");
-      const h = parseInt(hStr, 10) % 12;
+      let h = parseInt(hStr, 10) % 12;
+      if (h === 0) h = 12;
       const m = parseInt(mStr, 10);
       const ampm = (ampmStr || "AM") as "AM" | "PM";
 
@@ -847,6 +856,39 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               </h2>
             </motion.div>
 
+            {/* Hairline spacer with central glowing geometric triangle */}
+            <motion.div 
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 0.5, scaleX: 1 }}
+              transition={{ duration: 1.8, delay: 0.5 }}
+              className="flex items-center justify-center gap-3 w-[160px] sm:w-[200px]"
+            >
+              <div className="h-[1.2px] flex-grow bg-gradient-to-r from-transparent to-white/20" />
+              <motion.svg
+                viewBox="0 0 12 12"
+                className="w-[11px] h-[11px] text-white flex-shrink-0"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                animate={{
+                  opacity: [0.35, 1, 0.35],
+                  filter: [
+                    "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
+                    "drop-shadow(0 0 5px rgba(255, 255, 255, 0.85))",
+                    "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
+                  ],
+                  scale: [0.95, 1.08, 0.95]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
+              </motion.svg>
+              <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-white/20" />
+            </motion.div>
+
 
           </div>
         </div>
@@ -866,7 +908,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
             >
               {/* Header section with Choose Clearance Type and Close button */}
               <div className="w-full flex items-center justify-between border-b border-zinc-900 pb-4 mb-5">
-                <h3 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-[#D6C291] uppercase">
+                <h3 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-[#D9D6CA] uppercase">
                   CHOOSE CLEARANCE TYPE
                 </h3>
                 <button
@@ -897,9 +939,9 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   {/* Subtle active / playing sound waves */}
                   {isPlayingBeat && (
                     <div className="absolute inset-x-0 bottom-7 flex items-end justify-center gap-1 z-10">
-                      <span className="w-[1.5px] h-3 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.1s" }} />
-                      <span className="w-[1.5px] h-5 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.2s" }} />
-                      <span className="w-[1.5px] h-2 bg-[#D6C291]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.3s" }} />
+                      <span className="w-[1.5px] h-3 bg-[#D9D6CA]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.1s" }} />
+                      <span className="w-[1.5px] h-5 bg-[#D9D6CA]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.2s" }} />
+                      <span className="w-[1.5px] h-2 bg-[#D9D6CA]/80 origin-bottom animate-bounce" style={{ animationDelay: "0.3s" }} />
                     </div>
                   )}
                 </div>
@@ -928,7 +970,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                           setSelectedTier(null);
                           setClientEmail("");
                         }}
-                        className="mt-6 text-[10px] tracking-[0.2em] font-bold text-[#D6C291] bg-transparent border border-zinc-900 hover:border-[#D6C291]/30 hover:bg-zinc-950 rounded-lg px-4 py-2 uppercase transition-all duration-300"
+                        className="mt-6 text-[10px] tracking-[0.2em] font-bold text-[#D9D6CA] bg-transparent border border-zinc-900 hover:border-[#D9D6CA]/30 hover:bg-zinc-950 rounded-lg px-4 py-2 uppercase transition-all duration-300"
                       >
                         RESET VAULT
                       </button>
@@ -946,7 +988,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                               onClick={() => setSelectedTier(tier.id)}
                               className={`w-full bg-[#101010]/30 border rounded-2xl p-4 text-left transition-all duration-300 relative overflow-hidden flex flex-col cursor-pointer ${
                                 isSelected
-                                  ? "border-[#D6C291] shadow-[0_0_15px_rgba(214,194,145,0.12)] bg-[#12110e]/50"
+                                  ? "border-zinc-700 shadow-xl bg-zinc-950/80"
                                   : "border-zinc-900/60 hover:border-zinc-800"
                               }`}
                             >
@@ -960,7 +1002,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                   </span>
                                 </div>
                                 
-                                {/* Gold Price Pill Button with lock */}
+                                {/* White/Off-white Price Pill Button with lock */}
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -972,7 +1014,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                     setSelectedTier(null);
                                     setClientEmail("");
                                   }}
-                                  className="bg-[#D6C291] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-[0_0_8px_rgba(214,194,145,0.2)]"
+                                  className="bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-sm"
                                 >
                                   <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
                                   <span>{tier.price}</span>
@@ -986,7 +1028,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                   e.stopPropagation();
                                   setExpandedTerms(prev => ({ ...prev, [tier.id]: !prev[tier.id] }));
                                 }}
-                                className="text-[9px] font-mono tracking-widest text-[#D6C291]/70 hover:text-white mt-3 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left py-0.5 select-none font-bold"
+                                className="text-[9px] font-mono tracking-widest text-[#D9D6CA]/70 hover:text-white mt-3 flex items-center gap-1.5 bg-transparent border-0 cursor-pointer text-left py-0.5 select-none font-bold"
                               >
                                 <span>{isExpanded ? "▲ HIDE DETAILS" : "▼ SHOW DETAILS"}</span>
                               </button>
@@ -1002,7 +1044,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                   >
                                     {tier.usageTerms && tier.usageTerms.length > 0 && (
                                       <div>
-                                        <div className="text-[#D6C291]/90 font-bold tracking-wider text-[9px] uppercase mb-1">
+                                        <div className="text-[#D9D6CA]/90 font-bold tracking-wider text-[9px] uppercase mb-1">
                                           Usage Terms:
                                         </div>
                                         <ul className="list-disc pl-4 space-y-0.5 text-[#D9D6CA]/70">
@@ -1037,7 +1079,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                             </div>
                             
                             <div className="space-y-1.5">
-                              <label className="text-[8px] text-[#D6C291]/80 tracking-widest block uppercase font-bold">
+                              <label className="text-[8px] text-[#D9D6CA]/80 tracking-widest block uppercase font-bold">
                                 ENTER VAULT CREDIT EMAIL
                               </label>
                               <input
@@ -1046,7 +1088,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                 placeholder="vault@credentials.local"
                                 value={clientEmail}
                                 onChange={(e) => setClientEmail(e.target.value)}
-                                className="w-full bg-black border border-zinc-900 text-center py-2.5 px-3 text-xs outline-none text-[#D9D6CA] focus:border-[#D6C291]/40 placeholder:text-zinc-800 tracking-wider font-mono rounded-lg"
+                                className="w-full bg-black border border-zinc-900 text-center py-2.5 px-3 text-xs outline-none text-[#D9D6CA] focus:border-[#D9D6CA]/40 placeholder:text-zinc-800 tracking-wider font-mono rounded-lg"
                               />
                             </div>
                           </motion.form>
@@ -1073,7 +1115,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                       disabled={!selectedTier || isProcessingLicense}
                       className={`w-full border py-3.5 tracking-[0.25em] uppercase font-mono text-xs transition-all duration-300 flex items-center justify-center gap-2 rounded-xl ${
                         selectedTier
-                          ? "border-[#D6C291] bg-neutral-950/80 text-[#D6C291] hover:bg-[#D6C291] hover:text-black cursor-pointer shadow-[0_0_15px_rgba(214,194,145,0.1)]"
+                          ? "border-[#D9D6CA] bg-neutral-950/80 text-[#D9D6CA] hover:bg-[#D9D6CA] hover:text-black cursor-pointer shadow-md"
                           : "border-zinc-900 bg-neutral-950 text-zinc-600 cursor-not-allowed"
                       }`}
                     >

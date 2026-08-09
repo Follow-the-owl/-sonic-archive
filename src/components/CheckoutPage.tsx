@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { CartItem } from "../App";
 import { DEFAULT_LICENSE_TEMPLATES } from "../licenses";
+import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
 
 interface CheckoutPageProps {
   cart: CartItem[];
@@ -16,12 +17,12 @@ interface CheckoutPageProps {
   currentUserEmail: string;
   authToken: string | null;
   onLoginSuccess: (email: string, token: string) => void;
-  initialStep?: "cart" | "auth" | "billing" | "paystack" | "success";
+  initialStep?: "cart" | "auth" | "billing" | "paypal" | "success";
   emailPreviewUrl?: string;
   onOpenTerms?: () => void;
 }
 
-type CheckoutStep = "cart" | "auth" | "billing" | "paystack" | "success";
+type CheckoutStep = "cart" | "auth" | "billing" | "paypal" | "success";
 
 export default function CheckoutPage({ 
   cart, 
@@ -70,14 +71,9 @@ export default function CheckoutPage({
   // License review state
   const [reviewLicenseItem, setReviewLicenseItem] = useState<CartItem | null>(null);
 
-  // Paystack mock interface state
-  const [paystackMethod, setPaystackMethod] = useState<"card" | "bank" | "transfer" | "ussd">("card");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [paystackProcessing, setPaystackProcessing] = useState(false);
-  const [paystackOtpStep, setPaystackOtpStep] = useState(false);
-  const [paystackOtp, setPaystackOtp] = useState("");
+  // PayPal payment interface state
+  const [paypalProcessing, setPaypalProcessing] = useState(false);
+  const [paypalError, setPaypalError] = useState("");
 
   // Bulk deals dropdown toggle
   const [bulkDealsOpen, setBulkDealsOpen] = useState(false);
@@ -92,18 +88,17 @@ export default function CheckoutPage({
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
-    if (couponCode.toUpperCase() === "OWL20") {
+    const code = (couponCode || "").toUpperCase();
+    if (code === "OWL20") {
       setDiscount(itemTotal * 0.20);
       setCouponApplied(true);
-    } else if (couponCode.toUpperCase() === "SIGNAL15") {
+    } else if (code === "SIGNAL15") {
       setDiscount(itemTotal * 0.15);
       setCouponApplied(true);
     } else {
       alert("Invalid coupon code. Try 'OWL20' for 20% off or 'SIGNAL15' for 15% off.");
     }
   };
-
-  const [paystackError, setPaystackError] = useState("");
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,17 +144,17 @@ export default function CheckoutPage({
       return;
     }
     setTermsError("");
-    setStep("paystack");
+    setStep("paypal");
   };
 
   const initiateRedirect = async (e?: React.FormEvent, isUserClick: boolean = false) => {
     if (e) e.preventDefault();
-    setPaystackError("");
-    setPaystackProcessing(true);
+    setPaypalError("");
+    setPaypalProcessing(true);
 
     try {
-      // Initialize on the backend (passing the items list!)
-      const response = await fetch("/api/paystack/initialize", {
+      // Create order on the backend
+      const response = await fetch("/api/paypal/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -167,6 +162,8 @@ export default function CheckoutPage({
         },
         body: JSON.stringify({
           email: email || currentUserEmail || "guest@lomon.local",
+          licenseeLegalName: `${firstName} ${lastName}`.trim() || email || currentUserEmail,
+          billing: { firstName, lastName, streetAddress, city, stateProvince, zipCode, country },
           amount: subtotal,
           items: cart.map(item => ({
             fragmentId: item.id,
@@ -181,45 +178,41 @@ export default function CheckoutPage({
 
       const initData = await response.json();
       if (!initData.success) {
-        throw new Error(initData.error || "Failed to initialize secure transaction with backend.");
+        throw new Error(initData.error || "Failed to initialize PayPal transaction with backend.");
       }
 
-      if (!initData.isMock && initData.authorization_url) {
-        console.log("[PAYSTACK] Redirecting user to official Paystack hosted checkout:", initData.authorization_url);
+      if (initData.approveUrl) {
+        console.log("[PAYPAL] Redirecting user to PayPal approval portal:", initData.approveUrl);
         
-        // Detect if running inside an iframe (like AI Studio preview)
         const inIframe = typeof window !== "undefined" && window.self !== window.top;
         
         if (inIframe || isUserClick) {
-          console.log("[PAYSTACK] Running inside iframe or clicked by user. Opening Paystack in a secure new window tab...");
-          const paymentWindow = window.open(initData.authorization_url, "_blank");
+          console.log("[PAYPAL] Running inside iframe or clicked by user. Opening PayPal in a secure tab...");
+          const paymentWindow = window.open(initData.approveUrl, "_blank");
           
           if (!paymentWindow) {
-            setPaystackProcessing(false);
-            setPaystackError("Your browser blocked the secure checkout window popup. Please click the button below to authorize payment manually.");
+            setPaypalProcessing(false);
+            setPaypalError("Your browser blocked the secure popup. Please click the button below to authorize payment on PayPal.");
           } else {
-            setPaystackProcessing(false);
-            // Show a friendly status message letting them know it opened in a new tab
-            setPaystackError("We have opened your secure Paystack checkout portal in a new browser tab. Please complete your transaction there. Once paid, the system will process your licenses automatically.");
+            setPaypalProcessing(false);
+            setPaypalError("We have opened your secure PayPal checkout portal in a new browser tab. Please approve your payment there. Once authorized, your licenses will be generated automatically.");
           }
         } else {
-          window.location.href = initData.authorization_url;
+          window.location.href = initData.approveUrl;
         }
       } else {
-        console.log("[PAYSTACK] Redirecting user to custom simulated hosted checkout page.");
-        const redirectUrl = `/mock-paystack-checkout?reference=${encodeURIComponent(initData.reference)}&amount=${encodeURIComponent(subtotal.toString())}&email=${encodeURIComponent(email || currentUserEmail || "guest@lomon.local")}`;
-        window.location.href = redirectUrl;
+        throw new Error("PayPal authorization URL was not returned by gateway.");
       }
     } catch (err: any) {
-      console.error("[PAYSTACK] Error during initialization:", err);
-      setPaystackProcessing(false);
-      setPaystackError(err.message || "Failed to initialize transaction.");
+      console.error("[PAYPAL] Error during initialization:", err);
+      setPaypalProcessing(false);
+      setPaypalError(err.message || "Failed to initialize PayPal transaction.");
     }
   };
 
-  // Trigger redirect automatically when step changes to 'paystack'
+  // Trigger redirect automatically when step changes to 'paypal'
   useEffect(() => {
-    if (step === "paystack") {
+    if (step === "paypal") {
       initiateRedirect();
     }
   }, [step]);
@@ -255,7 +248,7 @@ export default function CheckoutPage({
           
           <div className="flex items-center gap-2 shrink-0">
             <span className={`whitespace-nowrap ${step === "cart" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
-              01. MEDIA BAG
+              01. CRATE
             </span>
             <ChevronRight size={10} className="text-zinc-650 shrink-0" />
           </div>
@@ -277,7 +270,7 @@ export default function CheckoutPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className={`whitespace-nowrap ${step === "paystack" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
+            <span className={`whitespace-nowrap ${step === "paypal" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
               {isLoggedIn ? "03. SECURE GATEWAY" : "04. SECURE GATEWAY"}
             </span>
           </div>
@@ -301,7 +294,7 @@ export default function CheckoutPage({
                   >
                     <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide font-sans">
-                        Media Bag
+                        Crate
                       </h1>
                     </div>
 
@@ -485,7 +478,7 @@ export default function CheckoutPage({
                         onClick={() => setStep("cart")}
                         className="w-full text-zinc-650 hover:text-zinc-450 text-[9px] tracking-widest font-mono uppercase text-center cursor-pointer py-1 block transition-colors mt-2"
                       >
-                        &lt; Return to Media Bag
+                        &lt; Return to Crate
                       </button>
                     </form>
                   </motion.div>
@@ -695,55 +688,55 @@ export default function CheckoutPage({
                   </motion.div>
                 )}
 
-                {/* STEP 3: SECURE GATEWAY PORT (PAYSTACK REDIRECT) */}
-                {step === "paystack" && (
+                {/* STEP 3: SECURE GATEWAY PORT (PAYPAL REDIRECT) */}
+                {step === "paypal" && (
                   <motion.div
-                    key="paystack-view"
+                    key="paypal-view"
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
                     className="w-full max-w-[540px] mx-auto bg-[#040404] border border-zinc-900 rounded-md p-8 sm:p-10 flex flex-col items-center justify-center text-center shadow-2xl font-mono text-[#D9D6CA]"
                   >
-                    {/* Paystack Green pulsating circle / ripple */}
+                    {/* PayPal Gold pulsating indicator */}
                     <div className="relative w-16 h-16 flex items-center justify-center mb-6">
-                      <div className="absolute inset-0 bg-[#39CD74]/10 rounded-full animate-ping duration-1000" />
-                      <div className="w-10 h-10 bg-[#39CD74]/20 border border-[#39CD74]/40 text-[#39CD74] rounded-full flex items-center justify-center relative">
-                        <span className="w-3.5 h-3.5 bg-[#39CD74] rounded-full" />
+                      <div className="absolute inset-0 bg-[#F7C552]/10 rounded-full animate-ping duration-1000" />
+                      <div className="w-10 h-10 bg-[#F7C552]/20 border border-[#F7C552]/40 text-[#F7C552] rounded-full flex items-center justify-center relative">
+                        <span className="w-3.5 h-3.5 bg-[#F7C552] rounded-full" />
                       </div>
                     </div>
 
                     <h2 className="text-base sm:text-lg font-bold tracking-[0.25em] text-[#D9D6CA] uppercase mb-3 font-sans">
-                      SECURE CONNECTION TO PAYSTACK
+                      SECURE CONNECTION TO PAYPAL
                     </h2>
 
                     <p className="text-[11.5px] text-zinc-400 font-sans font-light leading-relaxed mb-6 max-w-sm">
-                      We are securely routing your connection to the official Paystack hosted checkout portal to authorize your digital acquisition.
+                      We are securely routing your connection to PayPal hosted checkout to authorize your digital acquisition.
                     </p>
 
-                    {paystackError ? (
-                      <div className="bg-red-950/20 border border-red-900/40 text-red-400 text-[11px] p-4 rounded-sm w-full mb-6 font-sans">
-                        {paystackError}
+                    {paypalError ? (
+                      <div className="bg-amber-950/20 border border-amber-900/40 text-amber-300 text-[11px] p-4 rounded-sm w-full mb-6 font-sans leading-relaxed">
+                        {paypalError}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2.5 text-[10.5px] text-zinc-500 font-bold uppercase tracking-widest mb-6 select-none font-mono">
-                        <span className="w-2 h-2 rounded-full bg-[#39CD74] inline-block animate-pulse" />
-                        <span>ESTABLISHING GATEWAY SECURE HANDSHAKE...</span>
+                        <span className="w-2 h-2 rounded-full bg-[#F7C552] inline-block animate-pulse" />
+                        <span>ESTABLISHING SECURE PAYPAL HANDSHAKE...</span>
                       </div>
                     )}
 
                     <div className="w-full space-y-3">
                       <button
                         onClick={(e) => initiateRedirect(e, true)}
-                        disabled={paystackProcessing && !paystackError}
+                        disabled={paypalProcessing && !paypalError}
                         className="w-full text-[11px] font-sans font-extrabold text-black bg-[#D9D6CA] hover:bg-white py-3.5 tracking-widest uppercase transition-all rounded-[4px] cursor-pointer shadow-lg inline-flex items-center justify-center gap-2"
                       >
-                        {paystackProcessing && !paystackError ? (
+                        {paypalProcessing && !paypalError ? (
                           <>
                             <span className="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin inline-block" />
-                            <span>REDIRECTING...</span>
+                            <span>REDIRECTING TO PAYPAL...</span>
                           </>
                         ) : (
-                          <span>PROCEED TO SECURE WEBSITE →</span>
+                          <span>PROCEED TO SECURE CHECKOUT →</span>
                         )}
                       </button>
 
@@ -836,7 +829,7 @@ export default function CheckoutPage({
                   <button
                     onClick={() => {
                       if (cart.length === 0) {
-                        alert("Your media bag is empty.");
+                        alert("Your crate is empty.");
                         return;
                       }
                       if (!agreedToTerms) {
@@ -875,9 +868,9 @@ export default function CheckoutPage({
                   </button>
                 )}
 
-                {step === "paystack" && (
+                {step === "paypal" && (
                   <div className="p-3 bg-zinc-950/40 border border-zinc-900 rounded-[4px] text-[9.5px] text-zinc-500 text-center leading-relaxed">
-                    Please authorize the transaction using the secure Paystack checkout gateway to the left.
+                    Please authorize the transaction using the secure PayPal checkout gateway to the left.
                   </div>
                 )}
 
@@ -937,9 +930,35 @@ export default function CheckoutPage({
               ))}
             </div>
 
-            <p className="text-[11.5px] text-zinc-400 font-sans font-light leading-relaxed mb-6">
+            <p className="text-[11.5px] text-zinc-400 font-sans font-light leading-relaxed mb-4">
               All uncompressed master WAV files and professional tracking stems have been deployed to your secure customer terminal. Your license certificate and stem downloads link have been forwarded to <strong className="text-white">{email}</strong>.
             </p>
+
+            {/* Dynamic License Agreement Download Action */}
+            <div className="w-full mb-6 space-y-2">
+              {cart.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    openOrDownloadLicenseAgreement({
+                      licenseId: `TOC-LIC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(100 + Math.random() * 900)}`,
+                      transactionRef: `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+                      purchaseDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+                      licenseeLegalName: `${firstName} ${lastName}`.trim() || email || currentUserEmail || "Authorized Licensee",
+                      licenseeEmail: email || currentUserEmail || "guest@lomon.local",
+                      fragmentTitle: item.name,
+                      archiveIdentifier: `TOC-${(item.id || item.fragmentId || "FRAG").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`,
+                      licenseTierId: item.tierId,
+                      licenseTierTitle: item.tierTitle
+                    });
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-[#D9D6CA]/10 border border-[#D9D6CA]/40 text-[#D9D6CA] hover:bg-[#D9D6CA] hover:text-black transition-all text-[10.5px] font-sans font-bold px-4 py-3 rounded-[4px] uppercase tracking-wider cursor-pointer"
+                >
+                  <ShieldCheck size={14} className="text-[#00E676]" />
+                  <span>Download Executed Agreement for "{item.name}" (Schedules A &amp; B) 📄</span>
+                </button>
+              ))}
+            </div>
 
             {emailPreviewUrl && (
               <div className="mb-6 w-full">

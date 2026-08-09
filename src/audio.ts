@@ -74,6 +74,57 @@ export function getMasterVolume(): number {
   return masterGain ? masterGain.gain.value : 0.5;
 }
 
+// Audio Cache Map for persistent Audio elements and Web Audio source nodes
+interface CachedAudioEntry {
+  element: HTMLAudioElement;
+  sourceNode?: MediaElementAudioSourceNode;
+  gainNode?: GainNode;
+}
+
+const audioCacheMap = new Map<string, CachedAudioEntry>();
+
+/**
+ * Transforms a Cloudinary audio URL (or any audio URL) to stream as a lightweight 128kbps MP3.
+ * Automatically injects `/f_mp3,br_128k/` into Cloudinary `/upload/` path
+ * and converts `.wav` extension to `.mp3` for lightweight, seamless streaming.
+ */
+export function getOptimizedAudioUrl(url: string | undefined | null): string {
+  if (!url) return "";
+
+  let result = url.trim();
+
+  // Handle Cloudinary delivery URLs
+  if (result.includes("cloudinary.com") && result.includes("/upload/")) {
+    if (!result.includes("f_mp3,br_128k") && !result.includes("f_mp3")) {
+      result = result.replace("/upload/", "/upload/f_mp3,br_128k/");
+    }
+    // Automatically convert .wav extension to .mp3 format
+    result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
+    return result;
+  }
+
+  // Handle direct .wav URLs
+  if (result.endsWith(".wav")) {
+    return result.replace(/\.wav$/, ".mp3");
+  }
+
+  return result;
+}
+
+export function preloadAllAudio() {
+  if (typeof window === "undefined") return;
+  FRAGMENTS.forEach(frag => {
+    if (frag.mp3Preview && !audioCacheMap.has(frag.id)) {
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.crossOrigin = "anonymous";
+      audio.src = getOptimizedAudioUrl(frag.mp3Preview);
+      audio.load();
+      audioCacheMap.set(frag.id, { element: audio });
+    }
+  });
+}
+
 export function getCurrentAudioElement(): HTMLAudioElement | null {
   return currentNodes?.audioElement || null;
 }
@@ -102,15 +153,23 @@ export function pauseAudio() {
   if (currentNodes?.audioElement) {
     currentNodes.audioElement.pause();
   }
+  if (activeCallback) activeCallback(false, activeId);
 }
 
 export function resumeAudio() {
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
   if (currentNodes?.audioElement) {
-    currentNodes.audioElement.play().catch(e => {
+    currentNodes.audioElement.play().then(() => {
+      if (activeCallback) activeCallback(true, activeId);
+    }).catch(e => {
       if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
         console.error("Error resuming audio:", e);
       }
     });
+  } else {
+    if (activeCallback) activeCallback(true, activeId);
   }
 }
 
@@ -118,12 +177,12 @@ export function isAudioPaused(): boolean {
   if (currentNodes?.audioElement) {
     return currentNodes.audioElement.paused;
   }
-  return false;
+  return activeId === null;
 }
 
 export function stopAudio() {
   if (currentNodes) {
-    const fadeOutTime = 0.5;
+    const fadeOutTime = 0.2;
     if (audioCtx) {
       const now = audioCtx.currentTime;
       // Fade out all current active gains to prevent harsh pops
@@ -150,16 +209,27 @@ export function stopAudio() {
         try { lfoOsc.stop(); } catch (e) {}
         lfoOsc = null;
       }
-      if (localNodes.audioElement) {
+      if (localNodes.audioElement && currentNodes?.audioElement !== localNodes.audioElement) {
         try {
           localNodes.audioElement.pause();
-          localNodes.audioElement.remove();
         } catch (e) {}
       }
-    }, fadeOutTime * 1000 + 50);
+    }, fadeOutTime * 1000 + 30);
   }
   activeId = null;
   if (activeCallback) activeCallback(false, null);
+}
+
+export function toggleFragment(
+  id: string,
+  frequency: number,
+  synthType: "drone" | "keys" | "bell" | "noise" | "pulse"
+) {
+  if (activeId === id && !isAudioPaused()) {
+    pauseAudio();
+  } else {
+    playFragment(id, frequency, synthType);
+  }
 }
 
 export function playFragment(
@@ -176,9 +246,11 @@ export function playFragment(
 
   if (!audioCtx || !masterGain) return;
 
-  // If already playing this fragment, toggle off
+  // If already active fragment, ensure it is playing smoothly
   if (activeId === id) {
-    stopAudio();
+    if (isAudioPaused()) {
+      resumeAudio();
+    }
     return;
   }
 
@@ -190,17 +262,37 @@ export function playFragment(
   const fragment = FRAGMENTS.find(f => f.id === id);
   if (fragment && fragment.mp3Preview) {
     try {
-      const audioEl = new Audio(fragment.mp3Preview);
-      audioEl.crossOrigin = "anonymous";
+      const optimizedUrl = getOptimizedAudioUrl(fragment.mp3Preview);
+      let entry = audioCacheMap.get(id);
+      if (!entry) {
+        const audio = new Audio();
+        audio.preload = "metadata";
+        audio.crossOrigin = "anonymous";
+        audio.src = optimizedUrl;
+        audio.load();
+        entry = { element: audio };
+        audioCacheMap.set(id, entry);
+      } else if (entry.element.src !== optimizedUrl && optimizedUrl) {
+        entry.element.src = optimizedUrl;
+        entry.element.preload = "metadata";
+      }
+
+      const audioEl = entry.element;
+      audioEl.preload = "metadata";
       audioEl.loop = true;
 
-      const source = audioCtx.createMediaElementSource(audioEl);
-      const gainNode = audioCtx.createGain();
-      gainNode.gain.setValueAtTime(0.001, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.6, now + 0.5);
+      let gainNode = entry.gainNode;
+      if (!entry.sourceNode || !gainNode) {
+        entry.sourceNode = audioCtx.createMediaElementSource(audioEl);
+        gainNode = audioCtx.createGain();
+        entry.sourceNode.connect(gainNode);
+        gainNode.connect(masterGain);
+        entry.gainNode = gainNode;
+      }
 
-      source.connect(gainNode);
-      gainNode.connect(masterGain);
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(0.001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.6, now + 0.3);
 
       currentNodes = {
         oscillators: [],
@@ -208,14 +300,18 @@ export function playFragment(
         audioElement: audioEl
       };
 
-      audioEl.play().catch(e => {
-        if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
+      activeId = id;
+
+      audioEl.play().then(() => {
+        if (activeCallback) activeCallback(true, id);
+      }).catch(e => {
+        if (e.name === 'NotAllowedError') {
+          if (activeCallback) activeCallback(false, id);
+        } else if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
           console.error("Error playing MP3 preview:", e);
         }
       });
 
-      activeId = id;
-      if (activeCallback) activeCallback(true, id);
       return;
     } catch (e) {
       console.error("Failed to set up MP3 playback source. Falling back to synth.", e);
@@ -1042,7 +1138,7 @@ export function transitionAmbient(sectionName: string) {
       gainNodes.push(gPad);
     });
 
-  } else if (sectionName === "The Signal Tower") {
+  } else if (sectionName === "Signal tower") {
     // Constant high elevation bandpassed storm bise
     const stormNoise = audioCtx.createBufferSource();
     const bufSize = audioCtx.sampleRate * 2;
@@ -1084,7 +1180,7 @@ export function transitionAmbient(sectionName: string) {
 
     // Dynamic tech packet telemetry sequences every 4 seconds
     const signalInterval = setInterval(() => {
-      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "The Signal Tower") return;
+      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "Signal tower") return;
       const t = audioCtx.currentTime;
 
       const packetFreqs = [1820, 1960, 2120];

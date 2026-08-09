@@ -27,7 +27,7 @@ interface AdminDashboardProps {
 
 // Initial default settings
 const INITIAL_SETTINGS = {
-  paymentMethods: { paystack: true, stripe: false, crypto: true },
+  paymentMethods: { paypal: true, stripe: false, crypto: true },
   storeName: "LOMON ARCHIVE",
   address: "Atlanta, Georgia",
   branding: "Classic Monochromatic Slate",
@@ -557,7 +557,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     "SYSTEM JOURNAL [SYSTEM STABILIZED]",
     `> authenticated session: ${currentUserEmail}`,
     "> archive directory: /srv/lomon-archive/fragments",
-    "> active gateways: paystack-active, stripe-offline",
+    "> active gateways: paypal-active, stripe-offline",
     "> state: safe, ready for composition registration"
   ]);
   const [isDiagnosticRunning, setIsDiagnosticRunning] = useState<boolean>(false);
@@ -589,7 +589,7 @@ export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashb
     const steps = [
       { delay: 400, log: "> Mounting secure nodes... OK" },
       { delay: 800, log: `> Directory verified: /srv/lomon-archive/fragments (${fragments.length} entries)` },
-      { delay: 1200, log: `> Active Gateway Ping: Paystack (ONLINE), Stripe (OFFLINE)` },
+      { delay: 1200, log: `> Active Gateway Ping: PayPal (ONLINE), Stripe (OFFLINE)` },
       { delay: 1600, log: `> Financial reconciliation: total accrued $${totalRevenueSum.toLocaleString()} across ${orders.length} orders.` },
       { delay: 2000, log: "> System health: 100% operational. Integrity verified." },
       { delay: 2400, log: "SYSTEM JOURNAL [SYSTEM STABILIZED]" }
@@ -1175,7 +1175,7 @@ Proceed with soft deletion?`)) {
 
         <div className="pt-8 border-t border-zinc-900 mt-6 md:mt-0 space-y-2">
           <div className="text-[10px] text-zinc-500 font-bold uppercase">SECURE SHELL</div>
-          <div className="text-xs text-zinc-400 font-bold truncate">{currentUserEmail.toUpperCase()}</div>
+          <div className="text-xs text-zinc-400 font-bold truncate">{(currentUserEmail || "").toUpperCase()}</div>
           <button
             onClick={onClose}
             className="text-xs text-zinc-500 hover:text-red-400 transition-colors uppercase font-bold cursor-pointer tracking-wider text-left"
@@ -1365,7 +1365,7 @@ Proceed with soft deletion?`)) {
                       <span className="text-emerald-400 font-bold">MONGODB SECURE</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">GATEWAY (PAYSTACK)</span>
+                      <span className="text-zinc-500 uppercase font-bold">GATEWAY (PAYPAL)</span>
                       <span className="text-emerald-400 font-bold">ONLINE (LIVE)</span>
                     </div>
                     <div className="flex justify-between items-center">
@@ -2927,7 +2927,7 @@ Please upload these assets in the respective wizard steps before proceeding.`);
                         }}
                       />
                       <button className="bg-zinc-900 text-[#D9D6CA] border border-zinc-800 hover:border-zinc-700 text-xs font-bold px-2 py-0.5 uppercase cursor-pointer flex items-center gap-1">
-                        <Upload className="w-3 h-3" /> UPLOAD TO {activeMediaFolder.toUpperCase()}
+                        <Upload className="w-3 h-3" /> UPLOAD TO {(activeMediaFolder || "").toUpperCase()}
                       </button>
                     </div>
                   </div>

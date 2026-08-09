@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { ArrowLeft, ShieldCheck, Mail, Lock, ExternalLink } from "lucide-react";
+import DocumentScrollControls from "./DocumentScrollControls";
 
 interface TermsOfUsePageProps {
   onBack?: () => void;
@@ -21,7 +22,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
   };
 
   return (
-    <div className="terms-page min-h-screen bg-black text-[#D9D6CA] selection:bg-[#D6C291]/30 selection:text-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="terms-page min-h-screen bg-black text-zinc-300 selection:bg-zinc-800 selection:text-white py-12 px-4 sm:px-6 lg:px-8">
       {/* Container - Max Width 850px as requested for clean, highly readable layout */}
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
@@ -31,21 +32,21 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
             onClick={handleReturn}
             className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-[#D6C291]" />
+            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
             <span>RETURN TO PREVIOUS PAGE</span>
           </button>
 
           <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <ShieldCheck size={14} className="text-[#D6C291]" />
-            <span>ARCHIVE PROTOCOL 01 // LEGAL GOVERNANCE</span>
+            <ShieldCheck size={14} className="text-zinc-300" />
+            <span>LOMON LLC • TERMS OF USE</span>
           </div>
         </div>
 
         {/* Title Block */}
         <div className="space-y-4 border-b border-zinc-900/80 pb-8">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold tracking-[0.3em] text-[#D6C291] uppercase block">
-              LOMON LLC • LEGAL PROTOCOLS
+            <span className="text-[10px] font-bold tracking-[0.3em] text-zinc-400 uppercase block">
+              LOMON LLC • TERMS OF USE
             </span>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.15em] uppercase leading-tight">
               TERMS OF USE
@@ -55,11 +56,11 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4">
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Effective Date:</span>
-              <span className="text-[#D9D6CA]">July 28, 2026</span>
+              <span className="text-zinc-200">July 28, 2026</span>
             </div>
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Last Updated:</span>
-              <span className="text-[#D9D6CA]">July 28, 2026</span>
+              <span className="text-zinc-200">July 28, 2026</span>
             </div>
           </div>
 
@@ -71,7 +72,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
             <p>
               The Owl Clock is owned and operated by <strong className="text-white">LOMON LLC</strong>, a Georgia limited liability company. In these Terms, “LOMON,” “The Owl Clock,” “we,” “us,” and “our” refer to LOMON LLC.
             </p>
-            <p className="text-[#D6C291] font-bold pt-1">
+            <p className="text-zinc-200 font-bold pt-1">
               By accessing the website, submitting a clearance request, purchasing a license, downloading materials, or otherwise using The Owl Clock, you agree to these Terms. Do not use The Owl Clock if you do not agree to these Terms.
             </p>
           </div>
@@ -83,7 +84,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 1. DEFINITIONS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
-              <span className="text-[#D6C291]">1.</span> DEFINITIONS
+              <span className="text-zinc-400">1.</span> DEFINITIONS
             </h2>
             <p>For purposes of these Terms:</p>
             <ul className="space-y-2.5 pl-4 border-l-2 border-zinc-850 font-mono text-[11.5px] text-zinc-300">
@@ -114,7 +115,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 2. ELIGIBILITY */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">2.</span> ELIGIBILITY
+              <span className="text-zinc-400">2.</span> ELIGIBILITY
             </h2>
             <p>
               You must be at least eighteen (18) years old, or the legal age of majority where you live, to purchase a License or enter into a binding agreement through the Archive.
@@ -130,7 +131,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 3. OWNERSHIP OF THE ARCHIVE */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">3.</span> OWNERSHIP OF THE ARCHIVE
+              <span className="text-zinc-400">3.</span> OWNERSHIP OF THE ARCHIVE
             </h2>
             <p>
               Unless expressly stated otherwise in writing, LOMON LLC or its authorized licensors own all rights, title, and interest in and to the Archive and Archive Material. These rights include, but are not limited to:
@@ -151,7 +152,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 4. LIMITED ACCESS TO THE ARCHIVE */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">4.</span> LIMITED ACCESS TO THE ARCHIVE
+              <span className="text-zinc-400">4.</span> LIMITED ACCESS TO THE ARCHIVE
             </h2>
             <p>
               LOMON LLC grants you a limited, revocable, non-exclusive, non-transferable right to access the Archive for lawful purposes, including:
@@ -172,7 +173,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 5. AUDIO PREVIEWS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">5.</span> AUDIO PREVIEWS
+              <span className="text-zinc-400">5.</span> AUDIO PREVIEWS
             </h2>
             <p>
               Audio previews provided through the Archive are furnished solely for private evaluation. Unless expressly authorized in writing by LOMON LLC, you strictly MAY NOT:
@@ -195,7 +196,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 6. LICENSES */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">6.</span> LICENSES &amp; RIGHTS ARRANGEMENTS
+              <span className="text-zinc-400">6.</span> LICENSES &amp; RIGHTS ARRANGEMENTS
             </h2>
             <p>
               Archive Material may be commercially or publicly used only under a valid License issued or approved in writing by LOMON LLC. Available licensing structures include:
@@ -234,7 +235,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 7. ORDER OF CONTROL */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">7.</span> ORDER OF CONTROL
+              <span className="text-zinc-400">7.</span> ORDER OF CONTROL
             </h2>
             <p>
               These Terms govern general access to and use of the Archive. A specific License agreement governs the authorized use of the Fragment identified in that License.
@@ -250,7 +251,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 8. NO TRANSFER OF OWNERSHIP */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">8.</span> NO TRANSFER OF OWNERSHIP
+              <span className="text-zinc-400">8.</span> NO TRANSFER OF OWNERSHIP
             </h2>
             <p>
               Unless an executed written agreement expressly states otherwise in clear, unambiguous terms:
@@ -272,7 +273,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 9. PROHIBITED USES & RESTRICTIONS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">9.</span> PROHIBITED USES &amp; AI RESTRICTIONS
+              <span className="text-zinc-400">9.</span> PROHIBITED USES &amp; AI RESTRICTIONS
             </h2>
             <p>Users are strictly prohibited from:</p>
             <ul className="space-y-2 pl-4 border-l-2 border-red-900/50 font-mono text-[11px] text-zinc-300">
@@ -294,7 +295,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 10. CLEARANCE REQUESTS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">10.</span> CLEARANCE REQUESTS &amp; APPROVAL
+              <span className="text-zinc-400">10.</span> CLEARANCE REQUESTS &amp; APPROVAL
             </h2>
             <p>
               Submitting a clearance request through the Archive or Transmissions portal does not grant licensing rights. Rights are granted only upon execution of a formal License agreement and receipt of full payment.
@@ -307,7 +308,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 11. INTELLECTUAL PROPERTY & METADATA */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">11.</span> INTELLECTUAL PROPERTY &amp; METADATA
+              <span className="text-zinc-400">11.</span> INTELLECTUAL PROPERTY &amp; METADATA
             </h2>
             <p>
               All Metadata attached to Fragments, downloadable packages, digital certificates, and documentation is proprietary to LOMON LLC. Removing, altering, or falsifying ISRCs, ISWCs, producer tags, or copyright notices embedded within delivered files is strictly prohibited and constitutes a breach of contract.
@@ -317,17 +318,17 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 12. FEES & PAYMENTS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">12.</span> FEES &amp; PAYMENTS
+              <span className="text-zinc-400">12.</span> FEES &amp; PAYMENTS
             </h2>
             <p>
-              All prices displayed on the website are quoted in United States Dollars (USD) unless specified otherwise. Payments are processed through authorized payment gateways (including Paystack and credit card processors). You agree to provide valid payment information and authorize LOMON LLC to charge the designated payment method.
+              All prices displayed on the website are quoted in United States Dollars (USD) unless specified otherwise. Payments are processed through authorized payment gateways (including PayPal and credit card processors). You agree to provide valid payment information and authorize LOMON LLC to charge the designated payment method.
             </p>
           </section>
 
           {/* 13. REFUNDS & CANCELLATION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">13.</span> REFUNDS &amp; CANCELLATION
+              <span className="text-zinc-400">13.</span> REFUNDS &amp; CANCELLATION
             </h2>
             <p>
               Due to the immediate digital delivery of intellectual property, sound files, and contractual documentation, <strong className="text-white">all sales, license fees, and clearance payments are final and non-refundable</strong> once files or certificates have been dispatched or made accessible.
@@ -340,7 +341,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 14. DISCLAIMER OF WARRANTIES */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">14.</span> DISCLAIMER OF WARRANTIES
+              <span className="text-zinc-400">14.</span> DISCLAIMER OF WARRANTIES
             </h2>
             <p className="uppercase font-mono text-[11px] text-zinc-400 leading-relaxed bg-zinc-950 p-4 border border-zinc-900">
               THE ARCHIVE AND ARCHIVE MATERIAL ARE PROVIDED ON AN “AS IS” AND “AS AVAILABLE” BASIS WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. LOMON LLC DOES NOT WARRANT THAT ACCESS WILL BE UNINTERRUPTED, ERROR-FREE, OR FREE OF HARMFUL COMPONENTS.
@@ -350,7 +351,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 15. LIMITATION OF LIABILITY */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">15.</span> LIMITATION OF LIABILITY
+              <span className="text-zinc-400">15.</span> LIMITATION OF LIABILITY
             </h2>
             <p className="uppercase font-mono text-[11px] text-zinc-400 leading-relaxed bg-zinc-950 p-4 border border-zinc-900">
               TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, LOMON LLC SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE ARCHIVE. IN NO EVENT SHALL LOMON LLC’S AGGREGATE LIABILITY EXCEED THE GREATER OF ONE HUNDRED USD ($100) OR THE TOTAL AMOUNT PAID BY YOU TO LOMON LLC IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
@@ -360,7 +361,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 16. INDEMNIFICATION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">16.</span> INDEMNIFICATION
+              <span className="text-zinc-400">16.</span> INDEMNIFICATION
             </h2>
             <p>
               You agree to indemnify, defend, and hold harmless LOMON LLC, its members, managers, officers, employees, agents, licensors, and successors from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising out of or relating to your violation of these Terms or unauthorized use of any Fragment.
@@ -370,7 +371,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 17. TERMINATION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">17.</span> TERMINATION
+              <span className="text-zinc-400">17.</span> TERMINATION
             </h2>
             <p>
               LOMON LLC reserves the right to suspend or terminate your access to the Archive, or revoke any granted License, immediately upon written notice in the event of your material breach of these Terms, non-payment, or unauthorized commercial exploitation.
@@ -380,7 +381,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 18. GOVERNING LAW & JURISDICTION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">18.</span> GOVERNING LAW &amp; JURISDICTION
+              <span className="text-zinc-400">18.</span> GOVERNING LAW &amp; JURISDICTION
             </h2>
             <p>
               These Terms shall be governed by and construed in accordance with the laws of the <strong className="text-white">State of Georgia, United States of America</strong>, without regard to its conflict of law principles.
@@ -393,7 +394,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 19. MODIFICATIONS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">19.</span> MODIFICATIONS TO TERMS
+              <span className="text-zinc-400">19.</span> MODIFICATIONS TO TERMS
             </h2>
             <p>
               LOMON LLC reserves the right to update or modify these Terms at any time by posting the revised version on the Archive with an updated Effective Date. Your continued use of the Archive following any such changes constitutes your acceptance of the new Terms.
@@ -403,7 +404,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           {/* 20. CONTACT INFORMATION */}
           <section className="space-y-4 pt-2">
             <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-[#D6C291]">20.</span> CONTACT INFORMATION &amp; PUBLISHING ADMINISTRATION
+              <span className="text-zinc-400">20.</span> CONTACT INFORMATION &amp; PUBLISHING ADMINISTRATION
             </h2>
             <p>
               If you have any questions, clearance inquiries, or rights administration requests regarding these Terms of Use, please contact LOMON LLC at:
@@ -423,21 +424,21 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
               <div className="pt-3 border-t border-zinc-900 flex flex-col sm:flex-row sm:items-center gap-4 text-[11px]">
                 <a
                   href="mailto:licensing@theowlclock.com"
-                  className="inline-flex items-center gap-2 text-[#D6C291] hover:text-white transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <Mail size={13} />
                   <span>licensing@theowlclock.com</span>
                 </a>
                 <a
                   href="mailto:clearance@theowlclock.com"
-                  className="inline-flex items-center gap-2 text-[#D6C291] hover:text-white transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <Mail size={13} />
                   <span>clearance@theowlclock.com</span>
                 </a>
                 <a
                   href="mailto:contact@lomonllc.com"
-                  className="inline-flex items-center gap-2 text-[#D6C291] hover:text-white transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <Mail size={13} />
                   <span>contact@lomonllc.com</span>
@@ -454,12 +455,13 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
           </div>
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-[#D6C291] hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-[#D6C291] px-4 py-2 rounded-sm"
+            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm"
           >
             <span>← RETURN TO PREVIOUS PAGE</span>
           </button>
         </div>
 
+        <DocumentScrollControls />
       </div>
     </div>
   );

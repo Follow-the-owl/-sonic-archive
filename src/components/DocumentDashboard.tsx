@@ -4,6 +4,7 @@ import {
   Activity, User, Edit, CheckSquare, RefreshCw, AlertTriangle, 
   Plus, X, ChevronRight, Check, Eye
 } from "lucide-react";
+import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
 
 // --- Types & Interfaces ---
 export type DocumentType =
@@ -556,14 +557,36 @@ export default function DocumentDashboard({
     });
   };
 
-  // Simulate file download
+  // Execute/download full dynamic document
   const handleDownloadFile = (doc: DocumentItem) => {
     setDownloadingId(doc.id);
     
-    // Simulate compilation of PDF license
     setTimeout(() => {
       setDownloadingId(null);
-      // Trigger native download simulation
+
+      const isLicenseDoc = doc.section === "LICENSES" || doc.name.toLowerCase().includes("license") || doc.name.toLowerCase().includes("agreement");
+      
+      if (isLicenseDoc) {
+        let tierId = "access";
+        if (doc.name.toLowerCase().includes("exclusive")) tierId = "exclusive";
+        else if (doc.name.toLowerCase().includes("commercial") || doc.name.toLowerCase().includes("sync")) tierId = "commercial";
+        else if (doc.name.toLowerCase().includes("release")) tierId = "release";
+
+        openOrDownloadLicenseAgreement({
+          licenseId: doc.licenseId || doc.id,
+          transactionRef: `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+          purchaseDate: doc.dateCreated || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+          licenseeLegalName: doc.clientId !== "GUEST" ? doc.clientId : currentUserEmail || "Authorized Licensee",
+          licenseeEmail: currentUserEmail || "client@lomon.local",
+          fragmentTitle: doc.compositionId !== "N/A" ? doc.compositionId : "Archived Fragment",
+          archiveIdentifier: `TOC-ARCHIVE-${doc.compositionId.replace(/[^a-zA-Z0-9]/g, "")}`,
+          licenseTierId: tierId,
+          licenseTierTitle: doc.name
+        });
+        return;
+      }
+
+      // Default text output for other certificates
       const text = `
 SECURE ARCHIVE CERTIFICATE
 ------------------------------
@@ -573,9 +596,9 @@ SECTION       : ${doc.section}
 CLIENT ID     : ${doc.clientId}
 COMPOSITION ID: ${doc.compositionId}
 DATE SECURED  : ${doc.dateCreated}
-STATUS        : ${doc.status.toUpperCase()}
-SIGNATURE     : ${doc.signatureStatus.toUpperCase()}
-VERIFICATION  : ${doc.verificationStatus.toUpperCase()}
+STATUS        : ${(doc.status || "").toUpperCase()}
+SIGNATURE     : ${(doc.signatureStatus || "").toUpperCase()}
+VERIFICATION  : ${(doc.verificationStatus || "").toUpperCase()}
 
 MD5 CIPHER BLOCK HASH:
 0x${Math.floor(Math.random() * 1000000000).toString(16).toUpperCase()}${Math.floor(Math.random() * 1000000000).toString(16).toUpperCase()}
@@ -592,7 +615,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    }, 1200);
+    }, 600);
   };
 
   // FRONT-END USER MENU DEFINITIONS
@@ -948,7 +971,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                               {doc.name}
                             </span>
                             <div className="text-[8px] text-zinc-400 font-mono flex items-center gap-1.5 flex-wrap">
-                              <span className="text-yellow-500 bg-yellow-500/10 px-1 py-0.2 font-bold font-mono">{doc.documentType.toUpperCase()}</span>
+                              <span className="text-yellow-500 bg-yellow-500/10 px-1 py-0.2 font-bold font-mono">{(doc.documentType || "").toUpperCase()}</span>
                               <span className="text-zinc-600">•</span>
                               <span className="text-zinc-500 font-mono">{doc.version}</span>
                               <span className="text-zinc-600">•</span>
@@ -973,10 +996,10 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                         </div>
                         <div className="text-[7.5px] flex flex-wrap gap-x-2 gap-y-0.5 text-zinc-500 uppercase font-bold">
                           <span className={`px-1 py-0.2 border ${doc.visibility === "Public" ? "border-[#00E676]/20 text-[#00E676]" : "border-red-900/30 text-red-500"}`}>
-                            {doc.visibility.toUpperCase()}
+                            {(doc.visibility || "").toUpperCase()}
                           </span>
                           <span className={`px-1 py-0.2 border ${doc.isSigned === "Signed" ? "border-[#00E676]/20 text-[#00E676]" : "border-zinc-800 text-zinc-400"}`}>
-                            {doc.isSigned.toUpperCase()}
+                            {(doc.isSigned || "").toUpperCase()}
                           </span>
                           <span className="text-zinc-400 font-mono">
                             EXP: {doc.expirationDate}

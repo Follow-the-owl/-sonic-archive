@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, ShoppingBag, Lock } from "lucide-react";
-import { Fragment, FRAGMENTS } from "../data";
-import { stopAudio } from "../audio";
+import { Fragment, FRAGMENTS, getTimeCapsuleForFragment } from "../data";
+import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
+import { playFragment, stopAudio, pauseAudio, resumeAudio, isAudioPaused, getCurrentTime, getDuration, seekAudio, setMasterVolume, getMasterVolume, getGlobalAnalyser, registerAudioCallback, getActiveId } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 import { getLicensesForFragment, LicenseTemplate } from "../licenses";
 
@@ -28,6 +29,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   const [isPlayingBeat, setIsPlayingBeat] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showLicensePanel, setShowLicensePanel] = useState(false);
+  const [showTimeCapsuleOverlay, setShowTimeCapsuleOverlay] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({
     "access": false,
@@ -138,40 +140,70 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   // Canvas visualizer reference
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Automatically pause the main site clock audio and start our local test beat immediately upon mount
+  // Register audio engine state listener & auto-play active fragment smoothly
   useEffect(() => {
-    // 1. Silent check & cleanup any running global site soundtrack
-    try {
-      stopAudio();
-    } catch (e) {
-      console.warn("Global audio stop err:", e);
-    }
+    registerAudioCallback((playing, id) => {
+      if (id === activeFrag.id) {
+        setIsPlayingBeat(playing);
+      } else {
+        setIsPlayingBeat(false);
+      }
+    });
 
-    // 2. Safely trigger the immersive sound sequencer automatically (thanks to the user click event)
+    if (getActiveId() === activeFrag.id && !isAudioPaused()) {
+      setIsPlayingBeat(true);
+    }
+  }, [activeFrag.id]);
+
+  // Handle mount and cleanup
+  useEffect(() => {
     const initTimer = setTimeout(() => {
       startBeatPlay();
-    }, 150);
+    }, 100);
 
     return () => {
       clearTimeout(initTimer);
-      stopBeatPlay();
+      stopAudio();
     };
-  }, [fragment.id]);
+  }, [activeFrag.id]);
 
-  // Sync volume node when slider changes
+  // Sync master volume
   useEffect(() => {
-    if (masterGainRef.current && audioCtxRef.current) {
-      const now = audioCtxRef.current.currentTime;
-      masterGainRef.current.gain.setValueAtTime(volumeLevel, now);
+    setMasterVolume(isMuted ? 0 : volumeLevel);
+  }, [volumeLevel, isMuted]);
+
+  // Track progress and trigger canvas visualizer loop
+  useEffect(() => {
+    let progressInterval: any = null;
+    if (isPlayingBeat) {
+      progressInterval = setInterval(() => {
+        const curTime = getCurrentTime();
+        const dur = getDuration();
+        if (dur > 0) {
+          setTotalDurationSec(Math.floor(dur));
+        } else {
+          setTotalDurationSec(parseDurationSec(activeFrag.duration));
+        }
+        setElapsedTime(Math.floor(curTime));
+      }, 200);
+      startWaveformRender();
+    } else {
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
     }
-  }, [volumeLevel]);
+
+    return () => {
+      if (progressInterval) clearInterval(progressInterval);
+    };
+  }, [isPlayingBeat, activeFrag.id]);
 
   // Adjust canvas dimensions inside container dynamically
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (canvas) {
-        // Set actual pixel dimensions to match display bounds for pristine sharpness
         canvas.width = canvas.parentElement?.clientWidth || 550;
         canvas.height = 110;
       }
@@ -182,210 +214,21 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     return () => window.removeEventListener("resize", handleResize);
   }, [isPlayingBeat]);
 
-  // Dynamically update or recreate the step-sequencer interval timer when BPM or play state changes
-  useEffect(() => {
-    if (!isPlayingBeat) {
-      if (beatIntervalRef.current) {
-        clearInterval(beatIntervalRef.current);
-        beatIntervalRef.current = null;
-      }
-      return;
-    }
-
-    // Always clear the previous interval before creating the new one to prevent frequency overlap
-    if (beatIntervalRef.current) {
-      clearInterval(beatIntervalRef.current);
-    }
-
-    const ctx = audioCtxRef.current;
-    if (!ctx) return;
-    
-    // Compute exact MS per step based on current BPM (using eighth notes)
-    const stepTimeMs = (60 / bpm) / 2 * 1000;
-
-    beatIntervalRef.current = setInterval(() => {
-      const analyser = analyserRef.current;
-      if (!ctx || !analyser) return;
-
-      const step = stepTrackerRef.current % 8;
-      if (!activeFrag.mp3Preview) {
-        triggerBeatStep(ctx, analyser, step);
-      }
-      setCurrentStep(step);
-      stepTrackerRef.current += 1;
-    }, stepTimeMs);
-
-    return () => {
-      if (beatIntervalRef.current) {
-        clearInterval(beatIntervalRef.current);
-        beatIntervalRef.current = null;
-      }
-    };
-  }, [bpm, isPlayingBeat, activeFrag.mp3Preview, activeFrag.id]);
-
   const startBeatPlay = (fragToPlay?: Fragment) => {
     const targetFrag = fragToPlay || activeFrag;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === "suspended") {
-        ctx.resume();
-      }
-
-      // Pre-clear old interval to prevent double triggers
-      if (beatIntervalRef.current) {
-        clearInterval(beatIntervalRef.current);
-        beatIntervalRef.current = null;
-      }
-
-      // Initialize master volume node
-      if (!masterGainRef.current) {
-        const masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(isMuted ? 0 : volumeLevel, ctx.currentTime);
-        masterGain.connect(ctx.destination);
-        masterGainRef.current = masterGain;
-      } else {
-        masterGainRef.current.gain.setValueAtTime(isMuted ? 0 : volumeLevel, ctx.currentTime);
-      }
-
-      // Setup analyser
-      if (!analyserRef.current) {
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.65;
-        analyser.connect(masterGainRef.current);
-        analyserRef.current = analyser;
-      }
-
-      setIsPlayingBeat(true);
-
-      // Start the interactive visualization loop
-      startWaveformRender();
-
-      // MP3 audio playback if preview URL exists
-      if (targetFrag.mp3Preview) {
-        if (audioElRef.current) {
-          try { audioElRef.current.pause(); } catch (e) {}
-          audioElRef.current = null;
-        }
-        const audioEl = new Audio(targetFrag.mp3Preview);
-        audioEl.crossOrigin = "anonymous";
-        audioEl.loop = true;
-        audioEl.volume = isMuted ? 0 : volumeLevel;
-
-        audioEl.onloadedmetadata = () => {
-          if (audioEl.duration && !isNaN(audioEl.duration)) {
-            setTotalDurationSec(Math.floor(audioEl.duration));
-          }
-        };
-
-        audioEl.ontimeupdate = () => {
-          setElapsedTime(Math.floor(audioEl.currentTime));
-          if (audioEl.duration && !isNaN(audioEl.duration)) {
-            setTotalDurationSec(Math.floor(audioEl.duration));
-          }
-        };
-
-        const source = ctx.createMediaElementSource(audioEl);
-        source.connect(analyserRef.current);
-        audioElRef.current = audioEl;
-
-        audioEl.play().catch(e => {
-          if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
-            console.error("Error playing detail page MP3 preview:", e);
-          }
-        });
-      } else {
-        // Background drone hum
-        if (!humOscRef.current) {
-          startConsoleHum(ctx, analyserRef.current);
-        }
-      }
-
-    } catch (e) {
-      console.error("Audio Sequence start failure:", e);
-    }
+    playFragment(targetFrag.id, targetFrag.frequency || 110, targetFrag.synthType || "drone");
+    setIsPlayingBeat(true);
+    startWaveformRender();
   };
 
   const pauseBeatPlay = () => {
+    pauseAudio();
     setIsPlayingBeat(false);
-
-    if (beatIntervalRef.current) {
-      clearInterval(beatIntervalRef.current);
-      beatIntervalRef.current = null;
-    }
-
-    if (audioElRef.current) {
-      try {
-        audioElRef.current.pause();
-      } catch (e) {}
-    }
-
-    // Stop background drone hum nodes so it is silent when paused
-    if (humOscRef.current) {
-      try {
-        humOscRef.current.stop();
-      } catch (e) {}
-      humOscRef.current = null;
-    }
-    humGainRef.current = null;
   };
 
   const stopBeatPlay = () => {
+    stopAudio();
     setIsPlayingBeat(false);
-    
-    // 1. Clear intervals
-    if (beatIntervalRef.current) {
-      clearInterval(beatIntervalRef.current);
-      beatIntervalRef.current = null;
-    }
-
-    // 2. Stop running animation frames
-    if (animationFrameIdRef.current) {
-      cancelAnimationFrame(animationFrameIdRef.current);
-      animationFrameIdRef.current = null;
-    }
-
-    // 3. Stop background drone hum nodes
-    if (humOscRef.current) {
-      try {
-        humOscRef.current.stop();
-      } catch (e) {}
-      humOscRef.current = null;
-    }
-    humGainRef.current = null;
-
-    if (audioElRef.current) {
-      try {
-        audioElRef.current.pause();
-        audioElRef.current.currentTime = 0;
-      } catch (e) {}
-      audioElRef.current = null;
-    }
-
-    // 4. Close context to free systemic sound pipelines and clear visualizer analyzer values
-    if (audioCtxRef.current) {
-      try {
-        audioCtxRef.current.close().then(() => {
-          audioCtxRef.current = null;
-          analyserRef.current = null;
-          masterGainRef.current = null;
-          audioElRef.current = null;
-        });
-      } catch (e) {
-        audioCtxRef.current = null;
-        analyserRef.current = null;
-        masterGainRef.current = null;
-        audioElRef.current = null;
-      }
-    } else {
-      analyserRef.current = null;
-      masterGainRef.current = null;
-      audioElRef.current = null;
-    }
-
     setCurrentStep(0);
     stepTrackerRef.current = 0;
   };
@@ -400,16 +243,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
 
   // Music Shifting & Audio Controls
   const handleShiftMusic = (targetFrag: Fragment) => {
-    if (audioElRef.current) {
-      try { audioElRef.current.pause(); } catch (e) {}
-    }
     setActiveFrag(targetFrag);
     setBpm(targetFrag.bpm || 110);
     setTotalDurationSec(parseDurationSec(targetFrag.duration));
     setElapsedTime(0);
-    setTimeout(() => {
-      startBeatPlay(targetFrag);
-    }, 50);
+    playFragment(targetFrag.id, targetFrag.frequency || 110, targetFrag.synthType || "drone");
   };
 
   const handleNextTrack = () => {
@@ -426,20 +264,14 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
 
   const handleSeekTo = (seconds: number) => {
     setElapsedTime(seconds);
-    if (audioElRef.current) {
-      audioElRef.current.currentTime = seconds;
-    }
+    seekAudio(seconds);
   };
 
   const handleSeekRelative = (seconds: number) => {
-    if (audioElRef.current) {
-      const cur = audioElRef.current.currentTime;
-      const target = Math.max(0, Math.min(totalDurationSec, cur + seconds));
-      audioElRef.current.currentTime = target;
-      setElapsedTime(Math.floor(target));
-    } else {
-      setElapsedTime(prev => Math.max(0, Math.min(totalDurationSec, prev + seconds)));
-    }
+    const cur = getCurrentTime();
+    const target = Math.max(0, cur + seconds);
+    setElapsedTime(target);
+    seekAudio(target);
   };
 
   const handleVolumeChange = (newVol: number) => {
@@ -510,9 +342,13 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      // Derive base frequency from original fragment metrics
-      const notes = [1.0, 1.2, 1.5, 0.8, 1.1, 1.3, 1.6, 0.95];
-      const stepFreq = fragment.frequency * notes[step % notes.length];
+      // Derive base frequency from original fragment metrics (e.g. B Major scale for 9:41 PM at 103 BPM)
+      let notes = [1.0, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875, 2.0];
+      if (activeFrag.tonalSignature?.toLowerCase().includes("minor")) {
+        notes = [1.0, 1.125, 1.2, 1.333, 1.5, 1.6, 1.78, 2.0];
+      }
+      const baseFreq = activeFrag.frequency || 246.94;
+      const stepFreq = baseFreq * notes[step % notes.length];
       
       osc.type = synthTypeRef.current;
       osc.frequency.setValueAtTime(stepFreq, now);
@@ -605,22 +441,22 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const analyser = analyserRef.current;
-    if (!analyser) return;
-
-    // We use frequency data for a classic spectrum analyzer wave
-    const bufferLength = analyser.frequencyBinCount;
+    const analyser = getGlobalAnalyser() || analyserRef.current;
+    const bufferLength = analyser ? analyser.frequencyBinCount : 128;
     const dataArray = new Uint8Array(bufferLength);
 
     const draw = () => {
-      if (!canvasRef.current || !analyserRef.current) return;
+      if (!canvasRef.current) return;
       animationFrameIdRef.current = requestAnimationFrame(draw);
 
       const innerCanvas = canvasRef.current;
       const innerCtx = innerCanvas.getContext("2d");
       if (!innerCtx) return;
 
-      analyserRef.current.getByteFrequencyData(dataArray);
+      const activeAnalyser = getGlobalAnalyser() || analyserRef.current;
+      if (activeAnalyser) {
+        activeAnalyser.getByteFrequencyData(dataArray);
+      }
 
       // 1. Draw solid dark background matching the surrounding card aesthetics
       innerCtx.fillStyle = "rgba(4, 4, 3, 1)"; // Deep obsidian
@@ -638,13 +474,17 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       
       const timeSecs = Date.now() * 0.0025; // Continuous timestamp for idle wave oscillation
 
+      const curTime = getCurrentTime();
+      const durTime = getDuration() || totalDurationSec;
+      const progressLimit = durTime > 0 ? (curTime / durTime) : 0.5;
+
       for (let i = 0; i < numBars; i++) {
         // Calculate centered x coordinate for this bar
         const xOffset = (width - (numBars * totalBarWidth)) / 2;
         const x = xOffset + i * totalBarWidth + barWidth / 2;
 
         let amplitude = 0;
-        if (isPlayingBeat) {
+        if (isPlayingBeat && activeAnalyser) {
           // Map frequency spectrum indices from low to mid/high frequencies
           const freqIndex = Math.floor((i / numBars) * (bufferLength * 0.7));
           amplitude = (dataArray[freqIndex] / 255.0) * (height * 0.85);
@@ -664,7 +504,6 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
         innerCtx.lineCap = "round";
 
         // Progress coloring to mimic premium tracks (amber-gold on left, muted grey on right)
-        const progressLimit = isPlayingBeat ? (stepTrackerRef.current % 16) / 16 : 0.6;
         const barFraction = i / numBars;
 
         if (barFraction <= progressLimit) {
@@ -719,7 +558,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   return (
     <div 
       id={`fragment-detail-${fragment.id}`} 
-      className="min-h-screen w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-start items-center p-4 sm:p-8 pb-12 relative select-none overflow-x-hidden bg-no-repeat"
+      className="min-h-0 w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-start items-center p-3 sm:p-8 pb-3 sm:pb-8 relative select-none overflow-x-hidden bg-no-repeat"
       style={{ 
         backgroundImage: `linear-gradient(to bottom, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.5) 50%, rgba(3, 3, 3, 0.95) 90%, #030303 100%), url(${fragmentPageBackground})`,
         backgroundPosition: "center 60px",
@@ -754,6 +593,33 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
             {activeFrag.timestamp}
           </h2>
+
+          {/* Hairline spacer with central geometric arrow divider */}
+          <div className="flex items-center justify-start gap-3 w-[160px] sm:w-[200px] pt-1.5 opacity-60">
+            <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent to-white/30" />
+            <motion.svg
+              viewBox="0 0 12 12"
+              className="w-[10px] h-[10px] text-white flex-shrink-0"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              animate={{
+                opacity: [0.4, 1, 0.4],
+                filter: [
+                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
+                  "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))",
+                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
+                ]
+              }}
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
+            </motion.svg>
+            <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent to-white/30" />
+          </div>
         </div>
 
         {/* PLAYBACK CONTROL BAR DIAL (Sleek original single-row widget with functional scrubber handle, styled in monochrome gray and white) */}
@@ -840,12 +706,25 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
               {activeFrag.bpm || 110} BPM
             </span>
           </div>
-          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
-            <span className={`font-semibold tracking-widest uppercase truncate ${activeFrag.recoveryState ? "text-emerald-400" : "text-zinc-400"}`}>
-              {activeFrag.recoveryState || "FULLY RECOVERED"}
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowTimeCapsuleOverlay(true)}
+            className="bg-zinc-950/80 hover:bg-emerald-950/40 p-3 sm:p-4 flex flex-col justify-between text-left cursor-pointer border border-emerald-500/50 hover:border-emerald-400 transition-all shadow-[0_0_15px_rgba(57,205,116,0.25)] hover:shadow-[0_0_25px_rgba(57,205,116,0.5)] group relative overflow-hidden poppins-font"
+            title="Press to view Time Capsule metadata"
+          >
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-zinc-400 uppercase block text-[8px] sm:text-[9px] tracking-wider font-semibold poppins-font">
+                CATALOG: {getTimeCapsuleForFragment(activeFrag).catalogNo}
+              </span>
+              <span className="w-2 h-2 rounded-full bg-[#39CD74] animate-ping shrink-0" />
+            </div>
+            <div className="flex items-center gap-1.5 w-full mt-1">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/40 text-[#39CD74] font-extrabold tracking-wider uppercase text-[10px] sm:text-[11px] px-2.5 py-1 rounded-full drop-shadow-[0_0_10px_rgba(57,205,116,0.8)] group-hover:border-emerald-400 group-hover:bg-emerald-500/25 transition-all poppins-font">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#39CD74] inline-block" />
+                {activeFrag.recoveryState || "FULLY RECOVERED"}
+              </span>
+            </div>
+          </button>
           <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
             <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST CO-SIGN</span>
             <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
@@ -854,24 +733,31 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           </div>
         </div>
 
-          {/* METADATA GRID SECTION (No Recovered Artist, Full Width Request Clearance) */}
-          <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] mt-3 sm:mt-4">
-            {/* Request Clearance Button */}
-            <button
-              id="request-clearance-btn"
-              onClick={() => setShowLicensePanel(true)}
-              className="w-full p-4 bg-zinc-950/80 hover:bg-zinc-900/60 font-mono font-medium text-[9px] sm:text-[11px] tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-2 h-[52px] sm:h-[58px] border-0 outline-none"
-            >
-              <span>REQUEST CLEARANCE</span>
-              <span className="font-mono text-[10px] sm:text-sm shrink-0 select-none">→</span>
-            </button>
-          </div>
+        {/* RESTORED FULL-WIDTH REQUEST CLEARANCE ACTION BUTTON */}
+        <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] mt-3 sm:mt-4">
+          <button
+            id="request-clearance-btn"
+            onClick={() => setShowLicensePanel(true)}
+            className="w-full p-4 bg-zinc-950/80 hover:bg-zinc-900/60 font-mono font-medium text-[9px] sm:text-[11px] tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-2 h-[52px] sm:h-[58px] border-0 outline-none"
+          >
+            <span>REQUEST CLEARANCE</span>
+            <span className="font-mono text-[10px] sm:text-sm shrink-0 select-none">→</span>
+          </button>
+        </div>
 
           {/* Under-Grid small decoration line */}
           <div className="w-full flex justify-center py-1 mt-1 z-10 font-mono text-zinc-700 text-[10px] select-none tracking-[0.3em]">
             |||
           </div>
         </div>
+
+      {/* TIME CAPSULE ARCHIVAL METADATA OVERLAY MODAL */}
+      {showTimeCapsuleOverlay && (
+        <TimeCapsuleOverlay
+          data={getTimeCapsuleForFragment(activeFrag)}
+          onClose={() => setShowTimeCapsuleOverlay(false)}
+        />
+      )}
 
       {/* LICENSE MODAL OVERLAY IN HIGH FIDELITY */}
       <AnimatePresence>

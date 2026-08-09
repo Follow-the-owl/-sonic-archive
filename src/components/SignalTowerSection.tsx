@@ -42,10 +42,10 @@ export default function SignalTowerSection() {
       {/* Narrative Section Header */}
       <div className="text-center space-y-4">
         <span className="text-[10px] tracking-[0.5em] font-mono text-gold-muted uppercase block">
-          LOCATION VII // THE SIGNAL TOWER
+          LOCATION VII // SIGNAL TOWER
         </span>
         <h2 className="text-4xl md:text-5xl font-serif font-light tracking-[0.1em] text-zinc-100">
-          The Signal Tower
+          Signal tower
         </h2>
         <p className="font-serif text-zinc-500 italic text-sm">
           "Send a signal to the archive."

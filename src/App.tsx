@@ -4,27 +4,33 @@ import { Menu, X, ArrowUpRight, ShoppingBag, Vault, Mail, Download, ChevronRight
 
 // Components Imports
 import WelcomeScreen from "./components/WelcomeScreen";
-import ObservatorySection from "./components/ObservatorySection";
-import MidnightJournalSection from "./components/MidnightJournalSection";
 import SignalTowerSection from "./components/SignalTowerSection";
 import AudioControllerWidget from "./components/AudioControllerWidget";
-import { transitionAmbient, playOwlResonance } from "./audio";
+import { transitionAmbient, playOwlResonance, preloadAllAudio } from "./audio";
 import OwlClock from "./components/OwlClock";
 import FragmentDetailPage from "./components/FragmentDetailPage";
 import CheckoutPage from "./components/CheckoutPage";
 import TransmissionsOverlay from "./components/TransmissionsOverlay";
-import MockPaystackCheckout from "./components/MockPaystackCheckout";
+import MockPaypalCheckout from "./components/MockPaypalCheckout";
 import DocumentDashboard from "./components/DocumentDashboard";
 import AdminDashboard from "./components/AdminDashboard";
 import TermsOfUsePage from "./components/TermsOfUsePage";
+import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
+import CookiePolicyPage from "./components/CookiePolicyPage";
+import RefundPolicyPage from "./components/RefundPolicyPage";
+import LicenseVerificationPage from "./components/LicenseVerificationPage";
+import AcceptableUsePage from "./components/AcceptableUsePage";
+import ContactPage from "./components/ContactPage";
+import FragmentClearanceGuidePage from "./components/FragmentClearanceGuidePage";
+import FragmentLicensingSchedulePage from "./components/FragmentLicensingSchedulePage";
+import AboutArchivePage from "./components/AboutArchivePage";
+import CookieConsentBanner from "./components/CookieConsentBanner";
 import { Fragment } from "./data";
 
 
 type NavigationTab =
   | "The Owl Clock"
-  | "The Observatory"
-  | "The Midnight Journal"
-  | "The Signal Tower";
+  | "Signal tower";
 
 export interface CartItem {
   id: string; // `${fragmentId}-${tierId}`
@@ -138,21 +144,60 @@ export default function App() {
 
   const [infoOverlay, setInfoOverlay] = useState<{ title: string; subtitle: string; body: string; type?: string } | null>(null);
   const [showTermsPage, setShowTermsPage] = useState<boolean>(() => typeof window !== "undefined" && window.location.pathname === "/terms");
+  const [showPrivacyPage, setShowPrivacyPage] = useState<boolean>(() => typeof window !== "undefined" && window.location.pathname === "/privacy");
+  const [showCookiePage, setShowCookiePage] = useState<boolean>(() => typeof window !== "undefined" && window.location.pathname === "/cookies");
+  const [showRefundPage, setShowRefundPage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/refunds" || window.location.pathname === "/refund-policy"));
+  const [showAcceptableUsePage, setShowAcceptableUsePage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/acceptable-use" || window.location.pathname === "/acceptable-use-policy"));
+  const [showVerificationPage, setShowVerificationPage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname.startsWith("/verify") || window.location.pathname.startsWith("/license-verification")));
+  const [showContactPage, setShowContactPage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/contact" || window.location.pathname === "/contact-us"));
+  const [showClearanceGuidePage, setShowClearanceGuidePage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/clearance-guide" || window.location.pathname === "/fragment-clearance-guide"));
+  const [showLicensingSchedulePage, setShowLicensingSchedulePage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/licensing-schedule" || window.location.pathname === "/pricing" || window.location.pathname === "/fragment-licensing-schedule"));
+  const [showAboutPage, setShowAboutPage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/about" || window.location.pathname === "/about-the-archive"));
+  const [verificationLicenseNumber, setVerificationLicenseNumber] = useState<string>("");
+  const [contactInitialDept, setContactInitialDept] = useState<string>("General Inquiries");
+  const [contactInitialSubj, setContactInitialSubj] = useState<string>("");
 
   useEffect(() => {
     const handlePopState = () => {
-      if (window.location.pathname === "/terms") {
-        setShowTermsPage(true);
-      } else {
-        setShowTermsPage(false);
-      }
+      setShowTermsPage(window.location.pathname === "/terms");
+      setShowPrivacyPage(window.location.pathname === "/privacy");
+      setShowCookiePage(window.location.pathname === "/cookies");
+      setShowRefundPage(window.location.pathname === "/refunds" || window.location.pathname === "/refund-policy");
+      setShowAcceptableUsePage(window.location.pathname === "/acceptable-use" || window.location.pathname === "/acceptable-use-policy");
+      setShowVerificationPage(window.location.pathname.startsWith("/verify") || window.location.pathname.startsWith("/license-verification"));
+      setShowContactPage(window.location.pathname === "/contact" || window.location.pathname === "/contact-us");
+      setShowClearanceGuidePage(window.location.pathname === "/clearance-guide" || window.location.pathname === "/fragment-clearance-guide");
+      setShowLicensingSchedulePage(window.location.pathname === "/licensing-schedule" || window.location.pathname === "/pricing" || window.location.pathname === "/fragment-licensing-schedule");
+      setShowAboutPage(window.location.pathname === "/about" || window.location.pathname === "/about-the-archive");
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  const handleOpenVerification = (num: string = "") => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    setVerificationLicenseNumber(num);
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/license-verification")) {
+      window.history.pushState({ verify: true }, "", "/license-verification");
+    }
+    setShowVerificationPage(true);
+  };
+
+  const handleBackFromVerification = () => {
+    setShowVerificationPage(false);
+    if (typeof window !== "undefined" && (window.location.pathname.startsWith("/verify") || window.location.pathname.startsWith("/license-verification"))) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
   const handleOpenTerms = () => {
     setMobileMenuOpen(false);
+    setInfoOverlay(null);
     if (typeof window !== "undefined" && window.location.pathname !== "/terms") {
       window.history.pushState({ terms: true }, "", "/terms");
     }
@@ -169,13 +214,202 @@ export default function App() {
       }
     }
   };
+
+  const handleOpenPrivacy = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/privacy") {
+      window.history.pushState({ privacy: true }, "", "/privacy");
+    }
+    setShowPrivacyPage(true);
+  };
+
+  const handleBackFromPrivacy = () => {
+    setShowPrivacyPage(false);
+    if (typeof window !== "undefined" && window.location.pathname === "/privacy") {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenCookies = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/cookies") {
+      window.history.pushState({ cookies: true }, "", "/cookies");
+    }
+    setShowCookiePage(true);
+  };
+
+  const handleBackFromCookies = () => {
+    setShowCookiePage(false);
+    if (typeof window !== "undefined" && window.location.pathname === "/cookies") {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenRefunds = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/refunds") {
+      window.history.pushState({ refunds: true }, "", "/refunds");
+    }
+    setShowRefundPage(true);
+  };
+
+  const handleBackFromRefunds = () => {
+    setShowRefundPage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/refunds" || window.location.pathname === "/refund-policy")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenAcceptableUse = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/acceptable-use") {
+      window.history.pushState({ acceptableUse: true }, "", "/acceptable-use");
+    }
+    setShowAcceptableUsePage(true);
+  };
+
+  const handleBackFromAcceptableUse = () => {
+    setShowAcceptableUsePage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/acceptable-use" || window.location.pathname === "/acceptable-use-policy")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenContact = (dept: string = "General Inquiries", subj: string = "") => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    setContactInitialDept(dept);
+    setContactInitialSubj(subj);
+    if (typeof window !== "undefined" && window.location.pathname !== "/contact") {
+      window.history.pushState({ contact: true }, "", "/contact");
+    }
+    setShowContactPage(true);
+  };
+
+  const handleOpenOwlClock = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    setShowTermsPage(false);
+    setShowPrivacyPage(false);
+    setShowCookiePage(false);
+    setShowRefundPage(false);
+    setShowAcceptableUsePage(false);
+    setShowVerificationPage(false);
+    setShowContactPage(false);
+    setShowClearanceGuidePage(false);
+    setShowLicensingSchedulePage(false);
+    setShowAboutPage(false);
+    setSelectedFragment(null);
+    setCheckoutActive(false);
+    setActiveTab("The Owl Clock");
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.history.pushState({}, "", "/");
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleBackFromContact = () => {
+    setShowContactPage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/contact" || window.location.pathname === "/contact-us")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenClearanceGuide = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/clearance-guide") {
+      window.history.pushState({ clearanceGuide: true }, "", "/clearance-guide");
+    }
+    setShowClearanceGuidePage(true);
+  };
+
+  const handleBackFromClearanceGuide = () => {
+    setShowClearanceGuidePage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/clearance-guide" || window.location.pathname === "/fragment-clearance-guide")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenLicensingSchedule = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/licensing-schedule") {
+      window.history.pushState({ licensingSchedule: true }, "", "/licensing-schedule");
+    }
+    setShowLicensingSchedulePage(true);
+  };
+
+  const handleBackFromLicensingSchedule = () => {
+    setShowLicensingSchedulePage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/licensing-schedule" || window.location.pathname === "/pricing" || window.location.pathname === "/fragment-licensing-schedule")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
+
+  const handleOpenAbout = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (typeof window !== "undefined" && window.location.pathname !== "/about") {
+      window.history.pushState({ about: true }, "", "/about");
+    }
+    setShowAboutPage(true);
+  };
+
+  const handleBackFromAbout = () => {
+    setShowAboutPage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/about" || window.location.pathname === "/about-the-archive")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
   const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
     ARCHIVE: false,
     CLEARANCE: false,
-    SYSTEM: false,
-    PROTOCOLS: false,
+    ABOUT: false,
+    LEGAL: false,
     TRANSMISSIONS: false
   });
+
+  // Preload fragment audio files in the background on initial mount to eliminate glitches
+  useEffect(() => {
+    preloadAllAudio();
+  }, []);
 
   // Auto-scroll to top when tab changes
   useEffect(() => {
@@ -216,7 +450,7 @@ export default function App() {
       window.history.replaceState({}, document.title, "/");
       setHasEntered(true);
 
-      // Clear the media cart
+      // Clear the crate
       setCart([]);
       localStorage.removeItem("lomon_cart");
 
@@ -253,22 +487,114 @@ export default function App() {
           localStorage.removeItem("lomon_auth_token");
         }
       })
-      .catch(err => {
-        console.error("Auto-session check failed:", err);
+      .catch(() => {
+        // Silent catch for auto session check when offline or logged out
       });
     }
   }, []);
 
-  const isMockCheckout = typeof window !== "undefined" && window.location.pathname === "/mock-paystack-checkout";
+  const isMockCheckout = typeof window !== "undefined" && (window.location.pathname === "/mock-paypal-checkout" || window.location.pathname === "/mock-paystack-checkout");
 
   if (isMockCheckout) {
-    return <MockPaystackCheckout />;
+    return <MockPaypalCheckout />;
   }
 
   if (showTermsPage) {
     return (
       <TermsOfUsePage 
         onBack={handleBackFromTerms} 
+      />
+    );
+  }
+
+  if (showPrivacyPage) {
+    return (
+      <PrivacyPolicyPage 
+        onBack={handleBackFromPrivacy}
+        onOpenCookies={handleOpenCookies}
+      />
+    );
+  }
+
+  if (showCookiePage) {
+    return (
+      <CookiePolicyPage 
+        onBack={handleBackFromCookies}
+        onOpenPrivacy={handleOpenPrivacy}
+      />
+    );
+  }
+
+  if (showRefundPage) {
+    return (
+      <RefundPolicyPage 
+        onBack={handleBackFromRefunds}
+      />
+    );
+  }
+
+  if (showAcceptableUsePage) {
+    return (
+      <AcceptableUsePage 
+        onBack={handleBackFromAcceptableUse}
+      />
+    );
+  }
+
+  if (showVerificationPage) {
+    return (
+      <LicenseVerificationPage 
+        initialLicenseNumber={verificationLicenseNumber}
+        onBack={handleBackFromVerification}
+      />
+    );
+  }
+
+  if (showContactPage) {
+    return (
+      <ContactPage 
+        onBack={handleBackFromContact}
+        initialDepartment={contactInitialDept}
+        initialSubject={contactInitialSubj}
+      />
+    );
+  }
+
+  if (showClearanceGuidePage) {
+    return (
+      <FragmentClearanceGuidePage 
+        onBack={handleBackFromClearanceGuide}
+        onRequestClearance={() => {
+          handleBackFromClearanceGuide();
+          handleLinkClick("Request Clearance", "CLEARANCE DEP", "request-clearance");
+        }}
+        onContact={handleOpenContact}
+      />
+    );
+  }
+
+  if (showLicensingSchedulePage) {
+    return (
+      <FragmentLicensingSchedulePage 
+        onBack={handleBackFromLicensingSchedule}
+        onRequestClearance={(licenseId?: string) => {
+          handleBackFromLicensingSchedule();
+          handleOpenContact("Fragment Licensing", licenseId ? `Clearance Request for ${licenseId.toUpperCase()} Tier` : "Fragment Clearance Request & Collaboration");
+        }}
+        onContact={handleOpenContact}
+      />
+    );
+  }
+
+  if (showAboutPage) {
+    return (
+      <AboutArchivePage 
+        onBack={handleBackFromAbout}
+        onRequestClearance={() => {
+          handleBackFromAbout();
+          handleLinkClick("Request Clearance", "CLEARANCE DEP", "request-clearance");
+        }}
+        onContact={handleOpenContact}
       />
     );
   }
@@ -415,19 +741,63 @@ export default function App() {
 
   const tabsList: NavigationTab[] = [
     "The Owl Clock",
-    "The Observatory",
-    "The Midnight Journal",
-    "The Signal Tower"
+    "Signal tower"
   ];
 
   const toggleMobileFooterSection = (section: string) => {
     setMobileFooterExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const handleLinkClick = (title: string, subtitle: string = "TRANSMISSION", type: string = "") => {
+  const handleLinkClick = (title: string = "", subtitle: string = "TRANSMISSION", type: string = "") => {
     setMobileMenuOpen(false);
-    if (type === "terms" || title === "Terms" || title.toLowerCase() === "terms of use") {
+    const safeTitle = (title || "").toLowerCase();
+    const safeType = (type || "").toLowerCase();
+    if (type === "terms" || title === "Terms" || safeTitle === "terms of use") {
       handleOpenTerms();
+      return;
+    }
+    if (type === "privacy" || title === "Privacy" || safeTitle === "privacy policy") {
+      handleOpenPrivacy();
+      return;
+    }
+    if (type === "cookies" || title === "Cookies" || safeTitle === "cookie policy") {
+      handleOpenCookies();
+      return;
+    }
+    if (type === "refunds" || type === "refund-policy" || title === "Refunds" || safeTitle === "refund policy") {
+      handleOpenRefunds();
+      return;
+    }
+    if (type === "acceptable-use" || safeType === "acceptable-use" || title === "Acceptable Use" || safeTitle === "acceptable use" || safeTitle === "acceptable use policy") {
+      handleOpenAcceptableUse();
+      return;
+    }
+    if (type === "license-verification" || type === "verification" || title === "License Verification" || safeTitle === "license verification") {
+      handleOpenVerification();
+      return;
+    }
+    if (type === "contact" || title === "Contact" || safeTitle === "contact" || safeTitle === "contact us") {
+      handleOpenContact();
+      return;
+    }
+    if (type === "request-clearance" || safeType === "request-clearance" || title === "Request Clearance" || safeTitle === "request clearance") {
+      handleOpenContact("Fragment Licensing", "Fragment Clearance Request & Collaboration");
+      return;
+    }
+    if (type === "recovered-fragments" || safeType === "recovered-fragments" || title === "Recovered Fragments" || safeTitle === "recovered fragments" || safeTitle === "composition archive" || title === "Composition Archive") {
+      handleOpenOwlClock();
+      return;
+    }
+    if (type === "clearance-guide" || safeType === "clearance-guide" || title === "Fragment Clearance Guide" || safeTitle === "fragment clearance guide" || safeTitle === "clearance guide") {
+      handleOpenClearanceGuide();
+      return;
+    }
+    if (type === "licensing-schedule" || safeType === "licensing-schedule" || type === "pricing" || safeType === "pricing" || title === "Fragment Licensing Schedule" || safeTitle === "fragment licensing schedule" || safeTitle === "licensing schedule" || safeTitle === "pricing") {
+      handleOpenLicensingSchedule();
+      return;
+    }
+    if (type === "about" || safeType === "about" || title === "About the Archive" || safeTitle === "about the archive" || safeTitle === "about") {
+      handleOpenAbout();
       return;
     }
     setInfoOverlay({
@@ -529,9 +899,9 @@ export default function App() {
                   })}
                 </nav>
 
-                {/* Right Column: Collection / Media Bag + Archive Access */}
+                {/* Right Column: Collection / Crate + Archive Access */}
                 <div className="flex items-center gap-2 xl:gap-3 shrink-0">
-                  {/* Collection / Media Bag button */}
+                  {/* Collection / Crate button */}
                   <button 
                     onClick={() => {
                       setCartOpen(!cartOpen);
@@ -541,10 +911,10 @@ export default function App() {
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
                     }`}
-                    title="View Media Bag"
+                    title="View Crate"
                   >
                     <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>MEDIA BAG ({cart.length})</span>
+                    <span>CRATE ({cart.length})</span>
                   </button>
 
                    {isLoggedIn ? (
@@ -582,7 +952,7 @@ export default function App() {
                                   TERMINAL GATEWAY
                                 </span>
                                 <span className="text-[10px] text-zinc-300 font-bold break-all block">
-                                  {currentUserEmail.toLowerCase()}
+                                  {(currentUserEmail || "").toLowerCase()}
                                 </span>
                               </div>
 
@@ -612,7 +982,7 @@ export default function App() {
                               <div className="h-[1px] bg-zinc-900 w-full" />
 
                               {/* Administrative Console Link */}
-                              {(currentUserEmail.toLowerCase() === "evianaconcepts1@gmail.com" || currentUserEmail.toLowerCase() === "admin@system.local") && (
+                              {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local") && (
                                 <>
                                   <div>
                                     <button
@@ -681,7 +1051,7 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* Right: Collection / Media Bag & Menu Icon */}
+                {/* Right: Collection / Crate & Menu Icon */}
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => {
@@ -691,7 +1061,7 @@ export default function App() {
                     className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2.5 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none"
                   >
                     <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>MEDIA BAG ({cart.length})</span>
+                    <span>CRATE ({cart.length})</span>
                   </button>
 
                   <button
@@ -724,9 +1094,7 @@ export default function App() {
                         <div className="flex flex-col gap-2">
                           {[
                             { name: "The Owl Clock", tab: "The Owl Clock" as NavigationTab },
-                            { name: "The Observatory", tab: "The Observatory" as NavigationTab },
-                            { name: "The Midnight Journal", tab: "The Midnight Journal" as NavigationTab },
-                            { name: "The Signal Tower", tab: "The Signal Tower" as NavigationTab }
+                            { name: "Signal tower", tab: "Signal tower" as NavigationTab }
                           ].map((item) => {
                             const isSelected = activeTab === item.tab && !selectedFragment && !checkoutActive;
                             return (
@@ -751,12 +1119,7 @@ export default function App() {
                             );
                           })}
                           <button
-                            onClick={() => {
-                              setActiveTab("The Owl Clock");
-                              setSelectedFragment(null);
-                              setCheckoutActive(false);
-                              setMobileMenuOpen(false);
-                            }}
+                            onClick={handleOpenOwlClock}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
                             * Recovered Fragments
@@ -791,7 +1154,7 @@ export default function App() {
                               checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
                             }`}
                           >
-                            * Media Bag
+                            * Crate
                           </button>
                         </div>
                       </div>
@@ -845,7 +1208,7 @@ export default function App() {
                             <div className="text-left py-1 text-[11px] font-mono flex items-center justify-between border-b border-zinc-950 pb-1.5 gap-2">
                               <div className="flex items-center gap-2 truncate">
                                 <UserAvatar email={currentUserEmail} />
-                                <span className="text-zinc-400 font-bold truncate">{currentUserEmail.toUpperCase()}</span>
+                                <span className="text-zinc-400 font-bold truncate">{(currentUserEmail || "").toUpperCase()}</span>
                               </div>
                               <button 
                                 onClick={() => {
@@ -985,7 +1348,7 @@ export default function App() {
                         </span>
                         <div className="flex flex-col gap-2 font-mono text-[11px] uppercase tracking-wider text-zinc-400">
                           <a 
-                            href="https://instagram.com" 
+                            href="https://www.instagram.com/theowlclock?igsh=YnFqOTRxajB2Ymdw" 
                             target="_blank" 
                             rel="noreferrer" 
                             className="hover:text-white py-1 flex items-center justify-between"
@@ -994,7 +1357,7 @@ export default function App() {
                             <span className="text-zinc-600 text-[9px]">↗</span>
                           </a>
                           <a 
-                            href="https://tiktok.com" 
+                            href="https://www.tiktok.com/@theowlclock?_r=1&_t=ZT-97pM43i63Fm" 
                             target="_blank" 
                             rel="noreferrer" 
                             className="hover:text-white py-1 flex items-center justify-between"
@@ -1059,6 +1422,8 @@ export default function App() {
                 className={`flex-grow relative px-4 bg-black transition-all duration-300 ${
                   activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive
                     ? "py-2 sm:py-4 h-[calc(100vh-84px)] lg:h-[calc(100vh-92px)] overflow-hidden flex flex-col justify-center items-center"
+                    : selectedFragment
+                    ? "py-1 sm:py-4"
                     : "py-8 lg:py-16"
                 }`}
               >
@@ -1077,13 +1442,7 @@ export default function App() {
                         onAddToCart={handleAddToCart}
                       />
                     )}
-                    {activeTab === "The Observatory" && (
-                      <ObservatorySection />
-                    )}
-                    {activeTab === "The Midnight Journal" && (
-                      <MidnightJournalSection />
-                    )}
-                    {activeTab === "The Signal Tower" && (
+                    {activeTab === "Signal tower" && (
                       <SignalTowerSection />
                     )}
                   </motion.div>
@@ -1096,9 +1455,9 @@ export default function App() {
 
             {/* STEP 11: Minimal Footer */}
             {!(activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive) && (
-              <footer id="site-footer" className="bg-black py-16 px-4 md:px-8 select-none flex flex-col">
+              <footer id="site-footer" className="bg-black py-6 md:py-16 px-4 md:px-8 select-none flex flex-col">
                 {/* Upper line decoration */}
-                <div className="flex items-center justify-center gap-3 w-full max-w-7xl mx-auto opacity-25 mb-12">
+                <div className="flex items-center justify-center gap-3 w-full max-w-7xl mx-auto opacity-25 mb-4 md:mb-12">
                   <div className="h-[1px] flex-grow bg-zinc-650" />
                   <div className="h-[1px] w-5 bg-zinc-450" />
                   <div className="h-[1px] flex-grow bg-zinc-650" />
@@ -1114,11 +1473,7 @@ export default function App() {
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       <li>
                         <button 
-                          onClick={() => {
-                            setActiveTab("The Owl Clock");
-                            setSelectedFragment(null);
-                            setCheckoutActive(false);
-                          }}
+                          onClick={handleOpenOwlClock}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
                           Recovered Fragments
@@ -1126,19 +1481,7 @@ export default function App() {
                       </li>
                       <li>
                         <button 
-                          onClick={() => {
-                            setActiveTab("The Observatory");
-                            setSelectedFragment(null);
-                            setCheckoutActive(false);
-                          }}
-                          className="hover:text-white transition-colors cursor-pointer text-left block"
-                        >
-                          Composition Archive
-                        </button>
-                      </li>
-                      <li>
-                        <button 
-                          onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP", "license-verification")}
+                          onClick={() => handleOpenVerification()}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
                           License Verification
@@ -1155,11 +1498,8 @@ export default function App() {
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
                         { name: "Request Clearance", slug: "request-clearance" },
-                        { name: "Publishing", slug: "publishing" },
-                        { name: "Metadata", slug: "metadata" },
-                        { name: "Ownership Verification", slug: "ownership" },
-                        { name: "Royalty Administration", slug: "royalty" },
-                        { name: "Rights Administration", slug: "rights" }
+                        { name: "Fragment Clearance Guide", slug: "clearance-guide" },
+                        { name: "Fragment Licensing Schedule", slug: "licensing-schedule" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
@@ -1173,21 +1513,19 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Column 3: SYSTEM */}
+                  {/* Column 3: ABOUT */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      SYSTEM
+                      ABOUT
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
                         { name: "About the Archive", slug: "about" },
-                        { name: "Enterprise", slug: "enterprise" },
-                        { name: "Support", slug: "support" },
                         { name: "Contact", slug: "contact" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
-                            onClick={() => handleLinkClick(item.name, "SYSTEM DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "ABOUT DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             {item.name}
@@ -1197,22 +1535,22 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Column 4: PROTOCOLS */}
+                  {/* Column 4: LEGAL */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      PROTOCOLS
+                      LEGAL
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
-                        { name: "Terms", slug: "terms" },
-                        { name: "Privacy", slug: "privacy" },
-                        { name: "Cookies", slug: "cookies" },
-                        { name: "Refunds", slug: "refunds" },
-                        { name: "Acceptable Use", slug: "acceptable-use" }
+                        { name: "Terms of Use", slug: "terms" },
+                        { name: "Privacy Policy", slug: "privacy" },
+                        { name: "Cookie Policy", slug: "cookies" },
+                        { name: "Refund Policy", slug: "refunds" },
+                        { name: "Acceptable Use Policy", slug: "acceptable-use" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
-                            onClick={() => handleLinkClick(item.name, "PROTOCOLS DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "LEGAL DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             {item.name}
@@ -1228,30 +1566,34 @@ export default function App() {
                       TRANSMISSIONS
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
-                      {[
-                        { name: "Instagram", url: "https://instagram.com" },
-                        { name: "TikTok", url: "https://tiktok.com" },
-                        { name: "YouTube", url: "https://youtube.com" },
-                        { name: "Signal", url: "mailto:vault@credentials.local" }
-                      ].map((link) => (
-                        <li key={link.name}>
-                          <a 
-                            href={link.url} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                          >
-                            <span>{link.name}</span>
-                            <span className="text-zinc-600 text-[9px]">↗</span>
-                          </a>
-                        </li>
-                      ))}
+                      <li>
+                        <a 
+                          href="https://www.instagram.com/theowlclock?igsh=YnFqOTRxajB2Ymdw" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>Instagram</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a 
+                          href="https://www.tiktok.com/@theowlclock?_r=1&_t=ZT-97pM43i63Fm" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>TikTok</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
 
                 {/* 2. MOBILE FOOTER STRUCTURE (Accordion-style for screens smaller than md) */}
-                <div className="md:hidden flex flex-col w-full max-w-md mx-auto mb-12 border-t border-zinc-900 divide-y divide-zinc-900">
+                <div className="md:hidden flex flex-col w-full max-w-md mx-auto mb-6 md:mb-12 border-t border-zinc-900 divide-y divide-zinc-900">
                   {/* ACCORDION 1: ARCHIVE */}
                   <div className="py-3">
                     <button 
@@ -1264,27 +1606,13 @@ export default function App() {
                     {mobileFooterExpanded.ARCHIVE && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         <button 
-                          onClick={() => {
-                            setActiveTab("The Owl Clock");
-                            setSelectedFragment(null);
-                            setCheckoutActive(false);
-                          }}
+                          onClick={handleOpenOwlClock}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
                           * Recovered Fragments
                         </button>
                         <button 
-                          onClick={() => {
-                            setActiveTab("The Observatory");
-                            setSelectedFragment(null);
-                            setCheckoutActive(false);
-                          }}
-                          className="hover:text-white transition-colors cursor-pointer text-left block"
-                        >
-                          * Composition Archive
-                        </button>
-                        <button 
-                          onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP", "license-verification")}
+                          onClick={() => handleOpenVerification()}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
                           * License Verification
@@ -1306,11 +1634,8 @@ export default function App() {
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
                           { name: "Request Clearance", slug: "request-clearance" },
-                          { name: "Publishing", slug: "publishing" },
-                          { name: "Metadata", slug: "metadata" },
-                          { name: "Ownership Verification", slug: "ownership" },
-                          { name: "Royalty Administration", slug: "royalty" },
-                          { name: "Rights Administration", slug: "rights" }
+                          { name: "Fragment Clearance Guide", slug: "clearance-guide" },
+                          { name: "Fragment Licensing Schedule", slug: "licensing-schedule" }
                         ].map((item) => (
                           <button 
                             key={item.name}
@@ -1324,26 +1649,24 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* ACCORDION 3: SYSTEM */}
+                  {/* ACCORDION 3: ABOUT */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("SYSTEM")}
+                      onClick={() => toggleMobileFooterSection("ABOUT")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>SYSTEM</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.SYSTEM ? "−" : "+"}</span>
+                      <span>ABOUT</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.ABOUT ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.SYSTEM && (
+                    {mobileFooterExpanded.ABOUT && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
                           { name: "About the Archive", slug: "about" },
-                          { name: "Enterprise", slug: "enterprise" },
-                          { name: "Support", slug: "support" },
                           { name: "Contact", slug: "contact" }
                         ].map((item) => (
                           <button 
                             key={item.name}
-                            onClick={() => handleLinkClick(item.name, "SYSTEM DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "ABOUT DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             * {item.name}
@@ -1353,27 +1676,27 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* ACCORDION 4: PROTOCOLS */}
+                  {/* ACCORDION 4: LEGAL */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("PROTOCOLS")}
+                      onClick={() => toggleMobileFooterSection("LEGAL")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>PROTOCOLS</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.PROTOCOLS ? "−" : "+"}</span>
+                      <span>LEGAL</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.LEGAL ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.PROTOCOLS && (
+                    {mobileFooterExpanded.LEGAL && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
-                          { name: "Terms", slug: "terms" },
-                          { name: "Privacy", slug: "privacy" },
-                          { name: "Cookies", slug: "cookies" },
-                          { name: "Refunds", slug: "refunds" },
-                          { name: "Acceptable Use", slug: "acceptable-use" }
+                          { name: "Terms of Use", slug: "terms" },
+                          { name: "Privacy Policy", slug: "privacy" },
+                          { name: "Cookie Policy", slug: "cookies" },
+                          { name: "Refund Policy", slug: "refunds" },
+                          { name: "Acceptable Use Policy", slug: "acceptable-use" }
                         ].map((item) => (
                           <button 
                             key={item.name}
-                            onClick={() => handleLinkClick(item.name, "PROTOCOLS DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "LEGAL DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             * {item.name}
@@ -1394,23 +1717,24 @@ export default function App() {
                     </button>
                     {mobileFooterExpanded.TRANSMISSIONS && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
-                        {[
-                          { name: "Instagram", url: "https://instagram.com" },
-                          { name: "TikTok", url: "https://tiktok.com" },
-                          { name: "YouTube", url: "https://youtube.com" },
-                          { name: "Signal", url: "mailto:vault@credentials.local" }
-                        ].map((link) => (
-                          <a 
-                            key={link.name}
-                            href={link.url} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                          >
-                            <span>* {link.name}</span>
-                            <span className="text-zinc-600 text-[9px]">↗</span>
-                          </a>
-                        ))}
+                        <a 
+                          href="https://www.instagram.com/theowlclock?igsh=YnFqOTRxajB2Ymdw" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* Instagram</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                        <a 
+                          href="https://www.tiktok.com/@theowlclock?_r=1&_t=ZT-97pM43i63Fm" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* TikTok</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
                       </div>
                     )}
                   </div>
@@ -1418,35 +1742,29 @@ export default function App() {
 
                 {/* BOTTOM FOOTER LINE */}
                 <div className="text-center font-mono space-y-4 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-950 pt-10 pb-6">
-                  {/* Desktop bottom line with multi-column text */}
+                  {/* Desktop bottom line */}
                   <div className="hidden sm:block space-y-2">
                     <h6 className="text-[#D9D6CA] font-bold text-[11px] uppercase tracking-[0.3em]">
                       THE OWL CLOCK
                     </h6>
                     <p className="text-zinc-500 text-[9px] uppercase">
-                      Publishing • Rights Management • Licensing
-                    </p>
-                    <p className="text-zinc-600 text-[8.5px] uppercase">
-                      Atlanta, Georgia
+                      Publishing & Licensing | Atlanta, GA
                     </p>
                     <p className="text-zinc-600 text-[8.5px] pt-4 uppercase">
-                      © 2026 THE OWL CLOCK
+                      © 2026
                     </p>
                   </div>
 
-                  {/* Mobile bottom line with stacked texts */}
+                  {/* Mobile bottom line */}
                   <div className="sm:hidden space-y-2">
                     <h6 className="text-[#D9D6CA] font-bold text-[10px] uppercase tracking-[0.25em]">
                       THE OWL CLOCK
                     </h6>
                     <p className="text-zinc-500 text-[8.5px] uppercase">
-                      Publishing • Rights Management • Licensing
-                    </p>
-                    <p className="text-zinc-500 text-[8.5px] uppercase">
-                      Atlanta, Georgia
+                      Publishing & Licensing | Atlanta, GA
                     </p>
                     <p className="text-zinc-600 text-[8px] pt-2 uppercase">
-                      © 2026 THE OWL CLOCK
+                      © 2026
                     </p>
                   </div>
                 </div>
@@ -1457,7 +1775,7 @@ export default function App() {
             <AnimatePresence>
               {cartOpen && typeof window !== "undefined" && window.innerWidth >= 768 && (
                 <motion.div
-                  id="media-bag-dropdown"
+                  id="crate-dropdown"
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -1466,7 +1784,7 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
                     <h4 className="text-[10px] font-bold tracking-widest uppercase text-zinc-400">
-                      YOUR MEDIA BAG ({cart.length}):
+                      YOUR CRATE ({cart.length}):
                     </h4>
                     <button
                       onClick={() => setCartOpen(false)}
@@ -1553,6 +1871,16 @@ export default function App() {
               userEmailLogs={userEmailLogs}
               onRefreshData={() => authToken && fetchUserData(authToken)}
               onOpenTerms={handleOpenTerms}
+              onOpenPrivacy={handleOpenPrivacy}
+              onOpenCookies={handleOpenCookies}
+              onOpenRefunds={handleOpenRefunds}
+              onOpenAcceptableUse={handleOpenAcceptableUse}
+            />
+
+            {/* Cookie Consent Banner */}
+            <CookieConsentBanner
+              onOpenCookiePolicy={handleOpenCookies}
+              onOpenPrivacyPolicy={handleOpenPrivacy}
             />
           </motion.div>
         )}

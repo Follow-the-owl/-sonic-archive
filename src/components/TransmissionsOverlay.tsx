@@ -5,7 +5,9 @@ import {
   Send, DollarSign, List, Plus, Landmark, History, FileCheck, ExternalLink, Mail
 } from "lucide-react";
 import DocumentDashboard from "./DocumentDashboard";
+import LicenseVerificationPage from "./LicenseVerificationPage";
 import JSZip from "jszip";
+import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
 
 interface TransmissionsOverlayProps {
   isOpen: boolean;
@@ -22,6 +24,10 @@ interface TransmissionsOverlayProps {
   userEmailLogs?: any[];
   onRefreshData?: () => void;
   onOpenTerms?: () => void;
+  onOpenPrivacy?: () => void;
+  onOpenCookies?: () => void;
+  onOpenRefunds?: () => void;
+  onOpenAcceptableUse?: () => void;
 }
 
 export default function TransmissionsOverlay({
@@ -38,7 +44,11 @@ export default function TransmissionsOverlay({
   userRequests = [],
   userEmailLogs = [],
   onRefreshData,
-  onOpenTerms
+  onOpenTerms,
+  onOpenPrivacy,
+  onOpenCookies,
+  onOpenRefunds,
+  onOpenAcceptableUse
 }: TransmissionsOverlayProps) {
   // Audio WAV and Stems ZIP Generator Helpers
   const generateTinyWavBlob = () => {
@@ -97,7 +107,7 @@ export default function TransmissionsOverlay({
       localStorage.setItem("userEmail", challenge.trim().toLowerCase());
     }
 
-    const cleanSongName = songName.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+    const cleanSongName = (songName || "COMPOSITION").replace(/[\s\-\(\)]+/g, "_").toUpperCase();
     const blob = generateTinyWavBlob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -121,7 +131,7 @@ export default function TransmissionsOverlay({
     }
 
     const zip = new JSZip();
-    const cleanSongName = songName.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+    const cleanSongName = (songName || "COMPOSITION").replace(/[\s\-\(\)]+/g, "_").toUpperCase();
 
     const stemFiles = [
       { name: "01_DRUMS.wav", desc: "DRUMS & PERCUSSION LOOP (24-bit / 48kHz Stereo)" },
@@ -850,103 +860,8 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
     // ----------------------------------------------------
     if (slug === "license-verification" || slug === "license-certificate" || slug === "verification") {
       return (
-        <div className="space-y-5 text-left">
-          <div className="space-y-1">
-            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
-              [ SECURED VERIFICATION PORTAL ]
-            </span>
-            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-              Enter a License ID, Certificate ID, or Composition ID to query the secure cryptographic registry.
-            </p>
-          </div>
-
-          <form onSubmit={handleVerify} className="flex gap-2">
-            <input 
-              type="text"
-              placeholder="e.g. OWL-823"
-              value={verificationInput}
-              onChange={(e) => setVerificationInput(e.target.value)}
-              className="flex-grow bg-black border border-zinc-850 px-3.5 py-2.5 text-[11px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
-            />
-            <button 
-              type="submit"
-              className="bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest px-4 py-2.5 hover:bg-white transition-colors cursor-pointer whitespace-nowrap"
-            >
-              {isVerifying ? "QUERYING..." : "VERIFY"}
-            </button>
-          </form>
-
-          {isVerifying && (
-            <div className="py-8 flex flex-col items-center justify-center gap-2">
-              <div className="w-5 h-5 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-[9px] text-zinc-500 tracking-widest uppercase">LOOKING UP REGISTRY...</span>
-            </div>
-          )}
-
-          {verificationResult && !isVerifying && (
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="border border-zinc-850 bg-neutral-950 p-4 space-y-4 rounded-sm relative overflow-hidden"
-            >
-              <div className="absolute top-2 right-2 text-[7px] text-zinc-700 uppercase font-mono tracking-wider">
-                CERTIFICATE RECORD
-              </div>
-
-              <div className="flex items-start gap-2.5 border-b border-zinc-900 pb-3">
-                <div className="w-6 h-6 bg-[#00E676]/10 border border-[#00E676]/40 text-[#00E676] rounded-full flex items-center justify-center shrink-0">
-                  <ShieldCheck size={13} />
-                </div>
-                <div className="space-y-0.5">
-                  <div className="text-[9.5px] font-bold text-[#00E676] tracking-wider uppercase">
-                    LICENSE AUTHENTICATED — {verificationResult.status}
-                  </div>
-                  <div className="text-[8.5px] text-zinc-500 font-mono">
-                    ID: {verificationResult.id}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-y-3.5 gap-x-2 text-[10px] font-mono">
-                <div>
-                  <span className="text-zinc-650 text-[8px] uppercase block tracking-wider">COMPOSITION:</span>
-                  <span className="text-zinc-300 font-medium uppercase">{verificationResult.composition}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-650 text-[8px] uppercase block tracking-wider">TYPE:</span>
-                  <span className="text-[#D9D6CA] uppercase">{verificationResult.type}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-650 text-[8px] uppercase block tracking-wider">ISRC / ISWC:</span>
-                  <span className="text-zinc-400 font-mono uppercase">{verificationResult.isrc} / {verificationResult.iswc}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-650 text-[8px] uppercase block tracking-wider">ISSUED TO:</span>
-                  <span className="text-zinc-400 truncate block">{verificationResult.issuedTo}</span>
-                </div>
-                <div className="col-span-2 border-t border-zinc-900 pt-3">
-                  <span className="text-zinc-650 text-[8px] uppercase block tracking-wider">SIGNATURE RECORD:</span>
-                  <span className="text-[8.5px] text-zinc-500 font-mono leading-relaxed block tracking-tight">
-                    {verificationResult.signature}
-                  </span>
-                  <span className="text-[8px] text-[#D9D6CA]/40 font-mono mt-1 block">
-                    HASH: {verificationResult.hash}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Quick links as requested */}
-          <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
-            <span>REGISTRY VERSION 4.02</span>
-            <button 
-              onClick={() => setShowDocumentVault(true)}
-              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase flex items-center gap-1"
-            >
-              Access Document Vault ↗
-            </button>
-          </div>
+        <div className="space-y-4">
+          <LicenseVerificationPage initialLicenseNumber={verificationInput || "TOC-CR-2026-30192"} />
         </div>
       );
     }
@@ -1125,7 +1040,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
 
               <div className="border border-zinc-900 bg-black p-3 text-[9px] text-zinc-500 font-mono uppercase text-left space-y-1">
                 <div>CONTRACT HASH: 0xBB823D3F1E8</div>
-                <div>SIGNATURE: {contractSignature.toUpperCase()}</div>
+                <div>SIGNATURE: {(contractSignature || "").toUpperCase()}</div>
                 <div>STATUS: REGISTERED IN SECURE VAULT</div>
               </div>
 
@@ -1643,6 +1558,24 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                       >
                         View Certificate →
                       </button>
+                      <button 
+                        onClick={() => {
+                          openOrDownloadLicenseAgreement({
+                            licenseId: license.id,
+                            transactionRef: license.transactionRef || license.hash || "LMN-TX-892019",
+                            purchaseDate: license.purchaseDate || license.date || "August 4, 2026",
+                            licenseeLegalName: license.licenseeLegalName || currentUserEmail || "John Smith",
+                            licenseeEmail: license.email || currentUserEmail || "guest@lomon.local",
+                            fragmentTitle: license.song || license.fragment || "Composition",
+                            archiveIdentifier: license.archiveIdentifier || `TOC-${(license.id || "LIC").replace(/[^a-zA-Z0-9]/g, "")}-001`,
+                            licenseTierId: license.tierId || (((license.type || "").toLowerCase().includes("exclusive")) ? "exclusive" : ((license.type || "").toLowerCase().includes("commercial")) ? "commercial" : ((license.type || "").toLowerCase().includes("release")) ? "release" : "access"),
+                            licenseTierTitle: license.type || "Archive License"
+                          });
+                        }}
+                        className="text-[#00E676] hover:underline cursor-pointer uppercase text-[8px] font-bold"
+                      >
+                        View Executed Agreement (Schedules A & B) 📄
+                      </button>
                     </div>
                   </div>
 
@@ -1777,7 +1710,8 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
               </div>
             ) : (userLicenses && userLicenses.length > 0) ? (
               userLicenses.flatMap((license) => {
-                const cleanSongName = license.song.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+                const songTitle = license.song || license.fragment || "COMPOSITION";
+                const cleanSongName = songTitle.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
                 return [
                   { filename: `${cleanSongName}_MASTER.WAV`, size: "48.2 MB", desc: `Master Stereo Wave File (24-bit / 48kHz) - ${license.song}`, license, type: "WAV" },
                   { filename: `${cleanSongName}_STEMS.ZIP`, size: "185.0 MB", desc: `Separate Audio Stems (Drums, Bass, Synths, FX) - ${license.song}`, license, type: "ZIP" }
@@ -2177,7 +2111,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
     // ----------------------------------------------------
     if (["terms", "privacy", "cookies", "refunds", "acceptable-use", "protocols-dep"].includes(slug)) {
       const legalTitles: Record<string, string> = {
-        "terms": "TERMS OF USE (PROTOCOLS)",
+        "terms": "TERMS OF USE",
         "privacy": "PRIVACY CONVENTIONS",
         "cookies": "COOKIE DISCLOSURE",
         "refunds": "REFUND POLICY",
@@ -2196,7 +2130,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
           "3. COMPLIANCE: Data operations satisfy all federal privacy requirements in Lagos, Nigeria and Atlanta, USA."
         ],
         "cookies": [
-          "1. SESSIONS: The portal utilizes secure local tokens to cache media bag items and maintain active audio loops.",
+          "1. SESSIONS: The portal utilizes secure local tokens to cache crate items and maintain active audio loops.",
           "2. OPT-OUT: By maintaining connection, you assent to temporary cookie states required for clock calibration."
         ],
         "refunds": [
@@ -2230,15 +2164,49 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
           </div>
 
           <div className="pt-3 border-t border-zinc-900 space-y-3">
-            <button 
-              type="button" 
-              onClick={() => { onOpenTerms?.(); }} 
-              className="w-full bg-[#D6C291] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
-            >
-              READ FULL STANDALONE TERMS OF USE →
-            </button>
+            {slug === "privacy" ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenPrivacy?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL ARCHIVE PRIVACY POLICY →
+              </button>
+            ) : slug === "cookies" ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenCookies?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                MANAGE COOKIE PREFERENCES & DISCLOSURE →
+              </button>
+            ) : slug === "refunds" ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenRefunds?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL ARCHIVE REFUND POLICY →
+              </button>
+            ) : (slug === "acceptable-use" || slug === "acceptable-use-policy") ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenAcceptableUse?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL ACCEPTABLE USE POLICY →
+              </button>
+            ) : (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenTerms?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL STANDALONE TERMS OF USE →
+              </button>
+            )}
             <p className="text-[9px] text-zinc-500 font-mono text-center">
-              All policies are governed by the primary Terms of Use of LOMON LLC (Effective July 28, 2026).
+              All policies are governed by LOMON LLC (Effective July 29, 2026).
             </p>
           </div>
         </div>
@@ -2382,7 +2350,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                       SECURE LINK ESTABLISHED
                     </h5>
                     <p className="text-zinc-500 text-[9px] uppercase">
-                      Initializing terminal access keys for {loginEmail.toUpperCase()}...
+                      Initializing terminal access keys for {(loginEmail || "").toUpperCase()}...
                     </p>
                   </div>
                 </div>
