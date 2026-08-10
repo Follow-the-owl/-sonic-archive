@@ -116,7 +116,7 @@ export default function CookieConsentBanner({
             </div>
 
             <p className="text-[12px] text-zinc-300 leading-relaxed font-sans mb-4">
-              The Owl Clock uses cookies and local storage tokens to preserve active WebAudio playback loops, cache crate items, and verify clearance licenses. You may review our{" "}
+              The Owl Clock uses cookies and local storage tokens to preserve active WebAudio playback loops, cache cart items, and verify clearance licenses. You may review our{" "}
               <button
                 onClick={onOpenCookiePolicy}
                 className="text-white hover:underline font-bold cursor-pointer"

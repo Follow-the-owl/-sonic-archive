@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
-import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ShoppingBag, Mail, Download, Play, Pause, Lock } from "lucide-react";
+import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
 import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance, playCalibrationDenied, playCalibrationSuccess, playTickSound } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";

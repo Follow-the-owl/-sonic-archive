@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, ShoppingBag, Lock } from "lucide-react";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock } from "lucide-react";
 import { Fragment, FRAGMENTS, getTimeCapsuleForFragment } from "../data";
 import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
 import { playFragment, stopAudio, pauseAudio, resumeAudio, isAudioPaused, getCurrentTime, getDuration, seekAudio, setMasterVolume, getMasterVolume, getGlobalAnalyser, registerAudioCallback, getActiveId } from "../audio";
@@ -593,33 +593,6 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
             {activeFrag.timestamp}
           </h2>
-
-          {/* Hairline spacer with central geometric arrow divider */}
-          <div className="flex items-center justify-start gap-3 w-[160px] sm:w-[200px] pt-1.5 opacity-60">
-            <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent to-white/30" />
-            <motion.svg
-              viewBox="0 0 12 12"
-              className="w-[10px] h-[10px] text-white flex-shrink-0"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              animate={{
-                opacity: [0.4, 1, 0.4],
-                filter: [
-                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
-                  "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))",
-                  "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
-                ]
-              }}
-              transition={{
-                duration: 2.8,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              <polygon points="6,2.5 11,10.5 1,10.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
-            </motion.svg>
-            <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent to-white/30" />
-          </div>
         </div>
 
         {/* PLAYBACK CONTROL BAR DIAL (Sleek original single-row widget with functional scrubber handle, styled in monochrome gray and white) */}
@@ -709,21 +682,13 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
           <button
             type="button"
             onClick={() => setShowTimeCapsuleOverlay(true)}
-            className="bg-zinc-950/80 hover:bg-emerald-950/40 p-3 sm:p-4 flex flex-col justify-between text-left cursor-pointer border border-emerald-500/50 hover:border-emerald-400 transition-all shadow-[0_0_15px_rgba(57,205,116,0.25)] hover:shadow-[0_0_25px_rgba(57,205,116,0.5)] group relative overflow-hidden poppins-font"
+            className="bg-zinc-950/70 hover:bg-zinc-900/60 p-3 sm:p-4 flex flex-col justify-between text-left cursor-pointer transition-colors"
             title="Press to view Time Capsule metadata"
           >
-            <div className="flex items-center justify-between w-full mb-1">
-              <span className="text-zinc-400 uppercase block text-[8px] sm:text-[9px] tracking-wider font-semibold poppins-font">
-                CATALOG: {getTimeCapsuleForFragment(activeFrag).catalogNo}
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#39CD74] animate-ping shrink-0" />
-            </div>
-            <div className="flex items-center gap-1.5 w-full mt-1">
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/40 text-[#39CD74] font-extrabold tracking-wider uppercase text-[10px] sm:text-[11px] px-2.5 py-1 rounded-full drop-shadow-[0_0_10px_rgba(57,205,116,0.8)] group-hover:border-emerald-400 group-hover:bg-emerald-500/25 transition-all poppins-font">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#39CD74] inline-block" />
-                {activeFrag.recoveryState || "FULLY RECOVERED"}
-              </span>
-            </div>
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
+            <span className="text-[#39CD74] font-medium tracking-widest uppercase truncate">
+              {activeFrag.recoveryState || "Fully Recovered"}
+            </span>
           </button>
           <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
             <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST CO-SIGN</span>
@@ -861,7 +826,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                 }}
                                 className="bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-3.5 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0 uppercase"
                               >
-                                <ShoppingBag size={10} className="fill-current text-current" />
+                                <Package size={10} className="fill-current text-current" />
                                 <span>{tier.priceDisplay || `$${tier.price}`}</span>
                               </button>
                             </div>

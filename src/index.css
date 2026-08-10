@@ -18,9 +18,7 @@ html, body, #root, * {
   font-family: "Special Elite", system-ui, serif !important;
 }
 
-/* Policy & Protocol pages & Time Capsule Overlay - strictly use Poppins font */
-.poppins-font,
-.poppins-font *,
+/* Policy & Protocol pages - strictly use Poppins font */
 .refund-page,
 .refund-page *,
 .privacy-page,

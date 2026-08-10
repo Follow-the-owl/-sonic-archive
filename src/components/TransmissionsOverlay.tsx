@@ -2130,7 +2130,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
           "3. COMPLIANCE: Data operations satisfy all federal privacy requirements in Lagos, Nigeria and Atlanta, USA."
         ],
         "cookies": [
-          "1. SESSIONS: The portal utilizes secure local tokens to cache crate items and maintain active audio loops.",
+          "1. SESSIONS: The portal utilizes secure local tokens to cache cart items and maintain active audio loops.",
           "2. OPT-OUT: By maintaining connection, you assent to temporary cookie states required for clock calibration."
         ],
         "refunds": [

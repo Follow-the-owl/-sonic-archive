@@ -251,7 +251,7 @@ export default function CookiePolicyPage({ onBack, onOpenPrivacy }: CookiePolicy
               <span className="text-zinc-400">3.</span> BROWSER CONTROL & OPT-OUT OPTIONS
             </h2>
             <p>
-              Most web browsers allow you to control cookies through their browser settings. You can set your browser to reject cookies or notify you when a cookie is placed on your device. Please note that disabling essential cookies may prevent you from adding Fragments to your crate or completing clearance checkouts.
+              Most web browsers allow you to control cookies through their browser settings. You can set your browser to reject cookies or notify you when a cookie is placed on your device. Please note that disabling essential cookies may prevent you from adding Fragments to your cart or completing clearance checkouts.
             </p>
           </section>
 

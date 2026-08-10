@@ -248,7 +248,7 @@ export default function CheckoutPage({
           
           <div className="flex items-center gap-2 shrink-0">
             <span className={`whitespace-nowrap ${step === "cart" ? "text-[#D9D6CA] font-extrabold" : "text-zinc-500"}`}>
-              01. CRATE
+              01. CART
             </span>
             <ChevronRight size={10} className="text-zinc-650 shrink-0" />
           </div>
@@ -294,7 +294,7 @@ export default function CheckoutPage({
                   >
                     <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-wide font-sans">
-                        Crate
+                        Cart
                       </h1>
                     </div>
 
@@ -478,7 +478,7 @@ export default function CheckoutPage({
                         onClick={() => setStep("cart")}
                         className="w-full text-zinc-650 hover:text-zinc-450 text-[9px] tracking-widest font-mono uppercase text-center cursor-pointer py-1 block transition-colors mt-2"
                       >
-                        &lt; Return to Crate
+                        &lt; Return to Cart
                       </button>
                     </form>
                   </motion.div>
@@ -829,7 +829,7 @@ export default function CheckoutPage({
                   <button
                     onClick={() => {
                       if (cart.length === 0) {
-                        alert("Your crate is empty.");
+                        alert("Your cart is empty.");
                         return;
                       }
                       if (!agreedToTerms) {

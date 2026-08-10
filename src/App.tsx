@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, ArrowUpRight, ShoppingBag, Vault, Mail, Download, ChevronRight } from "lucide-react";
+import { Menu, X, ArrowUpRight, Package, Vault, Mail, Download, ChevronRight } from "lucide-react";
 
 // Components Imports
 import WelcomeScreen from "./components/WelcomeScreen";
@@ -911,10 +911,10 @@ export default function App() {
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
                     }`}
-                    title="View Crate"
+                    title="View Cart"
                   >
-                    <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>CRATE ({cart.length})</span>
+                    <Package size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
+                    <span>CART ({cart.length})</span>
                   </button>
 
                    {isLoggedIn ? (
@@ -1060,8 +1060,8 @@ export default function App() {
                     }}
                     className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2.5 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none"
                   >
-                    <ShoppingBag size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>CRATE ({cart.length})</span>
+                    <Package size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
+                    <span>CART ({cart.length})</span>
                   </button>
 
                   <button
@@ -1154,7 +1154,7 @@ export default function App() {
                               checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
                             }`}
                           >
-                            * Crate
+                            * Cart
                           </button>
                         </div>
                       </div>
@@ -1498,8 +1498,7 @@ export default function App() {
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
                         { name: "Request Clearance", slug: "request-clearance" },
-                        { name: "Fragment Clearance Guide", slug: "clearance-guide" },
-                        { name: "Fragment Licensing Schedule", slug: "licensing-schedule" }
+                        { name: "Fragment Clearance Guide", slug: "clearance-guide" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
@@ -1588,6 +1587,28 @@ export default function App() {
                           <span className="text-zinc-600 text-[9px]">↗</span>
                         </a>
                       </li>
+                      <li>
+                        <a 
+                          href="https://youtube.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>YouTube</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a 
+                          href="https://spotify.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>Spotify</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -1634,8 +1655,7 @@ export default function App() {
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
                           { name: "Request Clearance", slug: "request-clearance" },
-                          { name: "Fragment Clearance Guide", slug: "clearance-guide" },
-                          { name: "Fragment Licensing Schedule", slug: "licensing-schedule" }
+                          { name: "Fragment Clearance Guide", slug: "clearance-guide" }
                         ].map((item) => (
                           <button 
                             key={item.name}
@@ -1735,6 +1755,24 @@ export default function App() {
                           <span>* TikTok</span>
                           <span className="text-zinc-600 text-[9px]">↗</span>
                         </a>
+                        <a 
+                          href="https://youtube.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* YouTube</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
+                        <a 
+                          href="https://spotify.com" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
+                        >
+                          <span>* Spotify</span>
+                          <span className="text-zinc-600 text-[9px]">↗</span>
+                        </a>
                       </div>
                     )}
                   </div>
@@ -1784,7 +1822,7 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
                     <h4 className="text-[10px] font-bold tracking-widest uppercase text-zinc-400">
-                      YOUR CRATE ({cart.length}):
+                      YOUR CART ({cart.length}):
                     </h4>
                     <button
                       onClick={() => setCartOpen(false)}
