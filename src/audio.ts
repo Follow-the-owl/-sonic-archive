@@ -1,19 +1,23 @@
-// Web Audio API Cinematic Synthesizer Engine for UNKNOWN
+// Tone.js Web Audio Engine for LOMON / UNKNOWN
+import * as Tone from "tone";
 import { FRAGMENTS } from "./data";
 
-let audioCtx: AudioContext | null = null;
-let currentNodes: {
-  oscillators: OscillatorNode[];
-  gainNodes: GainNode[];
-  filterNode?: BiquadFilterNode;
-  delayNode?: DelayNode;
-  audioElement?: HTMLAudioElement;
-} | null = null;
+let isToneInitialized = false;
+let toneMasterVolume: Tone.Volume | null = null;
+let rawAnalyser: AnalyserNode | null = null;
+let masterVolumeLevel = 0.7;
 
-let lfoOsc: OscillatorNode | null = null;
-let masterGain: GainNode | null = null;
+// Tone.Player state for MP3 fragment playback
+let currentTonePlayer: Tone.Player | null = null;
+let currentBufferDuration = 0;
+let playbackStartedAt = 0;
+let playbackOffsetSec = 0;
+let isPlayingState = false;
+let isLoadingState = false;
+let activeId: string | null = null;
+let activeCallback: ((isPlaying: boolean, fragmentId: string | null) => void) | null = null;
 
-// Ambient Background Loops State
+// Ambient and Synth Node state
 let ambientGain: GainNode | null = null;
 let currentAmbientSectionName: string | null = null;
 let ambientState: {
@@ -21,73 +25,92 @@ let ambientState: {
   gainNodes: GainNode[];
   intervals: any[];
 } | null = null;
-let isAmbientEnabled: boolean = true;
+let isAmbientEnabled = true;
 
-let activeId: string | null = null;
-let activeCallback: ((isPlaying: boolean, fragmentId: string | null) => void) | null = null;
+let currentNodes: {
+  oscillators: OscillatorNode[];
+  gainNodes: GainNode[];
+  filterNode?: BiquadFilterNode;
+  delayNode?: DelayNode;
+} | null = null;
+let lfoOsc: OscillatorNode | null = null;
 
-let globalAnalyser: AnalyserNode | null = null;
+function pctToDb(pct: number): number {
+  const clamped = Math.max(0, Math.min(1, pct));
+  if (clamped <= 0.0001) return -100;
+  return 20 * Math.log10(clamped);
+}
+
+function getAudioCtx(): AudioContext | null {
+  try {
+    initToneEngine();
+    return (Tone.getContext().rawContext as AudioContext) || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 export function getGlobalAnalyser(): AnalyserNode | null {
-  return globalAnalyser;
+  initToneEngine();
+  return rawAnalyser;
 }
 
 export function getAudioContext(): AudioContext | null {
-  return audioCtx;
+  return getAudioCtx();
 }
 
 export function registerAudioCallback(callback: (isPlaying: boolean, fragmentId: string | null) => void) {
   activeCallback = callback;
 }
 
-function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.5, audioCtx.currentTime); // 50% default volume
-    
-    // Setup global high fidelity analyser
-    globalAnalyser = audioCtx.createAnalyser();
-    globalAnalyser.fftSize = 256;
-    globalAnalyser.smoothingTimeConstant = 0.7;
-    
-    // Map output signal chain
-    masterGain.connect(globalAnalyser);
-    globalAnalyser.connect(audioCtx.destination);
-    
-    // Create dedicated ambient loop channel to avoid interference with plays/stops
-    ambientGain = audioCtx.createGain();
-    ambientGain.gain.setValueAtTime(isAmbientEnabled ? 1.0 : 0.0, audioCtx.currentTime);
-    ambientGain.connect(masterGain);
+export async function ensureToneStarted() {
+  initToneEngine();
+  if (Tone.getContext().state !== "running") {
+    await Tone.start();
   }
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
+}
+
+function initToneEngine() {
+  if (!isToneInitialized) {
+    try {
+      toneMasterVolume = new Tone.Volume(pctToDb(masterVolumeLevel));
+      toneMasterVolume.toDestination();
+
+      const rawCtx = Tone.getContext().rawContext as AudioContext;
+      if (rawCtx) {
+        rawAnalyser = rawCtx.createAnalyser();
+        rawAnalyser.fftSize = 256;
+        rawAnalyser.smoothingTimeConstant = 0.7;
+
+        // Route Destination output to rawAnalyser so spectrum analysis works globally
+        Tone.getDestination().connect(rawAnalyser);
+
+        // Setup ambient gain channel
+        ambientGain = rawCtx.createGain();
+        ambientGain.gain.setValueAtTime(isAmbientEnabled ? 1.0 : 0.0, rawCtx.currentTime);
+        ambientGain.connect(rawCtx.destination);
+      }
+      isToneInitialized = true;
+    } catch (e) {
+      console.error("Failed to initialize Tone.js engine:", e);
+    }
   }
 }
 
 export function setMasterVolume(pct: number) {
-  if (!masterGain || !audioCtx) return;
-  masterGain.gain.linearRampToValueAtTime(Math.min(1, Math.max(0, pct)), audioCtx.currentTime + 0.1);
+  masterVolumeLevel = Math.min(1, Math.max(0, pct));
+  const db = pctToDb(masterVolumeLevel);
+  if (toneMasterVolume) {
+    toneMasterVolume.volume.rampTo(db, 0.05);
+  } else {
+    Tone.getDestination().volume.rampTo(db, 0.05);
+  }
 }
 
 export function getMasterVolume(): number {
-  return masterGain ? masterGain.gain.value : 0.5;
+  return masterVolumeLevel;
 }
 
-// Audio Cache Map for persistent Audio elements and Web Audio source nodes
-interface CachedAudioEntry {
-  element: HTMLAudioElement;
-  sourceNode?: MediaElementAudioSourceNode;
-  gainNode?: GainNode;
-}
-
-const audioCacheMap = new Map<string, CachedAudioEntry>();
-
-/**
- * Transforms a Cloudinary audio URL (or any audio URL) to stream as a lightweight 128kbps MP3.
- * Automatically injects `/f_mp3,br_128k/` into Cloudinary `/upload/` path
- * and converts `.wav` extension to `.mp3` for lightweight, seamless streaming.
- */
 export function getOptimizedAudioUrl(url: string | undefined | null): string {
   if (!url) return "";
 
@@ -98,12 +121,10 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
     if (!result.includes("f_mp3,br_128k") && !result.includes("f_mp3")) {
       result = result.replace("/upload/", "/upload/f_mp3,br_128k/");
     }
-    // Automatically convert .wav extension to .mp3 format
     result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
     return result;
   }
 
-  // Handle direct .wav URLs
   if (result.endsWith(".wav")) {
     return result.replace(/\.wav$/, ".mp3");
   }
@@ -113,111 +134,134 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
 
 export function preloadAllAudio() {
   if (typeof window === "undefined") return;
-  FRAGMENTS.forEach(frag => {
-    if (frag.mp3Preview && !audioCacheMap.has(frag.id)) {
-      const audio = new Audio();
-      audio.preload = "metadata";
-      audio.crossOrigin = "anonymous";
-      audio.src = getOptimizedAudioUrl(frag.mp3Preview);
-      audio.load();
-      audioCacheMap.set(frag.id, { element: audio });
+  FRAGMENTS.forEach((frag) => {
+    if (frag.mp3Preview) {
+      const optimizedUrl = getOptimizedAudioUrl(frag.mp3Preview);
+      Tone.ToneAudioBuffer.fromUrl(optimizedUrl).catch(() => {});
     }
   });
 }
 
 export function getCurrentAudioElement(): HTMLAudioElement | null {
-  return currentNodes?.audioElement || null;
+  return null;
 }
 
 export function getCurrentTime(): number {
-  if (currentNodes?.audioElement) {
-    return currentNodes.audioElement.currentTime || 0;
+  if (currentTonePlayer && isPlayingState && currentBufferDuration > 0) {
+    const elapsed = Tone.now() - playbackStartedAt;
+    return (elapsed % currentBufferDuration);
   }
-  return 0;
+  return playbackOffsetSec;
 }
 
 export function getDuration(): number {
-  if (currentNodes?.audioElement && !isNaN(currentNodes.audioElement.duration)) {
-    return currentNodes.audioElement.duration || 0;
+  if (currentTonePlayer && currentBufferDuration > 0) {
+    return currentBufferDuration;
   }
   return 0;
 }
 
 export function seekAudio(seconds: number) {
-  if (currentNodes?.audioElement) {
-    currentNodes.audioElement.currentTime = Math.max(0, Math.min(seconds, currentNodes.audioElement.duration || seconds));
+  const dur = getDuration() || seconds;
+  const validSec = Math.max(0, Math.min(seconds, dur));
+  playbackOffsetSec = validSec;
+
+  if (currentTonePlayer && isPlayingState) {
+    playbackStartedAt = Tone.now() - validSec;
+    try {
+      currentTonePlayer.stop();
+      currentTonePlayer.start(0, validSec);
+    } catch (e) {
+      console.error("Error seeking Tone.Player:", e);
+    }
   }
 }
 
 export function pauseAudio() {
-  if (currentNodes?.audioElement) {
-    currentNodes.audioElement.pause();
+  if (currentTonePlayer && isPlayingState) {
+    playbackOffsetSec = getCurrentTime();
+    try {
+      currentTonePlayer.stop();
+    } catch (e) {}
   }
+  isPlayingState = false;
   if (activeCallback) activeCallback(false, activeId);
 }
 
-export function resumeAudio() {
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-  if (currentNodes?.audioElement) {
-    currentNodes.audioElement.play().then(() => {
+export async function resumeAudio() {
+  await ensureToneStarted();
+  if (currentTonePlayer && activeId) {
+    playbackStartedAt = Tone.now() - playbackOffsetSec;
+    try {
+      currentTonePlayer.start(0, playbackOffsetSec);
+      isPlayingState = true;
       if (activeCallback) activeCallback(true, activeId);
-    }).catch(e => {
-      if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
-        console.error("Error resuming audio:", e);
-      }
-    });
-  } else {
-    if (activeCallback) activeCallback(true, activeId);
+    } catch (e) {
+      console.error("Error resuming Tone.Player:", e);
+    }
+  } else if (activeId) {
+    const frag = FRAGMENTS.find((f) => f.id === activeId);
+    if (frag) {
+      playFragment(frag.id, frag.frequency || 110, frag.synthType || "drone");
+    }
   }
 }
 
 export function isAudioPaused(): boolean {
-  if (currentNodes?.audioElement) {
-    return currentNodes.audioElement.paused;
-  }
-  return activeId === null;
+  return !isPlayingState;
+}
+
+export function isAudioLoading(): boolean {
+  return isLoadingState;
 }
 
 export function stopAudio() {
-  if (currentNodes) {
-    const fadeOutTime = 0.2;
-    if (audioCtx) {
-      const now = audioCtx.currentTime;
-      // Fade out all current active gains to prevent harsh pops
-      currentNodes.gainNodes.forEach(g => {
-        try {
-          g.gain.cancelScheduledValues(now);
-          g.gain.setValueAtTime(g.gain.value, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + fadeOutTime);
-        } catch (e) {
-          // Fallback
-          g.gain.setValueAtTime(0, now);
-        }
-      });
-    }
-
-    const localNodes = currentNodes;
-    currentNodes = null;
-
-    setTimeout(() => {
-      localNodes.oscillators.forEach(osc => {
-        try { osc.stop(); } catch (e) {}
-      });
-      if (lfoOsc) {
-        try { lfoOsc.stop(); } catch (e) {}
-        lfoOsc = null;
-      }
-      if (localNodes.audioElement && currentNodes?.audioElement !== localNodes.audioElement) {
-        try {
-          localNodes.audioElement.pause();
-        } catch (e) {}
-      }
-    }, fadeOutTime * 1000 + 30);
+  // CRITICAL: Stop and dispose Tone.Player instance to avoid memory leaks
+  if (currentTonePlayer) {
+    try {
+      currentTonePlayer.stop();
+      currentTonePlayer.dispose();
+    } catch (e) {}
+    currentTonePlayer = null;
   }
+
+  if (currentNodes) {
+    currentNodes.oscillators.forEach((osc) => {
+      try {
+        osc.stop();
+      } catch (e) {}
+    });
+    if (lfoOsc) {
+      try {
+        lfoOsc.stop();
+      } catch (e) {}
+      lfoOsc = null;
+    }
+    currentNodes = null;
+  }
+
+  isPlayingState = false;
+  isLoadingState = false;
+  playbackOffsetSec = 0;
+  currentBufferDuration = 0;
   activeId = null;
+
   if (activeCallback) activeCallback(false, null);
+}
+
+// Global window unload, pagehide, and visibilitychange listeners
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    stopAudio();
+  });
+  window.addEventListener("pagehide", () => {
+    stopAudio();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      pauseAudio();
+    }
+  });
 }
 
 export function toggleFragment(
@@ -225,110 +269,98 @@ export function toggleFragment(
   frequency: number,
   synthType: "drone" | "keys" | "bell" | "noise" | "pulse"
 ) {
-  if (activeId === id && !isAudioPaused()) {
+  if (activeId === id && isPlayingState) {
     pauseAudio();
+  } else if (activeId === id && !isPlayingState) {
+    resumeAudio();
   } else {
     playFragment(id, frequency, synthType);
   }
 }
 
-export function playFragment(
+export async function playFragment(
   id: string,
-  frequency: number,
-  synthType: "drone" | "keys" | "bell" | "noise" | "pulse"
+  frequency: number = 110,
+  synthType: "drone" | "keys" | "bell" | "noise" | "pulse" = "drone"
 ) {
-  try {
-    initAudio();
-  } catch (err) {
-    console.error("Failed to init audio context:", err);
+  await ensureToneStarted();
+
+  if (activeId === id && currentTonePlayer && isPlayingState) {
     return;
   }
 
-  if (!audioCtx || !masterGain) return;
-
-  // If already active fragment, ensure it is playing smoothly
-  if (activeId === id) {
-    if (isAudioPaused()) {
-      resumeAudio();
-    }
-    return;
-  }
-
-  // Stop current sound first
+  // Cleanly stop and dispose previous player instance
   stopAudio();
 
-  const now = audioCtx.currentTime;
-
-  const fragment = FRAGMENTS.find(f => f.id === id);
+  const fragment = FRAGMENTS.find((f) => f.id === id);
   if (fragment && fragment.mp3Preview) {
+    const optimizedUrl = getOptimizedAudioUrl(fragment.mp3Preview);
+    isLoadingState = true;
+    activeId = id;
+    playbackOffsetSec = 0;
+
     try {
-      const optimizedUrl = getOptimizedAudioUrl(fragment.mp3Preview);
-      let entry = audioCacheMap.get(id);
-      if (!entry) {
-        const audio = new Audio();
-        audio.preload = "metadata";
-        audio.crossOrigin = "anonymous";
-        audio.src = optimizedUrl;
-        audio.load();
-        entry = { element: audio };
-        audioCacheMap.set(id, entry);
-      } else if (entry.element.src !== optimizedUrl && optimizedUrl) {
-        entry.element.src = optimizedUrl;
-        entry.element.preload = "metadata";
-      }
-
-      const audioEl = entry.element;
-      audioEl.preload = "metadata";
-      audioEl.loop = true;
-
-      let gainNode = entry.gainNode;
-      if (!entry.sourceNode || !gainNode) {
-        entry.sourceNode = audioCtx.createMediaElementSource(audioEl);
-        gainNode = audioCtx.createGain();
-        entry.sourceNode.connect(gainNode);
-        gainNode.connect(masterGain);
-        entry.gainNode = gainNode;
-      }
-
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(0.001, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.6, now + 0.3);
-
-      currentNodes = {
-        oscillators: [],
-        gainNodes: [gainNode],
-        audioElement: audioEl
-      };
-
-      activeId = id;
-
-      audioEl.play().then(() => {
-        if (activeCallback) activeCallback(true, id);
-      }).catch(e => {
-        if (e.name === 'NotAllowedError') {
+      const player = new Tone.Player({
+        url: optimizedUrl,
+        loop: true,
+        autostart: false,
+        onload: () => {
+          isLoadingState = false;
+          if (activeId === id && player === currentTonePlayer) {
+            currentBufferDuration = player.buffer.duration || 0;
+            playbackStartedAt = Tone.now() - playbackOffsetSec;
+            player.start(0, playbackOffsetSec);
+            isPlayingState = true;
+            if (activeCallback) activeCallback(true, id);
+          }
+        },
+        onerror: (err) => {
+          console.error("Tone.Player load error for fragment " + id, err);
+          isLoadingState = false;
           if (activeCallback) activeCallback(false, id);
-        } else if (e.name !== 'AbortError' && !e.message?.includes('interrupted by a call to pause')) {
-          console.error("Error playing MP3 preview:", e);
         }
       });
 
+      if (toneMasterVolume) {
+        player.connect(toneMasterVolume);
+      } else {
+        player.toDestination();
+      }
+
+      player.loop = true; // Sample-accurate, gapless looping
+      currentTonePlayer = player;
+
+      if (player.loaded) {
+        isLoadingState = false;
+        currentBufferDuration = player.buffer.duration || 0;
+        playbackStartedAt = Tone.now() - playbackOffsetSec;
+        player.start(0, playbackOffsetSec);
+        isPlayingState = true;
+        if (activeCallback) activeCallback(true, id);
+      } else {
+        if (activeCallback) activeCallback(true, id);
+      }
       return;
     } catch (e) {
-      console.error("Failed to set up MP3 playback source. Falling back to synth.", e);
+      console.error("Failed to load or play MP3 with Tone.Player. Falling back to synth.", e);
+      isLoadingState = false;
     }
   }
+
+  // Synth Fallback using Tone Context
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
 
   const oscillators: OscillatorNode[] = [];
   const gainNodes: GainNode[] = [];
 
-  // Reverb/Delay nodes for space
   const delay = audioCtx.createDelay(2.0);
   delay.delayTime.setValueAtTime(0.4, now);
   
   const delayGain = audioCtx.createGain();
-  delayGain.gain.setValueAtTime(0.3, now); // Feedback volume
+  delayGain.gain.setValueAtTime(0.3, now);
 
-  // Loop delay back into itself
   delay.connect(delayGain);
   delayGain.connect(delay);
 
@@ -336,30 +368,27 @@ export function playFragment(
   filter.type = "lowpass";
   filter.frequency.setValueAtTime(800, now);
 
+  const masterOut = ambientGain || audioCtx.destination;
+
   if (synthType === "drone") {
-    // DRONE: Warm detuned layers and sub bass
     filter.frequency.setValueAtTime(450, now);
 
-    // Osc 1: Root sub
     const osc1 = audioCtx.createOscillator();
     osc1.type = "sine";
     osc1.frequency.setValueAtTime(frequency, now);
 
-    // Osc 2: Slight detuned saw (filtered)
     const osc2 = audioCtx.createOscillator();
     osc2.type = "triangle";
-    osc2.frequency.setValueAtTime(frequency * 1.5 + 0.5, now); // perfect fifth + a little detune
+    osc2.frequency.setValueAtTime(frequency * 1.5 + 0.5, now);
 
-    // Osc 3: Very low sub bass
     const osc3 = audioCtx.createOscillator();
     osc3.type = "sine";
-    osc3.frequency.setValueAtTime(frequency / 2 - 1, now); 
+    osc3.frequency.setValueAtTime(frequency / 2 - 1, now);
 
     const g1 = audioCtx.createGain();
     const g2 = audioCtx.createGain();
     const g3 = audioCtx.createGain();
 
-    // Volume curves
     g1.gain.setValueAtTime(0.001, now);
     g1.gain.exponentialRampToValueAtTime(0.25, now + 1.5);
 
@@ -373,12 +402,11 @@ export function playFragment(
     osc2.connect(g2);
     osc3.connect(g3);
 
-    // Slow breath filter LFO
     const lfo = audioCtx.createOscillator();
     lfo.type = "sine";
-    lfo.frequency.setValueAtTime(0.15, now); // very slow 6-second cycle
+    lfo.frequency.setValueAtTime(0.15, now);
     const lfoGain = audioCtx.createGain();
-    lfoGain.gain.setValueAtTime(150, now); // sweep 150hz up and down
+    lfoGain.gain.setValueAtTime(150, now);
 
     lfo.connect(lfoGain);
     lfoGain.connect(filter.frequency);
@@ -390,10 +418,9 @@ export function playFragment(
     lfo.start(now);
     lfoOsc = lfo;
 
-    filter.connect(masterGain);
-    // Add subtle delay
+    filter.connect(masterOut);
     filter.connect(delay);
-    delayGain.connect(masterGain);
+    delayGain.connect(masterOut);
 
     osc1.start(now);
     osc2.start(now);
@@ -403,11 +430,8 @@ export function playFragment(
     gainNodes.push(g1, g2, g3);
 
   } else if (synthType === "keys") {
-    // KEYS: Slow melodic pluck echoes
     filter.frequency.setValueAtTime(1200, now);
-
-    // Pluck chord
-    const freqs = [frequency, frequency * 1.25, frequency * 1.5, frequency * 2.0]; // Major/Minor atmospheric chord
+    const freqs = [frequency, frequency * 1.25, frequency * 1.5, frequency * 2.0];
     
     freqs.forEach((f, index) => {
       const osc = audioCtx.createOscillator();
@@ -416,7 +440,6 @@ export function playFragment(
 
       const g = audioCtx.createGain();
       g.gain.setValueAtTime(0.001, now);
-      // Gentle delayed triggers
       const delayOffset = index * 0.18;
       g.gain.exponentialRampToValueAtTime(0.18, now + 0.1 + delayOffset);
       g.gain.exponentialRampToValueAtTime(0.001, now + 2.5 + delayOffset);
@@ -430,23 +453,20 @@ export function playFragment(
       gainNodes.push(g);
     });
 
-    filter.connect(masterGain);
+    filter.connect(masterOut);
     filter.connect(delay);
-    delayGain.connect(masterGain);
+    delayGain.connect(masterOut);
 
-    // Setup an interval to play repeating moody key plucks as long as it's active
     let cycleCounter = 1;
     const intervalId = setInterval(() => {
-      if (activeId !== id || !audioCtx) {
+      if (activeId !== id) {
         clearInterval(intervalId);
         return;
       }
       const triggerTime = audioCtx.currentTime;
-      // Change chord degree slightly for cinematic movement
       const modifier = cycleCounter % 3 === 0 ? 0.9 : cycleCounter % 3 === 1 ? 1.0 : 1.12;
       
       freqs.forEach((f, index) => {
-        if (!audioCtx) return;
         const oInput = audioCtx.createOscillator();
         oInput.type = "triangle";
         oInput.frequency.setValueAtTime(f * modifier, triggerTime);
@@ -472,10 +492,7 @@ export function playFragment(
     }, 4500);
 
   } else if (synthType === "bell") {
-    // BELL: Pure bell registers and rich overtones (guarded bell chime)
     filter.frequency.setValueAtTime(1500, now);
-    
-    // Inharmonic bell partials
     const partials = [1.0, 1.5, 1.98, 2.44, 3.0, 4.1];
     const partialGains = [0.22, 0.15, 0.1, 0.08, 0.05, 0.03];
 
@@ -486,12 +503,11 @@ export function playFragment(
 
       const g = audioCtx.createGain();
       g.gain.setValueAtTime(0.001, now);
-      // Instant attack, long exponential release
       g.gain.exponentialRampToValueAtTime(partialGains[idx], now + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, now + 5.0);
 
       osc.connect(g);
-      g.connect(masterGain);
+      g.connect(masterOut);
       g.connect(delay);
 
       osc.start(now);
@@ -499,20 +515,17 @@ export function playFragment(
       gainNodes.push(g);
     });
 
-    delayGain.connect(masterGain);
+    delayGain.connect(masterOut);
 
-    // Repeating slow tolls
     const bellInterval = setInterval(() => {
-      if (activeId !== id || !audioCtx) {
+      if (activeId !== id) {
         clearInterval(bellInterval);
         return;
       }
       const tollTime = audioCtx.currentTime;
       partials.forEach((p, idx) => {
-        if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         osc.type = "sine";
-        // Slightly wobble frequency to sound aged
         osc.frequency.setValueAtTime(frequency * p * (1 + (Math.random() * 0.004 - 0.002)), tollTime);
 
         const g = audioCtx.createGain();
@@ -522,7 +535,7 @@ export function playFragment(
 
         osc.connect(g);
         osc.connect(delay);
-        g.connect(masterGain);
+        g.connect(masterOut);
 
         osc.start(tollTime);
         osc.stop(tollTime + 6.0);
@@ -535,9 +548,7 @@ export function playFragment(
     }, 6000);
 
   } else if (synthType === "noise") {
-    // NOISE: Muffled vintage tape hiss, warm static, and remote storm breeze
-    // Generate white noise buffer
-    const bufferSize = audioCtx.sampleRate * 2; // 2 seconds
+    const bufferSize = audioCtx.sampleRate * 2;
     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -548,7 +559,6 @@ export function playFragment(
     whiteNoise.buffer = noiseBuffer;
     whiteNoise.loop = true;
 
-    // Filter to turn it into pink/brown muffled room whisper
     const noiseFilter = audioCtx.createBiquadFilter();
     noiseFilter.type = "bandpass";
     noiseFilter.frequency.setValueAtTime(250, now);
@@ -558,7 +568,6 @@ export function playFragment(
     noiseGain.gain.setValueAtTime(0.001, now);
     noiseGain.gain.exponentialRampToValueAtTime(0.12, now + 1.5);
 
-    // Warm pad oscillator hidden behind the static
     const padOsc = audioCtx.createOscillator();
     padOsc.type = "triangle";
     padOsc.frequency.setValueAtTime(frequency, now);
@@ -567,42 +576,36 @@ export function playFragment(
     padGain.gain.setValueAtTime(0.001, now);
     padGain.gain.exponentialRampToValueAtTime(0.15, now + 2.0);
 
-    // Modulate bandpass frequency slowly for wind wave movement
     const waveLfo = audioCtx.createOscillator();
     waveLfo.type = "sine";
-    waveLfo.frequency.setValueAtTime(0.08, now); // ultra slow wind waves
+    waveLfo.frequency.setValueAtTime(0.08, now);
     const wavesGain = audioCtx.createGain();
     wavesGain.gain.setValueAtTime(120, now);
 
     waveLfo.connect(wavesGain);
     wavesGain.connect(noiseFilter.frequency);
 
-    // Connections
     whiteNoise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
-    noiseGain.connect(masterGain);
+    noiseGain.connect(masterOut);
 
     padOsc.connect(padGain);
-    padGain.connect(masterGain);
+    padGain.connect(masterOut);
 
     whiteNoise.start(now);
     padOsc.start(now);
     waveLfo.start(now);
 
     lfoOsc = waveLfo;
-    oscillators.push(padOsc); // For cleanup (bufferSource clean below)
+    oscillators.push(padOsc, whiteNoise as any);
     gainNodes.push(noiseGain, padGain);
 
-    // Add whiteNoise to oscillators so we can stop it
-    oscillators.push(whiteNoise as any);
-
   } else if (synthType === "pulse") {
-    // PULSE: Heavy low-frequency radar heartbeat beacon
-    filter.frequency.setValueAtTime(120, now); // deep, deep pulse
+    filter.frequency.setValueAtTime(120, now);
 
     const osc = audioCtx.createOscillator();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(frequency / 2, now); // drop an octave for heavy impact
+    osc.frequency.setValueAtTime(frequency / 2, now);
 
     const g = audioCtx.createGain();
     g.gain.setValueAtTime(0.001, now);
@@ -611,15 +614,14 @@ export function playFragment(
 
     osc.connect(g);
     g.connect(filter);
-    filter.connect(masterGain);
+    filter.connect(masterOut);
 
     osc.start(now);
     oscillators.push(osc);
     gainNodes.push(g);
 
-    // Setup rhythmic sonar heartbeats (every 1.5 seconds)
     const pulseInterval = setInterval(() => {
-      if (activeId !== id || !audioCtx) {
+      if (activeId !== id) {
         clearInterval(pulseInterval);
         return;
       }
@@ -654,6 +656,7 @@ export function playFragment(
   };
 
   activeId = id;
+  isPlayingState = true;
   if (activeCallback) activeCallback(true, id);
 }
 
@@ -667,9 +670,7 @@ export function isAmbientOn(): boolean {
 
 export function toggleAmbientAtmosphere(): boolean {
   isAmbientEnabled = !isAmbientEnabled;
-  if (!audioCtx) {
-    try { initAudio(); } catch (e) {}
-  }
+  const audioCtx = getAudioCtx();
   if (ambientGain && audioCtx) {
     const targetVal = isAmbientEnabled ? 1.0 : 0.0;
     ambientGain.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -677,13 +678,11 @@ export function toggleAmbientAtmosphere(): boolean {
     ambientGain.gain.linearRampToValueAtTime(targetVal, audioCtx.currentTime + 1.2);
   }
   
-  // If we just turned ambient ON and a section was waiting, play it!
   if (isAmbientEnabled && currentAmbientSectionName) {
     const sec = currentAmbientSectionName;
-    currentAmbientSectionName = null; // force restart
+    currentAmbientSectionName = null;
     transitionAmbient(sec);
   } else if (!isAmbientEnabled && ambientState) {
-    // If we turned it OFF, immediately clean up active oscillators to ensure silence
     const oldState = ambientState;
     ambientState = null;
     oldState.intervals.forEach((intervalId) => clearInterval(intervalId));
@@ -696,29 +695,20 @@ export function toggleAmbientAtmosphere(): boolean {
 }
 
 export function transitionAmbient(sectionName: string) {
-  try {
-    initAudio();
-  } catch (err) {
-    console.error("Failed to init audio context for ambient:", err);
-    return;
-  }
-
+  const audioCtx = getAudioCtx();
   if (!audioCtx || !ambientGain) return;
 
-  // Don't restart the same section's loop if it is already playing
   if (currentAmbientSectionName === sectionName && ambientState) {
     return;
   }
 
   const now = audioCtx.currentTime;
 
-  // 1. Gently fade out previous ambient loop
   if (ambientState) {
     const fadeOutTime = 1.5;
     const oldState = ambientState;
     ambientState = null;
 
-    // Clear background timers
     oldState.intervals.forEach((intervalId) => clearInterval(intervalId));
 
     oldState.gainNodes.forEach((g) => {
@@ -740,7 +730,6 @@ export function transitionAmbient(sectionName: string) {
 
   currentAmbientSectionName = sectionName;
 
-  // If ambient is disabled, we store the current section name but do not spawn nodes
   if (!isAmbientEnabled) {
     return;
   }
@@ -749,19 +738,17 @@ export function transitionAmbient(sectionName: string) {
   const gainNodes: GainNode[] = [];
   const intervals: any[] = [];
 
-  // Create a slow delay line for premium echoing elements in background tracks
   const ambDelay = audioCtx.createDelay(3.0);
   ambDelay.delayTime.setValueAtTime(1.2, now);
   
   const ambFeedback = audioCtx.createGain();
-  ambFeedback.gain.setValueAtTime(0.38, now); // 38% feedback
+  ambFeedback.gain.setValueAtTime(0.38, now);
   
   ambDelay.connect(ambFeedback);
   ambFeedback.connect(ambDelay);
   ambDelay.connect(ambientGain);
 
   if (sectionName === "The Nest") {
-    // 55Hz (A1) & 82.5Hz (E2) sub organ drone
     const osc1 = audioCtx.createOscillator();
     osc1.type = "sine";
     osc1.frequency.setValueAtTime(55, now);
@@ -779,10 +766,9 @@ export function transitionAmbient(sectionName: string) {
     g2.gain.setValueAtTime(0.001, now);
     g2.gain.linearRampToValueAtTime(0.05, now + 3.5);
 
-    // Subtle volume breather LFO
     const lfo = audioCtx.createOscillator();
     lfo.type = "sine";
-    lfo.frequency.setValueAtTime(0.08, now); // 12.5s cycle
+    lfo.frequency.setValueAtTime(0.08, now);
 
     const lfoG = audioCtx.createGain();
     lfoG.gain.setValueAtTime(0.02, now);
@@ -804,7 +790,6 @@ export function transitionAmbient(sectionName: string) {
     gainNodes.push(g1, g2);
 
   } else if (sectionName === "The Flight Path") {
-    // 110Hz triangle drone through a resonant bandpass filter centered around 450Hz
     const carrier = audioCtx.createOscillator();
     carrier.type = "triangle";
     carrier.frequency.setValueAtTime(110, now);
@@ -818,7 +803,6 @@ export function transitionAmbient(sectionName: string) {
     gCarrier.gain.setValueAtTime(0.001, now);
     gCarrier.gain.linearRampToValueAtTime(0.035, now + 2.5);
 
-    // filter frequency LFO
     const lfo = audioCtx.createOscillator();
     lfo.type = "sine";
     lfo.frequency.setValueAtTime(0.06, now);
@@ -838,18 +822,19 @@ export function transitionAmbient(sectionName: string) {
     oscillators.push(carrier, lfo);
     gainNodes.push(gCarrier);
 
-    // Sparkling starry chimes playing beautiful pentatonic high chime notes
     const intervalId = setInterval(() => {
-      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "The Flight Path") return;
-      const t = audioCtx.currentTime;
-      const chime = audioCtx.createOscillator();
+      if (!ambientGain || currentAmbientSectionName !== "The Flight Path") return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      const chime = ctx.createOscillator();
       chime.type = "sine";
 
       const freqs = [880, 990, 1100, 1320, 1485];
       const randomFreq = freqs[Math.floor(Math.random() * freqs.length)];
       chime.frequency.setValueAtTime(randomFreq, t);
 
-      const gChime = audioCtx.createGain();
+      const gChime = ctx.createGain();
       gChime.gain.setValueAtTime(0.001, t);
       gChime.gain.exponentialRampToValueAtTime(0.015, t + 0.08);
       gChime.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
@@ -869,7 +854,6 @@ export function transitionAmbient(sectionName: string) {
     intervals.push(intervalId);
 
   } else if (sectionName === "The Forest") {
-    // Generate whispering wind pinkish noise
     const bufferSize = audioCtx.sampleRate * 2;
     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
@@ -890,7 +874,6 @@ export function transitionAmbient(sectionName: string) {
     gWind.gain.setValueAtTime(0.001, now);
     gWind.gain.linearRampToValueAtTime(0.045, now + 3.5);
 
-    // slow wind waves
     const windLfo = audioCtx.createOscillator();
     windLfo.type = "sine";
     windLfo.frequency.setValueAtTime(0.065, now);
@@ -910,17 +893,18 @@ export function transitionAmbient(sectionName: string) {
     oscillators.push(noiseSource, windLfo);
     gainNodes.push(gWind);
 
-    // Gentle dry forest twig cracks
     const forestInterval = setInterval(() => {
-      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "The Forest") return;
-      const t = audioCtx.currentTime;
+      if (!ambientGain || currentAmbientSectionName !== "The Forest") return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const t = ctx.currentTime;
 
-      const wood = audioCtx.createOscillator();
+      const wood = ctx.createOscillator();
       wood.type = "triangle";
       wood.frequency.setValueAtTime(160 + Math.random() * 120, t);
       wood.frequency.exponentialRampToValueAtTime(40, t + 0.1);
 
-      const gWood = audioCtx.createGain();
+      const gWood = ctx.createGain();
       gWood.gain.setValueAtTime(0.001, t);
       gWood.gain.exponentialRampToValueAtTime(0.012, t + 0.01);
       gWood.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
@@ -940,14 +924,13 @@ export function transitionAmbient(sectionName: string) {
     intervals.push(forestInterval);
 
   } else if (sectionName === "The Observatory") {
-    // Elegant stellar cosmic sweep pads (E3 and B3)
     const cosmicPad1 = audioCtx.createOscillator();
     cosmicPad1.type = "sine";
-    cosmicPad1.frequency.setValueAtTime(164.8, now); // E3
+    cosmicPad1.frequency.setValueAtTime(164.8, now);
 
     const cosmicPad2 = audioCtx.createOscillator();
     cosmicPad2.type = "sine";
-    cosmicPad2.frequency.setValueAtTime(246.9, now); // B3
+    cosmicPad2.frequency.setValueAtTime(246.9, now);
 
     const filter = audioCtx.createBiquadFilter();
     filter.type = "lowpass";
@@ -963,7 +946,6 @@ export function transitionAmbient(sectionName: string) {
     gPad2.gain.setValueAtTime(0.001, now);
     gPad2.gain.linearRampToValueAtTime(0.035, now + 4.0);
 
-    // sweep LFO: 30s cycle
     const sweepLfo = audioCtx.createOscillator();
     sweepLfo.type = "sine";
     sweepLfo.frequency.setValueAtTime(0.033, now);
@@ -987,16 +969,17 @@ export function transitionAmbient(sectionName: string) {
     oscillators.push(cosmicPad1, cosmicPad2, sweepLfo);
     gainNodes.push(gPad1, gPad2);
 
-    // Deep space crystalline echoes
     const observatoryInterval = setInterval(() => {
-      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "The Observatory") return;
-      const t = audioCtx.currentTime;
+      if (!ambientGain || currentAmbientSectionName !== "The Observatory") return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const t = ctx.currentTime;
 
-      const star = audioCtx.createOscillator();
+      const star = ctx.createOscillator();
       star.type = "sine";
       star.frequency.setValueAtTime(2100 + Math.random() * 700, t);
 
-      const gStar = audioCtx.createGain();
+      const gStar = ctx.createGain();
       gStar.gain.setValueAtTime(0.001, t);
       gStar.gain.exponentialRampToValueAtTime(0.006, t + 0.15);
       gStar.gain.exponentialRampToValueAtTime(0.0001, t + 2.5);
@@ -1016,18 +999,17 @@ export function transitionAmbient(sectionName: string) {
     intervals.push(observatoryInterval);
 
   } else if (sectionName === "The Vault") {
-    // Low mechanical engine hum structure
     const engine1 = audioCtx.createOscillator();
     engine1.type = "sawtooth";
-    engine1.frequency.setValueAtTime(41.2, now); // E1
+    engine1.frequency.setValueAtTime(41.2, now);
 
     const engine2 = audioCtx.createOscillator();
     engine2.type = "triangle";
-    engine2.frequency.setValueAtTime(82.4, now); // E2
+    engine2.frequency.setValueAtTime(82.4, now);
 
     const lowpass = audioCtx.createBiquadFilter();
     lowpass.type = "lowpass";
-    lowpass.frequency.setValueAtTime(90, now); // heavy lowpass filter
+    lowpass.frequency.setValueAtTime(90, now);
 
     const gEng1 = audioCtx.createGain();
     const gEng2 = audioCtx.createGain();
@@ -1051,16 +1033,17 @@ export function transitionAmbient(sectionName: string) {
     oscillators.push(engine1, engine2);
     gainNodes.push(gEng1, gEng2);
 
-    // Echoing alarm radar ping symbolizing secured status
     const vaultInterval = setInterval(() => {
-      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "The Vault") return;
-      const t = audioCtx.currentTime;
+      if (!ambientGain || currentAmbientSectionName !== "The Vault") return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const t = ctx.currentTime;
 
-      const ping = audioCtx.createOscillator();
+      const ping = ctx.createOscillator();
       ping.type = "sine";
       ping.frequency.setValueAtTime(1150, t);
 
-      const gPing = audioCtx.createGain();
+      const gPing = ctx.createGain();
       gPing.gain.setValueAtTime(0.001, t);
       gPing.gain.exponentialRampToValueAtTime(0.006, t + 0.03);
       gPing.gain.exponentialRampToValueAtTime(0.0001, t + 4.0);
@@ -1080,7 +1063,6 @@ export function transitionAmbient(sectionName: string) {
     intervals.push(vaultInterval);
 
   } else if (sectionName === "The Midnight Journal") {
-    // Generate vintage dusty tape hiss and soft major pad
     const bufferSize = audioCtx.sampleRate * 2;
     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
@@ -1113,10 +1095,8 @@ export function transitionAmbient(sectionName: string) {
     oscillators.push(hissSource);
     gainNodes.push(gHiss);
 
-    // Warm nostaligic E-major pad triads
-    const padFreqs = [164.8, 207.7, 246.9, 329.6]; // E3, G#3, B3, E4
+    const padFreqs = [164.8, 207.7, 246.9, 329.6];
     padFreqs.forEach((freq, idx) => {
-      if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
       osc.type = "triangle";
       osc.frequency.setValueAtTime(freq, now);
@@ -1139,7 +1119,6 @@ export function transitionAmbient(sectionName: string) {
     });
 
   } else if (sectionName === "Signal tower") {
-    // Constant high elevation bandpassed storm bise
     const stormNoise = audioCtx.createBufferSource();
     const bufSize = audioCtx.sampleRate * 2;
     const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
@@ -1178,19 +1157,19 @@ export function transitionAmbient(sectionName: string) {
     oscillators.push(stormNoise, windLfo);
     gainNodes.push(gStorm);
 
-    // Dynamic tech packet telemetry sequences every 4 seconds
     const signalInterval = setInterval(() => {
-      if (!audioCtx || !ambientGain || currentAmbientSectionName !== "Signal tower") return;
-      const t = audioCtx.currentTime;
+      if (!ambientGain || currentAmbientSectionName !== "Signal tower") return;
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const t = ctx.currentTime;
 
       const packetFreqs = [1820, 1960, 2120];
       packetFreqs.forEach((freq, idx) => {
-        if (!audioCtx) return;
-        const bleep = audioCtx.createOscillator();
+        const bleep = ctx.createOscillator();
         bleep.type = "sine";
         bleep.frequency.setValueAtTime(freq, t + idx * 0.12);
 
-        const gBleep = audioCtx.createGain();
+        const gBleep = ctx.createGain();
         gBleep.gain.setValueAtTime(0.001, t + idx * 0.12);
         gBleep.gain.exponentialRampToValueAtTime(0.005, t + idx * 0.12 + 0.015);
         gBleep.gain.exponentialRampToValueAtTime(0.0001, t + idx * 0.12 + 0.18);
@@ -1211,7 +1190,6 @@ export function transitionAmbient(sectionName: string) {
     intervals.push(signalInterval);
   }
 
-  // Save the state of current ambient nodes so they can be disposed or handled properly on transition
   ambientState = {
     oscillators,
     gainNodes,
@@ -1220,21 +1198,13 @@ export function transitionAmbient(sectionName: string) {
 }
 
 export function playOwlResonance() {
-  try {
-    initAudio();
-  } catch (e) {
-    console.error("Failed to init audio for owl call:", e);
-    return;
-  }
-  if (!audioCtx || !masterGain) return;
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
   const now = audioCtx.currentTime;
 
-  // Hollow low double-hoot: Hoot (0.45s) -> silence (0.1s) -> Hoot (0.65s)
   const hootee = (startTime: number, duration: number, pitch: number, volume: number) => {
-    if (!audioCtx || !masterGain) return;
     const osc = audioCtx.createOscillator();
     osc.type = "sine";
-    // Soft pitch slide down
     osc.frequency.setValueAtTime(pitch, startTime);
     osc.frequency.exponentialRampToValueAtTime(pitch * 0.94, startTime + duration);
 
@@ -1245,11 +1215,9 @@ export function playOwlResonance() {
 
     const gainNode = audioCtx.createGain();
     gainNode.gain.setValueAtTime(0.001, startTime);
-    // Exponential envelope
     gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.12);
     gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
-    // Create a reverb or delay feed for owl hoot
     const delay = audioCtx.createDelay(1.5);
     delay.delayTime.setValueAtTime(0.35, startTime);
     const delayGain = audioCtx.createGain();
@@ -1257,29 +1225,23 @@ export function playOwlResonance() {
 
     osc.connect(filter);
     filter.connect(gainNode);
-    gainNode.connect(masterGain);
+    gainNode.connect(audioCtx.destination);
 
-    // Feed to delay line for echoing effect
     gainNode.connect(delay);
     delay.connect(delayGain);
-    delayGain.connect(masterGain);
+    delayGain.connect(audioCtx.destination);
 
     osc.start(startTime);
     osc.stop(startTime + duration + 0.1);
   };
 
-  // Double hoot
   hootee(now, 0.42, 175, 0.22);
   hootee(now + 0.52, 0.62, 160, 0.18);
 }
 
 export function playCalibrationDenied() {
-  try {
-    initAudio();
-  } catch (e) {
-    return;
-  }
-  if (!audioCtx || !masterGain) return;
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
   const now = audioCtx.currentTime;
 
   const osc1 = audioCtx.createOscillator();
@@ -1305,7 +1267,7 @@ export function playCalibrationDenied() {
   osc1.connect(filter);
   osc2.connect(filter);
   filter.connect(gainNode);
-  gainNode.connect(masterGain);
+  gainNode.connect(audioCtx.destination);
 
   osc1.start(now);
   osc2.start(now);
@@ -1314,17 +1276,12 @@ export function playCalibrationDenied() {
 }
 
 export function playCalibrationSuccess() {
-  try {
-    initAudio();
-  } catch (e) {
-    return;
-  }
-  if (!audioCtx || !masterGain) return;
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
   const now = audioCtx.currentTime;
 
-  const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+  const freqs = [523.25, 659.25, 783.99];
   freqs.forEach((freq, idx) => {
-    if (!audioCtx || !masterGain) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const t = now + idx * 0.12;
@@ -1337,7 +1294,7 @@ export function playCalibrationSuccess() {
     gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
 
     osc.connect(gain);
-    gain.connect(masterGain);
+    gain.connect(audioCtx.destination);
 
     osc.start(t);
     osc.stop(t + 0.7);
@@ -1345,29 +1302,24 @@ export function playCalibrationSuccess() {
 }
 
 export function playTickSound(type: "high" | "low" = "high") {
-  try {
-    initAudio();
-  } catch (e) {
-    return;
-  }
-  if (!audioCtx || !masterGain) return;
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
   const now = audioCtx.currentTime;
+
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  
+
   osc.type = "sine";
-  const freq = type === "high" ? 1800 : 1200;
+  const freq = type === "high" ? 1200 : 800;
   osc.frequency.setValueAtTime(freq, now);
-  
-  gain.gain.setValueAtTime(0.08, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
-  
+
+  gain.gain.setValueAtTime(0.001, now);
+  gain.gain.exponentialRampToValueAtTime(0.015, now + 0.005);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+
   osc.connect(gain);
-  gain.connect(masterGain);
-  
+  gain.connect(audioCtx.destination);
+
   osc.start(now);
-  osc.stop(now + 0.05);
+  osc.stop(now + 0.04);
 }
-
-
-
