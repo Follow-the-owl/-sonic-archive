@@ -147,10 +147,15 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
 
   let result = url.trim();
 
+  // If the file is already an MP3, do not mangle Cloudinary URL transformation parameters
+  if (result.includes(".mp3")) {
+    return result;
+  }
+
   // Handle Cloudinary delivery URLs
   if (result.includes("cloudinary.com") && result.includes("/upload/")) {
     if (!result.includes("ac_mp3,br_128k") && !result.includes("f_mp3,br_128k") && !result.includes("f_mp3")) {
-      result = result.replace("/upload/", "/upload/ac_mp3,br_128k/");
+      result = result.replace("/upload/", "/upload/f_mp3,br_128k/");
     }
     result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
     return result;
@@ -249,7 +254,7 @@ export function seekAudio(seconds: number) {
     playbackStartedAt = Tone.now() - validSec;
     try {
       currentTonePlayer.stop();
-      currentTonePlayer.start(0, validSec);
+      currentTonePlayer.start(Tone.now(), validSec);
     } catch (e) {
       console.error("Error seeking Tone.Player:", e);
     }
@@ -273,7 +278,7 @@ export async function resumeAudio() {
   if (currentTonePlayer && activeId) {
     playbackStartedAt = Tone.now() - playbackOffsetSec;
     try {
-      currentTonePlayer.start(0, playbackOffsetSec);
+      currentTonePlayer.start(Tone.now(), playbackOffsetSec);
       isPlayingState = true;
       isLoadingState = false;
       notifyAudioCallbacks();
@@ -430,6 +435,7 @@ export async function playFragment(
         }
 
         player.loop = true; // Sample-accurate, gapless looping
+        player.playbackRate = 1.0; // Enforce normal 1x playback speed
 
         // Double-check token before starting
         if (activePlayToken !== currentToken || activeId !== id) {
@@ -441,7 +447,7 @@ export async function playFragment(
         currentBufferDuration = buffer.duration || 0;
         playbackStartedAt = Tone.now() - playbackOffsetSec;
 
-        player.start(0, playbackOffsetSec);
+        player.start(Tone.now(), playbackOffsetSec);
         isPlayingState = true;
         isLoadingState = false;
         notifyAudioCallbacks();
