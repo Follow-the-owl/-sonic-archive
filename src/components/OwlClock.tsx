@@ -904,11 +904,11 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
               transition={{ duration: 0.25 }}
-              className="relative w-full max-w-[480px] bg-black border border-zinc-900 text-[#D9D6CA] p-6 sm:p-8 flex flex-col items-center select-none font-mono text-center shadow-2xl rounded-2xl"
+              className="relative w-full max-w-[480px] my-auto max-h-[92vh] overflow-y-auto bg-black border border-zinc-900 text-[#D9D6CA] p-4 sm:p-8 flex flex-col items-center select-none font-mono text-center shadow-2xl rounded-2xl"
             >
               {/* Header section with Choose Clearance Type and Close button */}
-              <div className="w-full flex items-center justify-between border-b border-zinc-900 pb-4 mb-5">
-                <h3 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-[#D9D6CA] uppercase">
+              <div className="w-full flex items-center justify-between border-b border-zinc-900 pb-3 sm:pb-4 mb-3 sm:mb-5 shrink-0">
+                <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] sm:tracking-[0.22em] text-[#D9D6CA] uppercase">
                   CHOOSE CLEARANCE TYPE
                 </h3>
                 <button
@@ -927,7 +927,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
               <div className="w-full flex flex-col items-center">
                 
                 {/* 2. Beautiful owl artwork representing fragment artwork */}
-                <div className="relative w-44 h-44 border border-zinc-900 bg-black/40 flex flex-col items-center justify-center rounded-2xl mb-4 group overflow-hidden shadow-xl">
+                <div className="relative w-28 h-28 sm:w-44 sm:h-44 border border-zinc-900 bg-black/40 flex flex-col items-center justify-center rounded-xl sm:rounded-2xl mb-3 sm:mb-4 group overflow-hidden shadow-xl shrink-0">
                   <img
                     src={owlBgImage}
                     alt="The Sentinel Owl"
@@ -947,7 +947,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                 </div>
 
                 {/* 5. Decorative border */}
-                <div className="w-full h-[1px] bg-zinc-900/40 mt-4 mb-5" />
+                <div className="w-full h-[1px] bg-zinc-900/40 mt-2 sm:mt-4 mb-3 sm:mb-5" />
 
                 {/* 6. MIDDLE CONTAINER: EITHER THE TIERS LIST OR SUCCESS CONTENT */}
                 <div className="w-full min-h-[140px] flex flex-col justify-center">
@@ -978,7 +978,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                   ) : (
                     <>
                       {/* List of 4 cards representing the updated user clearance tiers */}
-                      <div className="w-full space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                      <div className="w-full space-y-2.5 sm:space-y-3 max-h-[320px] sm:max-h-[360px] overflow-y-auto pr-1">
                         {CONTRACT_TIERS.map((tier) => {
                           const isSelected = selectedTier === tier.id;
                           const isExpanded = !!expandedTerms[tier.id];
@@ -986,18 +986,18 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                             <div
                               key={tier.id}
                               onClick={() => setSelectedTier(tier.id)}
-                              className={`w-full bg-[#101010]/30 border rounded-2xl p-4 text-left transition-all duration-300 relative overflow-hidden flex flex-col cursor-pointer ${
+                              className={`w-full bg-[#101010]/30 border rounded-xl sm:rounded-2xl p-3 sm:p-4 text-left transition-all duration-300 relative overflow-hidden flex flex-col cursor-pointer ${
                                 isSelected
                                   ? "border-zinc-700 shadow-xl bg-zinc-950/80"
                                   : "border-zinc-900/60 hover:border-zinc-800"
                               }`}
                             >
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex flex-col min-w-0 pr-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2 sm:gap-0">
+                                <div className="flex flex-col min-w-0 sm:pr-3">
                                   <span className={`font-serif tracking-wide text-xs sm:text-sm font-medium ${isSelected ? "text-white" : "text-[#D9D6CA]/90"}`}>
                                     {tier.title}
                                   </span>
-                                  <span className="text-[9px] text-zinc-500 tracking-widest font-mono uppercase mt-1">
+                                  <span className="text-[9px] text-zinc-500 tracking-widest font-mono uppercase mt-0.5 sm:mt-1">
                                     {tier.subtitle}
                                   </span>
                                 </div>
@@ -1014,7 +1014,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                     setSelectedTier(null);
                                     setClientEmail("");
                                   }}
-                                  className="bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-sm"
+                                  className="w-full sm:w-auto justify-center bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-2 sm:py-1.5 px-3 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-sm mt-1 sm:mt-0"
                                 >
                                   <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
                                   <span>{tier.price}</span>

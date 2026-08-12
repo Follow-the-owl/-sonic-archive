@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock } from "lucide-react";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2 } from "lucide-react";
 import { Fragment, FRAGMENTS, getTimeCapsuleForFragment } from "../data";
 import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
 import { playFragment, stopAudio, pauseAudio, resumeAudio, isAudioPaused, getCurrentTime, getDuration, seekAudio, setMasterVolume, getMasterVolume, getGlobalAnalyser, registerAudioCallback, getActiveId } from "../audio";
@@ -27,6 +27,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
   const [activeFrag, setActiveFrag] = useState<Fragment>(fragment);
   const CONTRACT_TIERS = getLicensesForFragment(activeFrag);
   const [isPlayingBeat, setIsPlayingBeat] = useState(false);
+  const [isLoadingBeat, setIsLoadingBeat] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [showLicensePanel, setShowLicensePanel] = useState(false);
   const [showTimeCapsuleOverlay, setShowTimeCapsuleOverlay] = useState(false);
@@ -142,11 +143,13 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
 
   // Register audio engine state listener & auto-play active fragment smoothly
   useEffect(() => {
-    registerAudioCallback((playing, id) => {
+    registerAudioCallback((playing, id, loading) => {
       if (id === activeFrag.id) {
         setIsPlayingBeat(playing);
+        setIsLoadingBeat(!!loading);
       } else {
         setIsPlayingBeat(false);
+        setIsLoadingBeat(false);
       }
     });
 
@@ -602,9 +605,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             <button
               onClick={handleToggleBeat}
               className="p-1.5 text-white hover:text-zinc-300 transition-colors cursor-pointer shrink-0 flex items-center justify-center hover:scale-105 active:scale-95 duration-100"
-              title={isPlayingBeat ? "Pause" : "Play"}
+              title={isLoadingBeat ? "Loading..." : isPlayingBeat ? "Pause" : "Play"}
             >
-              {isPlayingBeat ? (
+              {isLoadingBeat ? (
+                <Loader2 size={13} className="animate-spin text-white" />
+              ) : isPlayingBeat ? (
                 <Pause size={13} className="fill-white text-white" />
               ) : (
                 <Play size={13} className="fill-white text-white ml-0.5" />
@@ -727,7 +732,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
       {/* LICENSE MODAL OVERLAY IN HIGH FIDELITY */}
       <AnimatePresence>
         {showLicensePanel && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/85 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-black/85 backdrop-blur-md">
             {/* Modal Container */}
             <motion.div
               id="licensing-modal-box"
@@ -735,11 +740,11 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ duration: 0.28, ease: "easeOut" }}
-              className="relative w-full max-w-4xl bg-[#0b0b0b] border border-zinc-900 rounded-lg text-white shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
+              className="relative w-full max-w-4xl bg-[#0b0b0b] border border-zinc-900 rounded-lg text-white shadow-2xl flex flex-col overflow-hidden max-h-[92vh] my-auto"
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-zinc-900 px-6 py-5 bg-[#050505]">
-                <h3 className="text-sm sm:text-base font-mono font-bold tracking-[0.15em] text-[#D9D6CA] uppercase">
+              <div className="flex items-center justify-between border-b border-zinc-900 px-4 sm:px-6 py-3.5 sm:py-5 bg-[#050505] shrink-0">
+                <h3 className="text-xs sm:text-base font-mono font-bold tracking-[0.12em] sm:tracking-[0.15em] text-[#D9D6CA] uppercase">
                   CHOOSE CLEARANCE TYPE
                 </h3>
                 <button
@@ -756,10 +761,10 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
               </div>
 
               {/* Multi-Column Layout */}
-              <div className="flex flex-col md:flex-row p-6 md:p-8 gap-8 overflow-y-auto bg-gradient-to-b from-[#0b0b0b] to-[#040404]">
+              <div className="flex flex-col md:flex-row p-4 sm:p-6 md:p-8 gap-5 md:gap-8 overflow-y-auto bg-gradient-to-b from-[#0b0b0b] to-[#040404]">
                 {/* Left Column: Track preview summary card */}
-                <div className="w-full md:w-1/4 flex flex-col items-center border-b md:border-b-0 md:border-r border-zinc-900/65 pb-6 md:pb-0 md:pr-8 shrink-0">
-                  <div className="relative group w-44 h-44 bg-zinc-950 border border-[#D9D6CA]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center">
+                <div className="w-full md:w-1/4 flex flex-col items-center border-b md:border-b-0 md:border-r border-zinc-900/65 pb-4 md:pb-0 md:pr-8 shrink-0">
+                  <div className="relative group w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 bg-zinc-950 border border-[#D9D6CA]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center shrink-0">
                     <img
                       src={owlBackground}
                       alt="The Sentinel Owl"
@@ -779,8 +784,10 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                       }}
                       className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer z-20"
                     >
-                      <div className="w-12 h-12 rounded-full border border-[#D9D6CA] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(217,214,202,0.35)] transform hover:scale-105 transition-transform">
-                        {isPlayingBeat ? (
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-[#D9D6CA] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(217,214,202,0.35)] transform hover:scale-105 transition-transform">
+                        {isLoadingBeat ? (
+                          <Loader2 size={14} className="animate-spin text-[#D9D6CA]" />
+                        ) : isPlayingBeat ? (
                           <Pause size={14} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0" />
                         ) : (
                           <Play size={14} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0.5" />
@@ -793,19 +800,19 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                 </div>
 
                 {/* Right Column: Tiers Selection or Checkout Forms */}
-                <div className="flex-grow space-y-4 max-h-[460px] overflow-y-auto pr-1">
+                <div className="flex-grow space-y-3 sm:space-y-4 pr-0 sm:pr-1">
                   {!selectedTier ? (
                     /* Display Tiers list matching mockup */
-                    <div className="space-y-4 text-left">
+                    <div className="space-y-3 sm:space-y-4 text-left">
                       {CONTRACT_TIERS.map((tier) => {
                         const isExpanded = expandedTiers[tier.id] || false;
 
                         return (
                           <div
                             key={tier.id}
-                            className="bg-zinc-950/80 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-800 p-5 rounded-md flex flex-col transition-all duration-200"
+                            className="bg-zinc-950/80 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-800 p-3.5 sm:p-5 rounded-md flex flex-col transition-all duration-200"
                           >
-                            <div className="flex items-start justify-between gap-4">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                               <div className="space-y-1">
                                 <h4 className="font-bold text-[#D9D6CA] text-sm tracking-wide">
                                   {tier.title}
@@ -824,7 +831,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                   }
                                   setShowLicensePanel(false);
                                 }}
-                                className="bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-3.5 py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0 uppercase"
+                                className="w-full sm:w-auto justify-center bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-3.5 py-2.5 sm:py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0 uppercase"
                               >
                                 <Package size={10} className="fill-current text-current" />
                                 <span>{tier.priceDisplay || `$${tier.price}`}</span>
@@ -856,7 +863,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                     transition={{ duration: 0.2 }}
                                     className="overflow-hidden"
                                   >
-                                    <div className="mt-4 pl-3 border-l border-[#D9D6CA]/35 py-1 text-[10px] font-mono text-zinc-300 space-y-4">
+                                    <div className="mt-3 pl-3 border-l border-[#D9D6CA]/35 py-1 text-[10px] font-mono text-zinc-300 space-y-3">
                                       {tier.usageTerms && tier.usageTerms.length > 0 && (
                                         <div>
                                           <span className="text-[#D9D6CA] text-[8.5px] uppercase tracking-wider block font-bold mb-1.5">
@@ -870,7 +877,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                                         </div>
                                       )}
 
-                                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 border-t border-zinc-900/60">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 pt-2 border-t border-zinc-900/60">
                                         {tier.fileDelivery && (
                                           <div>
                                             <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">File Delivery</span>

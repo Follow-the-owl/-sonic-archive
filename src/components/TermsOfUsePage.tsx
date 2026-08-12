@@ -27,33 +27,34 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
         {/* Top Header / Navigation Bar */}
-        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            title="Return"
+            aria-label="Return"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
-            <span>RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
 
-          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <ShieldCheck size={14} className="text-zinc-300" />
-            <span>LOMON LLC • TERMS OF USE</span>
+          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest text-left break-words">
+            <ShieldCheck size={14} className="text-zinc-300 shrink-0" />
+            <span className="break-words">LOMON LLC • TERMS OF USE</span>
           </div>
         </div>
 
         {/* Title Block */}
-        <div className="space-y-4 border-b border-zinc-900/80 pb-8">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold tracking-[0.3em] text-zinc-400 uppercase block">
+        <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
+          <div className="space-y-1 text-left">
+            <span className="text-[10px] font-bold tracking-[0.2em] sm:tracking-[0.3em] text-zinc-400 uppercase block text-left break-words">
               LOMON LLC • TERMS OF USE
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.15em] uppercase leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.15em] uppercase leading-tight text-left break-words">
               TERMS OF USE
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4">
+          <div className="flex flex-wrap items-start sm:items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4 text-left">
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Effective Date:</span>
               <span className="text-zinc-200">July 28, 2026</span>
@@ -83,7 +84,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 1. DEFINITIONS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">1.</span> DEFINITIONS
             </h2>
             <p>For purposes of these Terms:</p>
@@ -114,7 +115,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 2. ELIGIBILITY */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">2.</span> ELIGIBILITY
             </h2>
             <p>
@@ -130,7 +131,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 3. OWNERSHIP OF THE ARCHIVE */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">3.</span> OWNERSHIP OF THE ARCHIVE
             </h2>
             <p>
@@ -151,7 +152,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 4. LIMITED ACCESS TO THE ARCHIVE */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">4.</span> LIMITED ACCESS TO THE ARCHIVE
             </h2>
             <p>
@@ -172,7 +173,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 5. AUDIO PREVIEWS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">5.</span> AUDIO PREVIEWS
             </h2>
             <p>
@@ -195,7 +196,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 6. LICENSES */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">6.</span> LICENSES &amp; RIGHTS ARRANGEMENTS
             </h2>
             <p>
@@ -234,7 +235,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 7. ORDER OF CONTROL */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">7.</span> ORDER OF CONTROL
             </h2>
             <p>
@@ -250,7 +251,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 8. NO TRANSFER OF OWNERSHIP */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">8.</span> NO TRANSFER OF OWNERSHIP
             </h2>
             <p>
@@ -272,7 +273,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 9. PROHIBITED USES & RESTRICTIONS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">9.</span> PROHIBITED USES &amp; AI RESTRICTIONS
             </h2>
             <p>Users are strictly prohibited from:</p>
@@ -294,7 +295,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 10. CLEARANCE REQUESTS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">10.</span> CLEARANCE REQUESTS &amp; APPROVAL
             </h2>
             <p>
@@ -307,7 +308,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 11. INTELLECTUAL PROPERTY & METADATA */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">11.</span> INTELLECTUAL PROPERTY &amp; METADATA
             </h2>
             <p>
@@ -317,7 +318,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 12. FEES & PAYMENTS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">12.</span> FEES &amp; PAYMENTS
             </h2>
             <p>
@@ -327,7 +328,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 13. REFUNDS & CANCELLATION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">13.</span> REFUNDS &amp; CANCELLATION
             </h2>
             <p>
@@ -340,7 +341,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 14. DISCLAIMER OF WARRANTIES */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">14.</span> DISCLAIMER OF WARRANTIES
             </h2>
             <p className="uppercase font-mono text-[11px] text-zinc-400 leading-relaxed bg-zinc-950 p-4 border border-zinc-900">
@@ -350,7 +351,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 15. LIMITATION OF LIABILITY */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">15.</span> LIMITATION OF LIABILITY
             </h2>
             <p className="uppercase font-mono text-[11px] text-zinc-400 leading-relaxed bg-zinc-950 p-4 border border-zinc-900">
@@ -360,7 +361,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 16. INDEMNIFICATION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">16.</span> INDEMNIFICATION
             </h2>
             <p>
@@ -370,7 +371,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 17. TERMINATION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">17.</span> TERMINATION
             </h2>
             <p>
@@ -380,7 +381,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 18. GOVERNING LAW & JURISDICTION */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">18.</span> GOVERNING LAW &amp; JURISDICTION
             </h2>
             <p>
@@ -393,7 +394,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 19. MODIFICATIONS */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">19.</span> MODIFICATIONS TO TERMS
             </h2>
             <p>
@@ -403,7 +404,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
 
           {/* 20. CONTACT INFORMATION */}
           <section className="space-y-4 pt-2">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">20.</span> CONTACT INFORMATION &amp; PUBLISHING ADMINISTRATION
             </h2>
             <p>
@@ -449,15 +450,17 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
         </div>
 
         {/* Bottom Action / Return to Archive */}
-        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-zinc-500">
-          <div>
+        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-mono text-[11px] text-zinc-500 text-left">
+          <div className="text-left">
             © 2026 • All Rights Reserved.
           </div>
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm group"
+            title="Return"
+            aria-label="Return"
           >
-            <span>← RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
         </div>
 

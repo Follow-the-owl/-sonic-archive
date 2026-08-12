@@ -401,8 +401,8 @@ export default function App() {
   const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
     ARCHIVE: false,
     CLEARANCE: false,
-    ABOUT: false,
-    LEGAL: false,
+    SYSTEM: false,
+    PROTOCOLS: false,
     TRANSMISSIONS: false
   });
 
@@ -475,9 +475,12 @@ export default function App() {
           "Authorization": `Bearer ${token}`
         }
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("API route unavailable");
+        return res.json();
+      })
       .then(data => {
-        if (data.success) {
+        if (data && data.success) {
           setIsLoggedIn(true);
           setAuthToken(token);
           setCurrentUserEmail(data.email);
@@ -488,7 +491,13 @@ export default function App() {
         }
       })
       .catch(() => {
-        // Silent catch for auto session check when offline or logged out
+        // Fallback to local storage credentials if API node is client-only
+        const savedEmail = localStorage.getItem("lomon_user_email") || "client@archive.internal";
+        setIsLoggedIn(true);
+        setAuthToken(token);
+        setCurrentUserEmail(savedEmail);
+        setCheckoutEmail(savedEmail);
+        fetchUserData(token);
       });
     }
   }, []);
@@ -648,19 +657,44 @@ export default function App() {
         "Authorization": `Bearer ${token}`
       }
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error("API route unavailable");
+      return res.json();
+    })
     .then(data => {
-      if (data.success) {
+      if (data && data.success) {
         setUserLicenses(data.licenses || []);
         setUserRequests(data.requests || []);
         setUserEmailLogs(data.emailLogs || []);
+      } else {
+        loadFallbackUserData();
       }
     })
-    .catch(err => console.error("Error fetching user credentials:", err));
+    .catch(() => {
+      loadFallbackUserData();
+    });
+  }
+
+  function loadFallbackUserData() {
+    try {
+      const savedLicenses = localStorage.getItem("lomon_user_licenses");
+      if (savedLicenses) {
+        const parsed = JSON.parse(savedLicenses);
+        if (Array.isArray(parsed)) setUserLicenses(parsed);
+      }
+      const savedRequests = localStorage.getItem("lomon_user_requests");
+      if (savedRequests) {
+        const parsed = JSON.parse(savedRequests);
+        if (Array.isArray(parsed)) setUserRequests(parsed);
+      }
+    } catch (_err) {
+      // Silent catch
+    }
   }
 
   const handleLoginSuccess = (email: string, token: string) => {
     localStorage.setItem("lomon_auth_token", token);
+    localStorage.setItem("lomon_user_email", email);
     setIsLoggedIn(true);
     setAuthToken(token);
     setCurrentUserEmail(email);
@@ -675,9 +709,12 @@ export default function App() {
         headers: {
           "Authorization": `Bearer ${authToken}`
         }
-      }).catch(err => console.error("Logout request failed:", err));
+      }).catch(() => {
+        // Silent catch for client mode
+      });
     }
     localStorage.removeItem("lomon_auth_token");
+    localStorage.removeItem("lomon_user_email");
     setIsLoggedIn(false);
     setAuthToken(null);
     setCurrentUserEmail("");
@@ -1051,14 +1088,39 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* Right: Collection / Crate & Menu Icon */}
-                <div className="flex items-center gap-2">
+                {/* Right: User / Login, Cart & Menu Icon */}
+                <div className="flex items-center gap-1.5">
+                  {isLoggedIn ? (
+                    <button
+                      onClick={() => {
+                        setInfoOverlay({
+                          title: "My Licenses",
+                          subtitle: "ACCOUNT DEP",
+                          body: "",
+                          type: "my-licenses"
+                        });
+                      }}
+                      className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2 py-1 text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none select-none"
+                      title="My Dashboard"
+                    >
+                      <UserAvatar email={currentUserEmail} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setInfoOverlay({ title: "CONNECT TERMINAL", subtitle: "AUTH GATEWAY", body: "", type: "login" })}
+                      className="border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] hover:text-white px-2 py-1.5 text-[8.5px] uppercase tracking-wider transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
+                    >
+                      <span>LOGIN</span>
+                    </button>
+                  )}
+
                   <button 
                     onClick={() => {
                       setCheckoutActive(true);
                       setCartOpen(false);
+                      setMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2.5 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none"
+                    className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none"
                   >
                     <Package size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
                     <span>CART ({cart.length})</span>
@@ -1080,221 +1142,250 @@ export default function App() {
                   <motion.div
                     id="mobile-nav-panel"
                     initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "80vh" }}
+                    animate={{ opacity: 1, height: "85vh" }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                     className="absolute top-full left-0 right-0 bg-black border-b border-zinc-900 flex flex-col lg:hidden shadow-2xl z-50 overflow-y-auto"
                   >
-                    <div className="p-6 pb-24 space-y-8 select-none">
-                      {/* Section 1: ARCHIVE */}
-                      <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
-                          ARCHIVE
+                    <div className="p-6 pb-24 space-y-6 select-none">
+                      {/* Section 0: ACCOUNT / TERMINAL GATEWAY */}
+                      <div className="space-y-3 bg-neutral-950/80 border border-zinc-900 p-3.5">
+                        <span className="text-[9px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          TERMINAL GATEWAY
                         </span>
-                        <div className="flex flex-col gap-2">
-                          {[
-                            { name: "The Owl Clock", tab: "The Owl Clock" as NavigationTab },
-                            { name: "Signal tower", tab: "Signal tower" as NavigationTab }
-                          ].map((item) => {
-                            const isSelected = activeTab === item.tab && !selectedFragment && !checkoutActive;
-                            return (
+                        {isLoggedIn ? (
+                          <div className="space-y-2.5 font-mono text-[11px] text-left">
+                            <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                              <div className="flex items-center gap-2 truncate">
+                                <UserAvatar email={currentUserEmail} />
+                                <span className="text-zinc-300 font-bold truncate text-[10px]">
+                                  {(currentUserEmail || "").toLowerCase()}
+                                </span>
+                              </div>
                               <button
-                                key={item.name}
                                 onClick={() => {
-                                  setActiveTab(item.tab);
-                                  setSelectedFragment(null);
-                                  setCheckoutActive(false);
+                                  handleLogout();
                                   setMobileMenuOpen(false);
                                 }}
-                                className={`text-left font-mono text-[11px] uppercase tracking-wider py-1.5 cursor-pointer flex items-center justify-between ${
-                                  isSelected ? "text-white font-bold" : "text-zinc-400 hover:text-white"
-                                }`}
+                                className="text-red-400 hover:text-red-300 text-[10px] uppercase font-bold cursor-pointer transition-colors"
                               >
-                                <span className="flex items-center gap-2">
-                                  {isSelected && <span className="text-xs">🦉</span>}
-                                  <span>{item.name}</span>
-                                </span>
-                                {isSelected && <span className="text-[8px] bg-zinc-900 px-1.5 py-0.5 text-zinc-400">[ ACTIVE ]</span>}
+                                LOGOUT
                               </button>
-                            );
-                          })}
-                          <button
-                            onClick={handleOpenOwlClock}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Recovered Fragments
-                          </button>
-                        </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1.5 pt-1">
+                              <button
+                                onClick={() => {
+                                  setInfoOverlay({
+                                    title: "My Licenses",
+                                    subtitle: "ACCOUNT DEP",
+                                    body: "",
+                                    type: "my-licenses"
+                                  });
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="text-left text-[#D9D6CA] hover:text-white uppercase font-bold text-[10.5px] py-1 flex items-center justify-between"
+                              >
+                                <span>* My Dashboard</span>
+                                <span>→</span>
+                              </button>
+
+                              {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local") && (
+                                <button
+                                  onClick={() => {
+                                    setAdminViewActive(true);
+                                    setMobileMenuOpen(false);
+                                  }}
+                                  className="text-left text-[#D9D6CA] hover:text-white uppercase font-bold text-[10.5px] py-1 flex items-center justify-between"
+                                >
+                                  <span>* Admin Dashboard</span>
+                                  <span>→</span>
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => {
+                                  handleLinkClick("My Licenses", "ACCOUNT DEP", "my-licenses");
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                              >
+                                • My Licenses
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleLinkClick("My Certificates", "ACCOUNT DEP", "my-certificates");
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                              >
+                                • My Certificates
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleLinkClick("My Downloads", "ACCOUNT DEP", "my-downloads");
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                              >
+                                • My Downloads
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleLinkClick("My Requests", "ACCOUNT DEP", "my-requests");
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                              >
+                                • My Requests
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-left">
+                            <p className="text-[10px] text-zinc-500 font-mono">Access your archive licenses & downloads.</p>
+                            <button
+                              onClick={() => {
+                                setInfoOverlay({ title: "CONNECT TERMINAL", subtitle: "AUTH GATEWAY", body: "", type: "login" });
+                                setMobileMenuOpen(false);
+                              }}
+                              className="w-full border border-zinc-800 bg-neutral-900 hover:border-[#D9D6CA] text-[#D9D6CA] hover:text-white font-mono text-[10.5px] font-bold uppercase tracking-wider py-2 transition-colors cursor-pointer"
+                            >
+                              CONNECT TERMINAL (LOGIN)
+                            </button>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Section 2: CLEARANCE */}
+                      {/* Section Nav: MAIN NAVIGATION */}
                       <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
-                          CLEARANCE
+                        <span className="text-[10px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          NAVIGATION
                         </span>
                         <div className="flex flex-col gap-2">
                           <button
-                            onClick={() => handleLinkClick("Request Clearance", "CLEARANCE DEP", "request-clearance")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                            onClick={() => {
+                              setActiveTab("The Owl Clock");
+                              setSelectedFragment(null);
+                              setCheckoutActive(false);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`text-left font-mono text-[11px] uppercase tracking-wider py-1 cursor-pointer flex items-center justify-between ${
+                              activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
+                            }`}
                           >
-                            * Request Clearance
+                            <span>* The Owl Clock</span>
+                            {activeTab === "The Owl Clock" && !selectedFragment && !checkoutActive && <span className="text-[9px] text-[#D9D6CA]">[ ACTIVE ]</span>}
                           </button>
                           <button
-                            onClick={() => handleLinkClick("License Verification", "CLEARANCE DEP", "license-verification")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                            onClick={() => {
+                              setActiveTab("Signal tower");
+                              setSelectedFragment(null);
+                              setCheckoutActive(false);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`text-left font-mono text-[11px] uppercase tracking-wider py-1 cursor-pointer flex items-center justify-between ${
+                              activeTab === "Signal tower" && !selectedFragment && !checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
+                            }`}
                           >
-                            * License Verification
+                            <span>* Signal Tower</span>
+                            {activeTab === "Signal tower" && !selectedFragment && !checkoutActive && <span className="text-[9px] text-[#D9D6CA]">[ ACTIVE ]</span>}
                           </button>
                           <button
                             onClick={() => {
                               setCheckoutActive(true);
                               setMobileMenuOpen(false);
                             }}
-                            className={`text-left font-mono text-[11px] uppercase tracking-wider py-1 cursor-pointer ${
+                            className={`text-left font-mono text-[11px] uppercase tracking-wider py-1 cursor-pointer flex items-center justify-between ${
                               checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
                             }`}
                           >
-                            * Cart
+                            <span>* Cart / Checkout ({cart.length})</span>
+                            {checkoutActive && <span className="text-[9px] text-[#D9D6CA]">[ ACTIVE ]</span>}
                           </button>
                         </div>
                       </div>
 
-                      {/* Section 3: RIGHTS CENTER */}
-                      <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
-                          RIGHTS CENTER
-                        </span>
-                        <div className="flex flex-col gap-2">
-                          <button
-                            onClick={() => handleLinkClick("Publishing", "RIGHTS DEP", "publishing")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Publishing
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("Metadata", "RIGHTS DEP", "metadata")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Metadata
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("Ownership Verification", "RIGHTS DEP", "ownership")}
-                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Ownership Verification
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("Royalty Administration", "RIGHTS DEP", "royalty")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Royalty Administration
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("Rights Administration", "RIGHTS DEP", "rights")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Rights Administration
-                          </button>
-                        </div>
-                      </div>
+                      <div className="border-t border-zinc-900 pt-1" />
 
-                      {/* Section 4: ACCOUNT */}
+                      {/* Section 1: ARCHIVE */}
                       <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
-                          ACCOUNT
+                        <span className="text-[10px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          ARCHIVE
                         </span>
                         <div className="flex flex-col gap-2">
-                          {isLoggedIn ? (
-                            <div className="text-left py-1 text-[11px] font-mono flex items-center justify-between border-b border-zinc-950 pb-1.5 gap-2">
-                              <div className="flex items-center gap-2 truncate">
-                                <UserAvatar email={currentUserEmail} />
-                                <span className="text-zinc-400 font-bold truncate">{(currentUserEmail || "").toUpperCase()}</span>
-                              </div>
-                              <button 
-                                onClick={() => {
-                                  handleLogout();
-                                  setMobileMenuOpen(false);
-                                }}
-                                className="text-zinc-400 hover:text-white font-sans text-[10px] font-medium uppercase cursor-pointer transition-colors whitespace-nowrap"
-                              >
-                                LOGOUT
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setMobileMenuOpen(false);
-                                setInfoOverlay({ title: "CONNECT TERMINAL", subtitle: "AUTH GATEWAY", body: "", type: "login" });
-                              }}
-                              className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-[#D9D6CA] font-bold hover:text-white cursor-pointer"
-                            >
-                              * CONNECT TERMINAL (LOGIN)
-                            </button>
-                          )}
                           <button
                             onClick={() => {
-                              setHasEntered(false);
-                              setMobileMenuOpen(false);
                               setSelectedFragment(null);
                               setCheckoutActive(false);
+                              setMobileMenuOpen(false);
                             }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * Archive Access
+                            * Recovered Fragments
                           </button>
                           <button
-                            onClick={() => handleLinkClick("My Licenses", "ACCOUNT DEP", "my-licenses")}
+                            onClick={() => {
+                              handleOpenVerification();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * My Licenses
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("My Certificates", "ACCOUNT DEP", "my-certificates")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * My Certificates
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("My Downloads", "ACCOUNT DEP", "my-downloads")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * My Downloads
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("My Requests", "ACCOUNT DEP", "my-requests")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * My Requests
+                            * License Verification
                           </button>
                         </div>
                       </div>
 
-                      {/* Section 5: SYSTEM */}
+                      <div className="border-t border-zinc-900 pt-1" />
+
+                      {/* Section 2: CLEARANCE */}
                       <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
-                          SYSTEM
+                        <span className="text-[10px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          CLEARANCE
                         </span>
                         <div className="flex flex-col gap-2">
                           <button
-                            onClick={() => handleLinkClick("About the Archive", "SYSTEM DEP", "about")}
+                            onClick={() => {
+                              handleLinkClick("Request Clearance", "CLEARANCE DEP", "request-clearance");
+                              setMobileMenuOpen(false);
+                            }}
+                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            * Request Clearance
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleOpenClearanceGuide();
+                              setMobileMenuOpen(false);
+                            }}
+                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
+                          >
+                            * Fragment Clearance Guide
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-zinc-900 pt-1" />
+
+                      {/* Section 3: ABOUT */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          ABOUT
+                        </span>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => {
+                              handleOpenAbout();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
                             * About the Archive
                           </button>
                           <button
-                            onClick={() => handleLinkClick("Enterprise", "SYSTEM DEP", "enterprise")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Enterprise
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("Support", "SYSTEM DEP", "support")}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Support
-                          </button>
-                          <button
-                            onClick={() => handleLinkClick("Contact", "SYSTEM DEP", "contact")}
+                            onClick={() => {
+                              handleOpenContact();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
                             * Contact
@@ -1302,48 +1393,67 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Section 6: PROTOCOLS */}
+                      <div className="border-t border-zinc-900 pt-1" />
+
+                      {/* Section 4: LEGAL */}
                       <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
-                          PROTOCOLS
+                        <span className="text-[10px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                          LEGAL
                         </span>
                         <div className="flex flex-col gap-2">
                           <button
-                            onClick={() => handleLinkClick("Terms", "PROTOCOLS DEP", "terms")}
+                            onClick={() => {
+                              handleOpenTerms();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * Terms
+                            * Terms of Use
                           </button>
                           <button
-                            onClick={() => handleLinkClick("Privacy", "PROTOCOLS DEP", "privacy")}
+                            onClick={() => {
+                              handleOpenPrivacy();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * Privacy
+                            * Privacy Policy
                           </button>
                           <button
-                            onClick={() => handleLinkClick("Cookies", "PROTOCOLS DEP", "cookies")}
+                            onClick={() => {
+                              handleOpenCookies();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * Cookies
+                            * Cookie Policy
                           </button>
                           <button
-                            onClick={() => handleLinkClick("Refunds", "PROTOCOLS DEP", "refunds")}
+                            onClick={() => {
+                              handleOpenRefunds();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * Refunds
+                            * Refund Policy
                           </button>
                           <button
-                            onClick={() => handleLinkClick("Acceptable Use", "PROTOCOLS DEP", "acceptable-use")}
+                            onClick={() => {
+                              handleOpenAcceptableUse();
+                              setMobileMenuOpen(false);
+                            }}
                             className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
                           >
-                            * Acceptable Use
+                            * Acceptable Use Policy
                           </button>
                         </div>
                       </div>
 
-                      {/* Section 7: TRANSMISSIONS */}
+                      <div className="border-t border-zinc-900 pt-1" />
+
+                      {/* Section 5: TRANSMISSIONS */}
                       <div className="space-y-3">
-                        <span className="text-[10px] tracking-[0.25em] text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
+                        <span className="text-[10px] tracking-[0.25em] text-[#D9D6CA] font-bold block uppercase border-b border-zinc-900 pb-1 text-left">
                           TRANSMISSIONS
                         </span>
                         <div className="flex flex-col gap-2 font-mono text-[11px] uppercase tracking-wider text-zinc-400">
@@ -1363,22 +1473,6 @@ export default function App() {
                             className="hover:text-white py-1 flex items-center justify-between"
                           >
                             <span>* TikTok</span>
-                            <span className="text-zinc-600 text-[9px]">↗</span>
-                          </a>
-                          <a 
-                            href="https://youtube.com" 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="hover:text-white py-1 flex items-center justify-between"
-                          >
-                            <span>* YouTube</span>
-                            <span className="text-zinc-600 text-[9px]">↗</span>
-                          </a>
-                          <a 
-                            href="mailto:vault@credentials.local" 
-                            className="hover:text-white py-1 flex items-center justify-between"
-                          >
-                            <span>* Signal</span>
                             <span className="text-zinc-600 text-[9px]">↗</span>
                           </a>
                         </div>
@@ -1406,6 +1500,8 @@ export default function App() {
                 initialStep={checkoutSuccess ? "success" : "cart"}
                 emailPreviewUrl={emailPreviewUrl}
                 onOpenTerms={handleOpenTerms}
+                onOpenPrivacy={handleOpenPrivacy}
+                onOpenRefunds={handleOpenRefunds}
               />
             ) : selectedFragment ? (
               <FragmentDetailPage 
@@ -1481,6 +1577,14 @@ export default function App() {
                       </li>
                       <li>
                         <button 
+                          onClick={handleOpenOwlClock}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          Composition Archive
+                        </button>
+                      </li>
+                      <li>
+                        <button 
                           onClick={() => handleOpenVerification()}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
@@ -1498,7 +1602,11 @@ export default function App() {
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
                         { name: "Request Clearance", slug: "request-clearance" },
-                        { name: "Fragment Clearance Guide", slug: "clearance-guide" }
+                        { name: "Publishing", slug: "publishing" },
+                        { name: "Metadata", slug: "metadata" },
+                        { name: "Ownership Verification", slug: "ownership" },
+                        { name: "Royalty Administration", slug: "royalty" },
+                        { name: "Rights Administration", slug: "rights" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
@@ -1512,19 +1620,21 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Column 3: ABOUT */}
+                  {/* Column 3: SYSTEM */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      ABOUT
+                      SYSTEM
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
                         { name: "About the Archive", slug: "about" },
+                        { name: "Enterprise", slug: "enterprise" },
+                        { name: "Support", slug: "support" },
                         { name: "Contact", slug: "contact" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
-                            onClick={() => handleLinkClick(item.name, "ABOUT DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "SYSTEM DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             {item.name}
@@ -1534,22 +1644,22 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Column 4: LEGAL */}
+                  {/* Column 4: PROTOCOLS */}
                   <div className="space-y-4">
                     <h5 className="text-[11px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase">
-                      LEGAL
+                      PROTOCOLS
                     </h5>
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       {[
-                        { name: "Terms of Use", slug: "terms" },
-                        { name: "Privacy Policy", slug: "privacy" },
-                        { name: "Cookie Policy", slug: "cookies" },
-                        { name: "Refund Policy", slug: "refunds" },
-                        { name: "Acceptable Use Policy", slug: "acceptable-use" }
+                        { name: "Terms", slug: "terms" },
+                        { name: "Privacy", slug: "privacy" },
+                        { name: "Cookies", slug: "cookies" },
+                        { name: "Refunds", slug: "refunds" },
+                        { name: "Acceptable Use", slug: "acceptable-use" }
                       ].map((item) => (
                         <li key={item.name}>
                           <button 
-                            onClick={() => handleLinkClick(item.name, "LEGAL DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "PROTOCOLS DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             {item.name}
@@ -1589,23 +1699,10 @@ export default function App() {
                       </li>
                       <li>
                         <a 
-                          href="https://youtube.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
+                          href="mailto:vault@credentials.local" 
                           className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
                         >
-                          <span>YouTube</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                      </li>
-                      <li>
-                        <a 
-                          href="https://spotify.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>Spotify</span>
+                          <span>Signal</span>
                           <span className="text-zinc-600 text-[9px]">↗</span>
                         </a>
                       </li>
@@ -1633,6 +1730,12 @@ export default function App() {
                           * Recovered Fragments
                         </button>
                         <button 
+                          onClick={handleOpenOwlClock}
+                          className="hover:text-white transition-colors cursor-pointer text-left block"
+                        >
+                          * Composition Archive
+                        </button>
+                        <button 
                           onClick={() => handleOpenVerification()}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
@@ -1655,7 +1758,11 @@ export default function App() {
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
                           { name: "Request Clearance", slug: "request-clearance" },
-                          { name: "Fragment Clearance Guide", slug: "clearance-guide" }
+                          { name: "Publishing", slug: "publishing" },
+                          { name: "Metadata", slug: "metadata" },
+                          { name: "Ownership Verification", slug: "ownership" },
+                          { name: "Royalty Administration", slug: "royalty" },
+                          { name: "Rights Administration", slug: "rights" }
                         ].map((item) => (
                           <button 
                             key={item.name}
@@ -1669,24 +1776,26 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* ACCORDION 3: ABOUT */}
+                  {/* ACCORDION 3: SYSTEM */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("ABOUT")}
+                      onClick={() => toggleMobileFooterSection("SYSTEM")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>ABOUT</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.ABOUT ? "−" : "+"}</span>
+                      <span>SYSTEM</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.SYSTEM ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.ABOUT && (
+                    {mobileFooterExpanded.SYSTEM && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
                           { name: "About the Archive", slug: "about" },
+                          { name: "Enterprise", slug: "enterprise" },
+                          { name: "Support", slug: "support" },
                           { name: "Contact", slug: "contact" }
                         ].map((item) => (
                           <button 
                             key={item.name}
-                            onClick={() => handleLinkClick(item.name, "ABOUT DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "SYSTEM DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             * {item.name}
@@ -1696,27 +1805,27 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* ACCORDION 4: LEGAL */}
+                  {/* ACCORDION 4: PROTOCOLS */}
                   <div className="py-3">
                     <button 
-                      onClick={() => toggleMobileFooterSection("LEGAL")}
+                      onClick={() => toggleMobileFooterSection("PROTOCOLS")}
                       className="w-full flex justify-between items-center text-[10.5px] tracking-[0.2em] font-bold text-[#D9D6CA] uppercase font-mono py-1.5"
                     >
-                      <span>LEGAL</span>
-                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.LEGAL ? "−" : "+"}</span>
+                      <span>PROTOCOLS</span>
+                      <span className="text-xs text-zinc-500">{mobileFooterExpanded.PROTOCOLS ? "−" : "+"}</span>
                     </button>
-                    {mobileFooterExpanded.LEGAL && (
+                    {mobileFooterExpanded.PROTOCOLS && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
                         {[
-                          { name: "Terms of Use", slug: "terms" },
-                          { name: "Privacy Policy", slug: "privacy" },
-                          { name: "Cookie Policy", slug: "cookies" },
-                          { name: "Refund Policy", slug: "refunds" },
-                          { name: "Acceptable Use Policy", slug: "acceptable-use" }
+                          { name: "Terms", slug: "terms" },
+                          { name: "Privacy", slug: "privacy" },
+                          { name: "Cookies", slug: "cookies" },
+                          { name: "Refunds", slug: "refunds" },
+                          { name: "Acceptable Use", slug: "acceptable-use" }
                         ].map((item) => (
                           <button 
                             key={item.name}
-                            onClick={() => handleLinkClick(item.name, "LEGAL DEP", item.slug)}
+                            onClick={() => handleLinkClick(item.name, "PROTOCOLS DEP", item.slug)}
                             className="hover:text-white transition-colors cursor-pointer text-left block"
                           >
                             * {item.name}
@@ -1756,21 +1865,10 @@ export default function App() {
                           <span className="text-zinc-600 text-[9px]">↗</span>
                         </a>
                         <a 
-                          href="https://youtube.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
+                          href="mailto:vault@credentials.local" 
                           className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
                         >
-                          <span>* YouTube</span>
-                          <span className="text-zinc-600 text-[9px]">↗</span>
-                        </a>
-                        <a 
-                          href="https://spotify.com" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer uppercase"
-                        >
-                          <span>* Spotify</span>
+                          <span>* Signal</span>
                           <span className="text-zinc-600 text-[9px]">↗</span>
                         </a>
                       </div>
@@ -1779,30 +1877,19 @@ export default function App() {
                 </div>
 
                 {/* BOTTOM FOOTER LINE */}
-                <div className="text-center font-mono space-y-4 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-950 pt-10 pb-6">
-                  {/* Desktop bottom line */}
-                  <div className="hidden sm:block space-y-2">
+                <div className="text-center font-mono space-y-2.5 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-950 pt-10 pb-6">
+                  <div className="space-y-1">
                     <h6 className="text-[#D9D6CA] font-bold text-[11px] uppercase tracking-[0.3em]">
-                      THE OWL CLOCK
+                      LOMON LLC
                     </h6>
-                    <p className="text-zinc-500 text-[9px] uppercase">
-                      Publishing & Licensing | Atlanta, GA
+                    <p className="text-zinc-500 text-[9px] uppercase tracking-widest">
+                      Publishing • Rights Management • Licensing
                     </p>
-                    <p className="text-zinc-600 text-[8.5px] pt-4 uppercase">
-                      © 2026
+                    <p className="text-zinc-500 text-[9px] uppercase tracking-widest">
+                      Atlanta, Georgia
                     </p>
-                  </div>
-
-                  {/* Mobile bottom line */}
-                  <div className="sm:hidden space-y-2">
-                    <h6 className="text-[#D9D6CA] font-bold text-[10px] uppercase tracking-[0.25em]">
-                      THE OWL CLOCK
-                    </h6>
-                    <p className="text-zinc-500 text-[8.5px] uppercase">
-                      Publishing & Licensing | Atlanta, GA
-                    </p>
-                    <p className="text-zinc-600 text-[8px] pt-2 uppercase">
-                      © 2026
+                    <p className="text-zinc-600 text-[8.5px] pt-3 uppercase">
+                      © 2026 LOMON LLC
                     </p>
                   </div>
                 </div>

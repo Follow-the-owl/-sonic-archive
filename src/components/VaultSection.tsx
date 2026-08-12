@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Eye, ShieldAlert, Key, Unlock, Send, CheckCircle, FileCode, Play, Square } from "lucide-react";
+import { Eye, ShieldAlert, Key, Unlock, Send, CheckCircle, FileCode, Play, Square, Loader2 } from "lucide-react";
 import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 import { FRAGMENTS, Fragment } from "../data";
 
@@ -11,6 +11,7 @@ export default function VaultSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
+  const [loadingSignal, setLoadingSignal] = useState<string | null>(null);
 
   // Form states
   const [formName, setFormName] = useState("");
@@ -28,8 +29,17 @@ export default function VaultSection() {
 
   useEffect(() => {
     setActiveSignal(getActiveId());
-    registerAudioCallback((isPlaying, id) => {
-      setActiveSignal(id);
+    registerAudioCallback((isPlaying, id, isLoading) => {
+      if (isLoading) {
+        setLoadingSignal(id);
+        setActiveSignal(null);
+      } else if (isPlaying) {
+        setActiveSignal(id);
+        setLoadingSignal(null);
+      } else {
+        setActiveSignal(null);
+        setLoadingSignal(null);
+      }
     });
   }, []);
 
@@ -90,7 +100,7 @@ export default function VaultSection() {
 
   const handleTogglePlay = () => {
     if (unlockedFragment) {
-      if (activeSignal === unlockedFragment.id) {
+      if (activeSignal === unlockedFragment.id || loadingSignal === unlockedFragment.id) {
         stopAudio();
       } else {
         playFragment(unlockedFragment.id, unlockedFragment.frequency, unlockedFragment.synthType);
@@ -175,7 +185,12 @@ export default function VaultSection() {
                       onClick={handleTogglePlay}
                       className="px-4 py-1.5 bg-gold-muted text-black text-[9px] font-mono rounded-sm transition-all flex items-center gap-1.5 uppercase cursor-pointer"
                     >
-                      {activeSignal === unlockedFragment?.id ? (
+                      {loadingSignal === unlockedFragment?.id ? (
+                        <>
+                          <Loader2 size={9} className="animate-spin text-black" />
+                          <span>LOADING...</span>
+                        </>
+                      ) : activeSignal === unlockedFragment?.id ? (
                         <>
                           <Square size={9} className="fill-current text-black" />
                           <span>MUTE SIGNAL</span>

@@ -57,28 +57,29 @@ export default function ContactPage({
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
         {/* Navigation Bar */}
-        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            title="Return"
+            aria-label="Return"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
-            <span>RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
 
-          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <Mail size={14} className="text-zinc-300" />
-            <span>SYSTEM TRANSMISSIONS • CONTACT</span>
+          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest text-left break-words">
+            <Mail size={14} className="text-zinc-300 shrink-0" />
+            <span className="break-words">SYSTEM TRANSMISSIONS • CONTACT</span>
           </div>
         </div>
 
         {/* Title Block */}
-        <div className="space-y-4 border-b border-zinc-900/80 pb-8">
-          <div className="space-y-1">
-            <span className="text-[11px] font-display font-bold tracking-[0.25em] text-zinc-400 uppercase block">
+        <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
+          <div className="space-y-1 text-left">
+            <span className="text-[11px] font-display font-bold tracking-[0.2em] sm:tracking-[0.25em] text-zinc-400 uppercase block text-left break-words">
               LOMON LLC • OFFICIAL COMMUNICATIONS
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.18em] uppercase leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.18em] uppercase leading-tight text-left break-words">
               CONTACT &amp; TRANSMISSIONS
             </h1>
           </div>
@@ -109,7 +110,7 @@ export default function ContactPage({
         {/* Contact Form Section */}
         <div className="space-y-6">
           <div className="flex items-center justify-between border-b border-zinc-900/80 pb-3">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <MessageSquare size={16} className="text-zinc-400" />
               <span>DISPATCH TRANSMISSION</span>
             </h2>
@@ -267,7 +268,7 @@ export default function ContactPage({
 
         {/* Directory & Purpose Summary */}
         <div className="space-y-6 pt-6 border-t border-zinc-900">
-          <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-center gap-2">
+          <h3 className="text-sm font-bold text-white tracking-widest uppercase flex items-start gap-2 break-words">
             <Building2 size={14} className="text-zinc-400" />
             <span>DIRECTORY &amp; COMMUNICATIONS PURPOSE</span>
           </h3>
@@ -304,9 +305,9 @@ export default function ContactPage({
         </div>
 
         {/* Legal & Ownership Footer Note */}
-        <div className="border-t border-zinc-900/80 pt-6 text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex flex-col sm:flex-row justify-between items-center gap-2">
-          <span>LOMON LLC • ATLANTA, GEORGIA</span>
-          <span>© 2026 LOMON LLC • ALL RIGHTS RESERVED</span>
+        <div className="border-t border-zinc-900/80 pt-6 text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-left">
+          <span className="text-left">LOMON LLC • ATLANTA, GEORGIA</span>
+          <span className="text-left">© 2026 LOMON LLC • ALL RIGHTS RESERVED</span>
         </div>
 
       </div>

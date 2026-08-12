@@ -68,33 +68,34 @@ export default function FragmentClearanceGuidePage({
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
         {/* Top Header / Navigation Bar */}
-        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            title="Return"
+            aria-label="Return"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
-            <span>RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
 
-          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <FileText size={14} className="text-zinc-300" />
-            <span>LOMON LLC • FRAGMENT CLEARANCE GUIDE</span>
+          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest text-left break-words">
+            <FileText size={14} className="text-zinc-300 shrink-0" />
+            <span className="break-words">LOMON LLC • FRAGMENT CLEARANCE GUIDE</span>
           </div>
         </div>
 
         {/* Title Block */}
-        <div className="space-y-4 border-b border-zinc-900/80 pb-8">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold tracking-[0.3em] text-zinc-400 uppercase block">
+        <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
+          <div className="space-y-1 text-left">
+            <span className="text-[10px] font-bold tracking-[0.2em] sm:tracking-[0.3em] text-zinc-400 uppercase block text-left break-words">
               LOMON LLC • CLEARANCE PROTOCOLS
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.15em] uppercase leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.15em] uppercase leading-tight text-left break-words">
               FRAGMENT CLEARANCE GUIDE
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4">
+          <div className="flex flex-wrap items-start sm:items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4 text-left">
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Effective Date:</span>
               <span className="text-zinc-200">August 9, 2026</span>
@@ -121,7 +122,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* STEP 01 */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">STEP 01 —</span> DISCOVER A FRAGMENT
             </h2>
             <p className="leading-relaxed">
@@ -137,7 +138,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* STEP 02 */}
           <section className="space-y-4 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">STEP 02 —</span> SELECT YOUR LICENSE
             </h2>
             <p>
@@ -185,7 +186,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* STEP 03 */}
           <section className="space-y-4 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">STEP 03 —</span> REQUEST CLEARANCE
             </h2>
             <p>
@@ -225,7 +226,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* STEP 04 */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">STEP 04 —</span> REVIEW &amp; APPROVAL
             </h2>
             <p>
@@ -241,7 +242,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* STEP 05 */}
           <section className="space-y-4 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">STEP 05 —</span> DOCUMENTATION
             </h2>
             <p>
@@ -286,7 +287,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* STEP 06 */}
           <section className="space-y-4 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-mono font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">STEP 06 —</span> DELIVERY
             </h2>
             <p>
@@ -401,16 +402,18 @@ export default function FragmentClearanceGuidePage({
         </div>
 
         {/* Bottom Sign-off & Return */}
-        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-[11px] text-zinc-500">
-          <div className="space-y-1">
-            <p className="text-white font-bold tracking-wider uppercase text-[12px]">THE OWL CLOCK</p>
-            <p className="text-zinc-500 text-[10.5px]">An archival music system by LOMON LLC.</p>
+        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-mono text-[11px] text-zinc-500 text-left">
+          <div className="space-y-1 text-left">
+            <p className="text-white font-bold tracking-wider uppercase text-[12px] text-left">THE OWL CLOCK</p>
+            <p className="text-zinc-500 text-[10.5px] text-left">An archival music system by LOMON LLC.</p>
           </div>
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm group"
+            title="Return"
+            aria-label="Return"
           >
-            <span>← RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
         </div>
 

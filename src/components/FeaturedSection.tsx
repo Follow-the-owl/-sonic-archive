@@ -1,24 +1,34 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, Eye, Compass, Info, X } from "lucide-react";
+import { Play, Square, Eye, Compass, Info, X, Loader2 } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
 import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 export default function FeaturedSection() {
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
+  const [loadingSignal, setLoadingSignal] = useState<string | null>(null);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
 
   useEffect(() => {
     // Keep local player state synchronized with the synthesiser
     setActiveSignal(getActiveId());
-    registerAudioCallback((isPlaying, id) => {
-      setActiveSignal(id);
+    registerAudioCallback((isPlaying, id, isLoading) => {
+      if (isLoading) {
+        setLoadingSignal(id);
+        setActiveSignal(null);
+      } else if (isPlaying) {
+        setActiveSignal(id);
+        setLoadingSignal(null);
+      } else {
+        setActiveSignal(null);
+        setLoadingSignal(null);
+      }
     });
   }, []);
 
   const handleTogglePlay = (frag: Fragment) => {
-    if (activeSignal === frag.id) {
+    if (activeSignal === frag.id || loadingSignal === frag.id) {
       stopAudio();
     } else {
       playFragment(frag.id, frag.frequency, frag.synthType);
@@ -49,6 +59,7 @@ export default function FeaturedSection() {
       <div className="grid md:grid-cols-2 gap-8">
         {featuredFragments.map((frag, idx) => {
           const isCurrentPlay = activeSignal === frag.id;
+          const isLoadingThis = loadingSignal === frag.id;
 
           return (
             <motion.div
@@ -59,7 +70,7 @@ export default function FeaturedSection() {
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: idx * 0.1 }}
               className={`p-6 border rounded-none transition-all duration-700 relative flex flex-col justify-between ${
-                isCurrentPlay
+                isCurrentPlay || isLoadingThis
                   ? "bg-neutral-950/80 border-[#D9D6CA]/60 gold-glow shadow-2xl"
                   : "bg-neutral-950/20 border-zinc-950 hover:border-zinc-800"
               }`}
@@ -98,12 +109,17 @@ export default function FeaturedSection() {
                     id={`play-frag-${frag.id}`}
                     onClick={() => handleTogglePlay(frag)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-none text-[9px] font-mono font-bold uppercase tracking-[0.25em] transition-all duration-300 cursor-pointer ${
-                      isCurrentPlay
+                      isCurrentPlay || isLoadingThis
                         ? "bg-[#D9D6CA] text-black border border-[#D9D6CA]"
                         : "bg-neutral-950 text-zinc-400 border border-zinc-900 hover:border-[#D9D6CA] hover:text-white"
                     }`}
                   >
-                    {isCurrentPlay ? (
+                    {isLoadingThis ? (
+                      <>
+                        <Loader2 size={10} className="animate-spin text-black" />
+                        <span>LOADING SIGNAL...</span>
+                      </>
+                    ) : isCurrentPlay ? (
                       <>
                         <Square size={10} className="fill-current animate-pulse text-black" />
                         <span>SILENCE SIGNAL</span>

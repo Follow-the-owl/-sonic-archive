@@ -27,33 +27,34 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
         {/* Top Header / Navigation Bar */}
-        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            title="Return"
+            aria-label="Return"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
-            <span>RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
 
-          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <RefreshCw size={14} className="text-zinc-300" />
-            <span>REFUND POLICY</span>
+          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest text-left break-words">
+            <RefreshCw size={14} className="text-zinc-300 shrink-0" />
+            <span className="break-words">REFUND POLICY</span>
           </div>
         </div>
 
         {/* Title Block */}
-        <div className="space-y-4 border-b border-zinc-900/80 pb-8">
-          <div className="space-y-1">
-            <span className="text-[11px] font-display font-bold tracking-[0.25em] text-zinc-400 uppercase block">
-              LOMON LLC • REFUND POLICY
+        <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
+          <div className="space-y-1 text-left">
+            <span className="text-[11px] font-display font-bold tracking-[0.2em] sm:tracking-[0.25em] text-zinc-400 uppercase block text-left break-words">
+              LOMON LLC
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.18em] uppercase leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.18em] uppercase leading-tight text-left break-words">
               REFUND POLICY
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4">
+          <div className="flex flex-wrap items-start sm:items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4 text-left">
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Effective Date:</span>
               <span className="text-zinc-200">July 29, 2026</span>
@@ -83,7 +84,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 1. Digital Products */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">1.</span> DIGITAL PRODUCTS
             </h2>
             <p>The Owl Clock primarily distributes digital products and services. These may include:</p>
@@ -110,7 +111,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 2. General Policy */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">2.</span> GENERAL POLICY
             </h2>
             <p>Unless otherwise required by law or expressly approved in writing by LOMON LLC:</p>
@@ -124,7 +125,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 3. Orders Eligible for Cancellation */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">3.</span> ORDERS ELIGIBLE FOR CANCELLATION
             </h2>
             <p>An order may be cancelled if:</p>
@@ -143,7 +144,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 4. Orders That Cannot Be Refunded */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">4.</span> ORDERS THAT CANNOT BE REFUNDED
             </h2>
             <p>Refunds will generally not be provided after:</p>
@@ -165,7 +166,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 5. Duplicate Purchases */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">5.</span> DUPLICATE PURCHASES
             </h2>
             <p>
@@ -183,7 +184,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 6. Incorrect Delivery */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">6.</span> INCORRECT DELIVERY
             </h2>
             <p>If you receive:</p>
@@ -209,7 +210,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 7. Technical Problems */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">7.</span> TECHNICAL PROBLEMS
             </h2>
             <p>
@@ -229,7 +230,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 8. License Revocation */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">8.</span> LICENSE REVOCATION
             </h2>
             <p>
@@ -252,7 +253,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 9. Chargebacks */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">9.</span> CHARGEBACKS
             </h2>
             <p>Before initiating a chargeback, please contact us so we have an opportunity to resolve the issue.</p>
@@ -272,7 +273,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 10. Fraud Prevention */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">10.</span> FRAUD PREVENTION
             </h2>
             <p>LOMON LLC reserves the right to delay, refuse, cancel, or refund transactions where we reasonably believe:</p>
@@ -291,7 +292,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 11. Pricing Errors */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">11.</span> PRICING ERRORS
             </h2>
             <p>Despite reasonable efforts, pricing or availability errors may occasionally occur.</p>
@@ -306,7 +307,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 12. Exclusive Licenses */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">12.</span> EXCLUSIVE LICENSES
             </h2>
             <p>Exclusive Acquisitions require significant administrative review.</p>
@@ -317,7 +318,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 13. Custom Services */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">13.</span> CUSTOM SERVICES
             </h2>
             <p>Refunds are generally unavailable for custom services that have already begun. These services may include:</p>
@@ -339,7 +340,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 14. Promotional Sales */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">14.</span> PROMOTIONAL SALES
             </h2>
             <p>Unless expressly stated otherwise, the following remain subject to this Refund Policy:</p>
@@ -355,7 +356,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 15. Store Credit */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">15.</span> STORE CREDIT
             </h2>
             <p>Where appropriate, LOMON LLC may choose to provide store credit, account credit, replacement products, or substitute services instead of issuing a monetary refund.</p>
@@ -366,7 +367,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 16. Taxes and Processing Fees */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">16.</span> TAXES AND PROCESSING FEES
             </h2>
             <p>
@@ -379,7 +380,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 17. How to Request a Refund */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">17.</span> HOW TO REQUEST A REFUND
             </h2>
             <p>Refund requests should be submitted as soon as possible. Please include:</p>
@@ -402,7 +403,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 18. Review Process */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">18.</span> REVIEW PROCESS
             </h2>
             <p>Each request is reviewed individually.</p>
@@ -413,7 +414,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 19. Processing Approved Refunds */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">19.</span> PROCESSING APPROVED REFUNDS
             </h2>
             <p>
@@ -433,7 +434,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 20. Changes to This Refund Policy */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">20.</span> CHANGES TO THIS REFUND POLICY
             </h2>
             <p>
@@ -446,7 +447,7 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
 
           {/* 21. Contact */}
           <section className="space-y-4 pt-2">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">21.</span> CONTACT
             </h2>
             <p>Questions regarding this Refund Policy may be directed to:</p>
@@ -481,19 +482,21 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
         </div>
 
         {/* Return Button at Bottom */}
-        <div className="pt-6 flex justify-start">
+        <div className="pt-6 flex justify-start text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm group"
+            title="Return"
+            aria-label="Return"
           >
-            <span>← RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
         </div>
 
         {/* Footer Info Banner */}
-        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row justify-between items-center text-[11px] text-zinc-500 font-mono gap-4">
-          <p>© 2026 LOMON LLC. All rights reserved.</p>
-          <p className="uppercase tracking-widest text-zinc-600">REFUND POLICY</p>
+        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[11px] text-zinc-500 font-mono gap-4 text-left">
+          <p className="text-left">© 2026 LOMON LLC. All rights reserved.</p>
+          <p className="uppercase tracking-widest text-zinc-600 text-left">REFUND POLICY</p>
         </div>
 
         <DocumentScrollControls />

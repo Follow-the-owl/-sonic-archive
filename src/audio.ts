@@ -15,7 +15,29 @@ let playbackOffsetSec = 0;
 let isPlayingState = false;
 let isLoadingState = false;
 let activeId: string | null = null;
-let activeCallback: ((isPlaying: boolean, fragmentId: string | null) => void) | null = null;
+
+type AudioCallback = (isPlaying: boolean, fragmentId: string | null, isLoading: boolean) => void;
+const audioCallbacks = new Set<AudioCallback>();
+
+export function registerAudioCallback(callback: AudioCallback) {
+  audioCallbacks.add(callback);
+  try {
+    callback(isPlayingState, activeId, isLoadingState);
+  } catch (e) {}
+  return () => {
+    audioCallbacks.delete(callback);
+  };
+}
+
+function notifyAudioCallbacks() {
+  audioCallbacks.forEach((cb) => {
+    try {
+      cb(isPlayingState, activeId, isLoadingState);
+    } catch (e) {
+      console.error("Audio callback error:", e);
+    }
+  });
+}
 
 // Ambient and Synth Node state
 let ambientGain: GainNode | null = null;
@@ -57,10 +79,6 @@ export function getGlobalAnalyser(): AnalyserNode | null {
 
 export function getAudioContext(): AudioContext | null {
   return getAudioCtx();
-}
-
-export function registerAudioCallback(callback: (isPlaying: boolean, fragmentId: string | null) => void) {
-  activeCallback = callback;
 }
 
 export async function ensureToneStarted() {
@@ -185,7 +203,8 @@ export function pauseAudio() {
     } catch (e) {}
   }
   isPlayingState = false;
-  if (activeCallback) activeCallback(false, activeId);
+  isLoadingState = false;
+  notifyAudioCallbacks();
 }
 
 export async function resumeAudio() {
@@ -195,7 +214,8 @@ export async function resumeAudio() {
     try {
       currentTonePlayer.start(0, playbackOffsetSec);
       isPlayingState = true;
-      if (activeCallback) activeCallback(true, activeId);
+      isLoadingState = false;
+      notifyAudioCallbacks();
     } catch (e) {
       console.error("Error resuming Tone.Player:", e);
     }
@@ -246,7 +266,7 @@ export function stopAudio() {
   currentBufferDuration = 0;
   activeId = null;
 
-  if (activeCallback) activeCallback(false, null);
+  notifyAudioCallbacks();
 }
 
 // Global window unload, pagehide, and visibilitychange listeners
@@ -311,13 +331,15 @@ export async function playFragment(
             playbackStartedAt = Tone.now() - playbackOffsetSec;
             player.start(0, playbackOffsetSec);
             isPlayingState = true;
-            if (activeCallback) activeCallback(true, id);
+            notifyAudioCallbacks();
           }
         },
         onerror: (err) => {
           console.error("Tone.Player load error for fragment " + id, err);
           isLoadingState = false;
-          if (activeCallback) activeCallback(false, id);
+          isPlayingState = false;
+          activeId = null;
+          notifyAudioCallbacks();
         }
       });
 
@@ -336,9 +358,9 @@ export async function playFragment(
         playbackStartedAt = Tone.now() - playbackOffsetSec;
         player.start(0, playbackOffsetSec);
         isPlayingState = true;
-        if (activeCallback) activeCallback(true, id);
+        notifyAudioCallbacks();
       } else {
-        if (activeCallback) activeCallback(true, id);
+        notifyAudioCallbacks();
       }
       return;
     } catch (e) {
@@ -657,7 +679,8 @@ export async function playFragment(
 
   activeId = id;
   isPlayingState = true;
-  if (activeCallback) activeCallback(true, id);
+  isLoadingState = false;
+  notifyAudioCallbacks();
 }
 
 export function getActiveId(): string | null {

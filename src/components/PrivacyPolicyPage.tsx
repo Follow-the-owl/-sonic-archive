@@ -28,33 +28,34 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
         {/* Top Header / Navigation Bar */}
-        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            title="Return"
+            aria-label="Return"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
-            <span>RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
 
-          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <ShieldCheck size={14} className="text-zinc-300" />
-            <span>PRIVACY POLICY</span>
+          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest text-left break-words">
+            <ShieldCheck size={14} className="text-zinc-300 shrink-0" />
+            <span className="break-words">PRIVACY POLICY</span>
           </div>
         </div>
 
         {/* Title Block */}
-        <div className="space-y-4 border-b border-zinc-900/80 pb-8">
-          <div className="space-y-1">
-            <span className="text-[11px] font-display font-bold tracking-[0.25em] text-zinc-400 uppercase block">
-              LOMON LLC • PRIVACY POLICY
+        <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
+          <div className="space-y-1 text-left">
+            <span className="text-[11px] font-display font-bold tracking-[0.2em] sm:tracking-[0.25em] text-zinc-400 uppercase block text-left break-words">
+              LOMON LLC
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.18em] uppercase leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.18em] uppercase leading-tight text-left break-words">
               PRIVACY POLICY
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4">
+          <div className="flex flex-wrap items-start sm:items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4 text-left">
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Effective Date:</span>
               <span className="text-zinc-200">July 29, 2026</span>
@@ -84,7 +85,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 1. Scope of This Privacy Policy */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase text-left flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase text-left flex items-start gap-2 break-words">
               <span className="text-zinc-400">1.</span> SCOPE OF THIS PRIVACY POLICY
             </h2>
             <p>This Privacy Policy applies to personal information collected through:</p>
@@ -107,7 +108,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 2. Personal Information We Collect */}
           <section className="space-y-4 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">2.</span> PERSONAL INFORMATION WE COLLECT
             </h2>
             <p>The information we collect depends on how you interact with the Archive. We may collect the following categories of personal information.</p>
@@ -289,7 +290,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 3. How We Collect Information */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">3.</span> HOW WE COLLECT INFORMATION
             </h2>
             <p>We may collect personal information:</p>
@@ -311,7 +312,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 4. How We Use Personal Information */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">4.</span> HOW WE USE PERSONAL INFORMATION
             </h2>
             <p>We may use personal information to:</p>
@@ -347,7 +348,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 5. Legal Bases for Processing */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">5.</span> LEGAL BASES FOR PROCESSING
             </h2>
             <p>Where applicable law requires a legal basis, we may process personal information because:</p>
@@ -370,7 +371,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 6. Clearance and Ownership Verification */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">6.</span> CLEARANCE AND OWNERSHIP VERIFICATION
             </h2>
             <p>
@@ -396,7 +397,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 7. Payments */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">7.</span> PAYMENTS
             </h2>
             <p>Payments may be processed by independent payment providers.</p>
@@ -422,7 +423,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 8. Cookies and Similar Technologies */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">8.</span> COOKIES AND SIMILAR TECHNOLOGIES
             </h2>
             <p>The Archive may use cookies, pixels, local storage, log files, and similar technologies to:</p>
@@ -458,7 +459,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 9. Analytics */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">9.</span> ANALYTICS
             </h2>
             <p>We may use analytics providers to understand how visitors interact with the Archive.</p>
@@ -479,7 +480,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 10. Marketing Communications */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">10.</span> MARKETING COMMUNICATIONS
             </h2>
             <p>Where permitted, we may send communications relating to:</p>
@@ -502,7 +503,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 11. How We Disclose Personal Information */}
           <section className="space-y-4 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">11.</span> HOW WE DISCLOSE PERSONAL INFORMATION
             </h2>
             <p>We may disclose personal information to the following categories of recipients.</p>
@@ -547,7 +548,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 12. Sale and Sharing of Personal Information */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">12.</span> SALE AND SHARING OF PERSONAL INFORMATION
             </h2>
             <p>LOMON LLC does not sell personal information in exchange for money.</p>
@@ -561,7 +562,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 13. Data Retention */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">13.</span> DATA RETENTION
             </h2>
             <p>
@@ -590,7 +591,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 14. Data Security */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">14.</span> DATA SECURITY
             </h2>
             <p>
@@ -606,7 +607,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 15. International Data Transfers */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">15.</span> INTERNATIONAL DATA TRANSFERS
             </h2>
             <p>LOMON LLC is based in the United States.</p>
@@ -620,7 +621,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 16. Your Privacy Rights */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">16.</span> YOUR PRIVACY RIGHTS
             </h2>
             <p>Depending on where you live and subject to applicable law, you may have the right to:</p>
@@ -649,7 +650,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 17. Submitting a Privacy Request */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">17.</span> SUBMITTING A PRIVACY REQUEST
             </h2>
             <p>To submit a privacy request, contact:</p>
@@ -673,7 +674,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 18. Children’s Privacy */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">18.</span> CHILDREN’S PRIVACY
             </h2>
             <p>The Archive is not directed toward children under thirteen years old.</p>
@@ -690,7 +691,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 19. Third-Party Websites and Platforms */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">19.</span> THIRD-PARTY WEBSITES AND PLATFORMS
             </h2>
             <p>The Archive may contain links to or integrations with third-party websites and services, including:</p>
@@ -710,7 +711,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 20. Automated Decision-Making */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">20.</span> AUTOMATED DECISION-MAKING
             </h2>
             <p>
@@ -732,7 +733,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 21. Do Not Track and Privacy Signals */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">21.</span> DO NOT TRACK AND PRIVACY SIGNALS
             </h2>
             <p>Some browsers allow Users to send “Do Not Track” signals.</p>
@@ -743,7 +744,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 22. Copyright and Legal Submissions */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">22.</span> COPYRIGHT AND LEGAL SUBMISSIONS
             </h2>
             <p>
@@ -756,7 +757,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 23. Changes to This Privacy Policy */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">23.</span> CHANGES TO THIS PRIVACY POLICY
             </h2>
             <p>LOMON LLC may update this Privacy Policy to reflect changes in:</p>
@@ -779,7 +780,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
 
           {/* 24. Contact */}
           <section className="space-y-4 pt-2">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">24.</span> CONTACT
             </h2>
             <p>Questions, requests, or concerns regarding this Privacy Policy may be directed to:</p>
@@ -814,19 +815,21 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
         </div>
 
         {/* Return Button at Bottom */}
-        <div className="pt-6 flex justify-start">
+        <div className="pt-6 flex justify-start text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm group"
+            title="Return"
+            aria-label="Return"
           >
-            <span>← RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
         </div>
 
         {/* Footer Info Banner */}
-        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row justify-between items-center text-[11px] text-zinc-500 font-mono gap-4">
-          <p>© 2026 LOMON LLC. All rights reserved.</p>
-          <p className="uppercase tracking-widest text-zinc-600">PRIVACY POLICY</p>
+        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[11px] text-zinc-500 font-mono gap-4 text-left">
+          <p className="text-left">© 2026 LOMON LLC. All rights reserved.</p>
+          <p className="uppercase tracking-widest text-zinc-600 text-left">PRIVACY POLICY</p>
         </div>
 
         <DocumentScrollControls />

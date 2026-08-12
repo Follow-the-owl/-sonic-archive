@@ -900,10 +900,10 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                       setSelectedContractType(c.name);
                       setClearanceStep("review");
                     }}
-                    className="w-full text-left border border-zinc-850 hover:border-[#D9D6CA]/40 bg-black hover:bg-zinc-950 p-3.5 transition-all flex justify-between items-center group cursor-pointer"
+                    className="w-full text-left border border-zinc-850 hover:border-[#D9D6CA]/40 bg-black hover:bg-zinc-950 p-3 sm:p-3.5 transition-all flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 group cursor-pointer"
                   >
-                    <div className="space-y-1 min-w-0 pr-4">
-                      <div className="flex items-center gap-2">
+                    <div className="space-y-1 min-w-0 sm:pr-4">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         <div className="text-[11px] font-bold text-white group-hover:text-[#D9D6CA] uppercase tracking-wider">
                           {c.name}
                         </div>
@@ -915,7 +915,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                         {c.desc}
                       </div>
                     </div>
-                    <span className="text-[#D9D6CA] text-[10px] tracking-widest shrink-0 uppercase group-hover:translate-x-1 transition-transform ml-2">
+                    <span className="text-[#D9D6CA] text-[10px] tracking-widest shrink-0 uppercase group-hover:translate-x-1 transition-transform sm:ml-2 font-mono">
                       SELECT &gt;
                     </span>
                   </button>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, Key, Bell, Search, Clock, ShieldAlert } from "lucide-react";
+import { Play, Square, Key, Bell, Search, Clock, ShieldAlert, Loader2 } from "lucide-react";
 import { FRAGMENTS, ARCHIVE_CATEGORIES, CLOCK_MEANINGS, Fragment } from "../data";
 import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 
@@ -10,19 +10,29 @@ interface DeepArchiveSectionProps {
 
 export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchiveSectionProps) {
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
+  const [loadingSignal, setLoadingSignal] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeClockHour, setActiveClockHour] = useState<string>("03:33");
 
   useEffect(() => {
     setActiveSignal(getActiveId());
-    registerAudioCallback((isPlaying, id) => {
-      setActiveSignal(id);
+    registerAudioCallback((isPlaying, id, isLoading) => {
+      if (isLoading) {
+        setLoadingSignal(id);
+        setActiveSignal(null);
+      } else if (isPlaying) {
+        setActiveSignal(id);
+        setLoadingSignal(null);
+      } else {
+        setActiveSignal(null);
+        setLoadingSignal(null);
+      }
     });
   }, []);
 
   const handleTogglePlay = (frag: Fragment) => {
-    if (activeSignal === frag.id) {
+    if (activeSignal === frag.id || loadingSignal === frag.id) {
       stopAudio();
     } else {
       playFragment(frag.id, frag.frequency, frag.synthType);
@@ -223,6 +233,7 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
           <AnimatePresence mode="popLayout">
             {filteredFragments.map((frag, index) => {
               const isCurrentPlay = activeSignal === frag.id;
+              const isLoadingThis = loadingSignal === frag.id;
 
               return (
                 <motion.div
@@ -234,7 +245,7 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
                   className={`border p-5 rounded-sm flex flex-col justify-between transition-all duration-700 ${
-                    isCurrentPlay
+                    isCurrentPlay || isLoadingThis
                       ? "bg-zinc-950/70 border-gold-muted/40 gold-glow"
                       : "bg-zinc-950/10 border-zinc-900/60 hover:border-zinc-800"
                   }`}
@@ -291,13 +302,19 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
                         id={`forest-play-trigger-${frag.id}`}
                         onClick={() => handleTogglePlay(frag)}
                         className={`w-full py-2 flex items-center justify-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-all duration-500 rounded-sm cursor-pointer ${
-                          isCurrentPlay
+                          isCurrentPlay || isLoadingThis
                             ? "bg-gold-muted text-black font-semibold"
                             : "bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800"
                         }`}
                       >
-                        {isCurrentPlay ? <Square size={9} className="fill-current text-black" /> : <Play size={9} className="fill-current" />}
-                        <span>{isCurrentPlay ? "MUTE" : "LISTEN"}</span>
+                        {isLoadingThis ? (
+                          <Loader2 size={10} className="animate-spin text-black" />
+                        ) : isCurrentPlay ? (
+                          <Square size={9} className="fill-current text-black" />
+                        ) : (
+                          <Play size={9} className="fill-current" />
+                        )}
+                        <span>{isLoadingThis ? "LOADING" : isCurrentPlay ? "MUTE" : "LISTEN"}</span>
                       </button>
                     )}
                   </div>

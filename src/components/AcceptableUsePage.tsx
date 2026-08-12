@@ -27,33 +27,34 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
       <div className="max-w-[850px] mx-auto space-y-10 text-left">
         
         {/* Top Header / Navigation Bar */}
-        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="border-b border-zinc-900 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-400 hover:text-white transition-colors uppercase cursor-pointer group border border-zinc-900 bg-zinc-950 px-3.5 py-2 rounded-sm w-fit"
+            title="Return"
+            aria-label="Return"
           >
-            <ArrowLeft size={13} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
-            <span>RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
 
-          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest">
-            <ShieldAlert size={14} className="text-zinc-300" />
-            <span>ACCEPTABLE USE POLICY</span>
+          <div className="flex items-center gap-2 text-[9.5px] font-mono text-zinc-500 uppercase tracking-widest text-left break-words">
+            <ShieldAlert size={14} className="text-zinc-300 shrink-0" />
+            <span className="break-words">ACCEPTABLE USE POLICY</span>
           </div>
         </div>
 
         {/* Title Block */}
-        <div className="space-y-4 border-b border-zinc-900/80 pb-8">
-          <div className="space-y-1">
-            <span className="text-[11px] font-display font-bold tracking-[0.25em] text-zinc-400 uppercase block">
-              LOMON LLC • ACCEPTABLE USE POLICY
+        <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
+          <div className="space-y-1 text-left">
+            <span className="text-[11px] font-display font-bold tracking-[0.2em] sm:tracking-[0.25em] text-zinc-400 uppercase block text-left break-words">
+              LOMON LLC
             </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.18em] uppercase leading-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.18em] uppercase leading-tight text-left break-words">
               ACCEPTABLE USE POLICY
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4">
+          <div className="flex flex-wrap items-start sm:items-center gap-x-6 gap-y-2 text-[11px] font-mono text-zinc-400 border-t border-zinc-900/50 pt-4 text-left">
             <div>
               <span className="text-zinc-600 uppercase tracking-wider mr-2 font-bold">Effective Date:</span>
               <span className="text-zinc-200">August 7, 2026</span>
@@ -78,7 +79,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 1. Purpose */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">1.</span> PURPOSE
             </h2>
             <p>The Owl Clock exists to preserve, license, and administer original musical works and their associated rights.</p>
@@ -99,7 +100,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 2. Lawful Use */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">2.</span> LAWFUL USE
             </h2>
             <p>You may use the Archive only for lawful purposes.</p>
@@ -118,7 +119,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 3. Respect for Intellectual Property */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">3.</span> RESPECT FOR INTELLECTUAL PROPERTY
             </h2>
             <p>You may not:</p>
@@ -139,7 +140,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 4. Licensing Compliance */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">4.</span> LICENSING COMPLIANCE
             </h2>
             <p>You must use every Fragment exactly as permitted under the applicable License.</p>
@@ -158,7 +159,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 5. Metadata Integrity */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">5.</span> METADATA INTEGRITY
             </h2>
             <p className="font-mono text-zinc-200 text-[12px] uppercase tracking-wider">Metadata is part of the Archive.</p>
@@ -179,7 +180,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 6. Archive Integrity */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">6.</span> ARCHIVE INTEGRITY
             </h2>
             <p>Users must preserve the integrity of every archived Fragment.</p>
@@ -196,7 +197,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 7. Artificial Intelligence */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">7.</span> ARTIFICIAL INTELLIGENCE
             </h2>
             <p>
@@ -233,7 +234,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 8. Automated Access */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">8.</span> AUTOMATED ACCESS
             </h2>
             <p>You may not use automated systems to access or collect Archive Material.</p>
@@ -260,7 +261,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 9. Security */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">9.</span> SECURITY
             </h2>
             <p>You may not:</p>
@@ -280,7 +281,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 10. Accounts */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">10.</span> ACCOUNTS
             </h2>
             <p>Where accounts are available, you agree to:</p>
@@ -303,7 +304,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 11. Payments */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">11.</span> PAYMENTS
             </h2>
             <p>You may not:</p>
@@ -321,7 +322,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 12. Content Identification Systems */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">12.</span> CONTENT IDENTIFICATION SYSTEMS
             </h2>
             <p>Unless expressly authorized by your License, you may not:</p>
@@ -338,7 +339,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 13. User Communications */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">13.</span> USER COMMUNICATIONS
             </h2>
             <p>You may not use the Archive to:</p>
@@ -356,7 +357,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 14. Submitted Materials */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">14.</span> SUBMITTED MATERIALS
             </h2>
             <p>When submitting materials to the Archive, you represent that:</p>
@@ -373,7 +374,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 15. Prohibited Commercial Activity */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">15.</span> PROHIBITED COMMERCIAL ACTIVITY
             </h2>
             <p>Without written authorization, you may not:</p>
@@ -391,7 +392,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 16. Fraud and Misrepresentation */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">16.</span> FRAUD AND MISREPRESENTATION
             </h2>
             <p>You may not knowingly:</p>
@@ -409,7 +410,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 17. Enforcement */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">17.</span> ENFORCEMENT
             </h2>
             <p>If we reasonably believe this Policy has been violated, LOMON LLC may:</p>
@@ -433,7 +434,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 18. Reporting Violations */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">18.</span> REPORTING VIOLATIONS
             </h2>
             <p>Suspected violations of this Policy may be reported to:</p>
@@ -456,7 +457,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 19. Changes to This Policy */}
           <section className="space-y-3 border-b border-zinc-900/60 pb-8">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">19.</span> CHANGES TO THIS POLICY
             </h2>
             <p>
@@ -472,7 +473,7 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
 
           {/* 20. Contact */}
           <section className="space-y-4 pt-2">
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-wider uppercase flex items-start gap-2 break-words">
               <span className="text-zinc-400">20.</span> CONTACT
             </h2>
             <p>Questions regarding this Acceptable Use Policy may be directed to:</p>
@@ -507,19 +508,21 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
         </div>
 
         {/* Return Button at Bottom */}
-        <div className="pt-6 flex justify-start">
+        <div className="pt-6 flex justify-start text-left">
           <button
             onClick={handleReturn}
-            className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm"
+            className="inline-flex items-center justify-center text-[11px] font-bold tracking-[0.2em] text-zinc-300 hover:text-white transition-colors uppercase cursor-pointer bg-transparent border border-zinc-800 hover:border-zinc-500 px-4 py-2 rounded-sm group"
+            title="Return"
+            aria-label="Return"
           >
-            <span>← RETURN TO PREVIOUS PAGE</span>
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-zinc-300" />
           </button>
         </div>
 
         {/* Footer Info Banner */}
-        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row justify-between items-center text-[11px] text-zinc-500 font-mono gap-4">
-          <p>© 2026 LOMON LLC. All rights reserved.</p>
-          <p className="uppercase tracking-widest text-zinc-600">ACCEPTABLE USE POLICY</p>
+        <div className="border-t border-zinc-900 pt-8 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[11px] text-zinc-500 font-mono gap-4 text-left">
+          <p className="text-left">© 2026 LOMON LLC. All rights reserved.</p>
+          <p className="uppercase tracking-widest text-zinc-600 text-left">ACCEPTABLE USE POLICY</p>
         </div>
 
         <DocumentScrollControls />

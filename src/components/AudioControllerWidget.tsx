@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { registerAudioCallback, stopAudio, setMasterVolume, getMasterVolume, isAmbientOn, toggleAmbientAtmosphere } from "../audio";
-import { Volume2, VolumeX, Square, RefreshCw } from "lucide-react";
+import { Volume2, VolumeX, Square, RefreshCw, Loader2 } from "lucide-react";
 import { FRAGMENTS } from "../data";
 
 export default function AudioControllerWidget() {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [activeFragmentId, setActiveFragmentId] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.5);
   const [ambientEnabled, setAmbientEnabled] = useState(isAmbientOn());
@@ -15,8 +16,9 @@ export default function AudioControllerWidget() {
     setAmbientEnabled(isAmbientOn());
     
     // Register for updates when songs/fragments start/stop
-    registerAudioCallback((playing, id) => {
+    registerAudioCallback((playing, id, loading) => {
       setIsPlaying(playing);
+      setIsLoading(!!loading);
       setActiveFragmentId(id);
     });
   }, []);
@@ -52,7 +54,9 @@ export default function AudioControllerWidget() {
       <div className="flex items-center gap-3 w-full sm:w-auto">
         {/* Pulsing visual tracker indicator */}
         <div className="relative flex items-center justify-center w-7 h-7 bg-zinc-900 border border-zinc-800 rounded-sm">
-          {isPlaying ? (
+          {isLoading ? (
+            <Loader2 size={12} className="animate-spin text-gold-muted" />
+          ) : isPlaying ? (
             <div className="flex items-end gap-[2px] h-3">
               <span className="w-[2px] bg-gold-muted animate-bounce h-2" style={{ animationDelay: '0.1s' }} />
               <span className="w-[2px] bg-gold-muted animate-bounce h-3" style={{ animationDelay: '0.3s' }} />
@@ -66,10 +70,10 @@ export default function AudioControllerWidget() {
         {/* Info Text */}
         <div className="flex flex-col flex-1 min-w-[120px]">
           <span className="text-[9px] uppercase tracking-wider text-zinc-600">
-            {isPlaying ? "ARCHIVE SIGNAL LIVE" : "ARCHIVE ASLEEP"}
+            {isLoading ? "LOADING SIGNAL..." : isPlaying ? "ARCHIVE SIGNAL LIVE" : "ARCHIVE ASLEEP"}
           </span>
           <span className="text-zinc-200 tracking-wide truncate">
-            {isPlaying && activeFragment ? (
+            {(isPlaying || isLoading) && activeFragment ? (
               <span className="text-gold-muted font-medium">FRAGMENT {activeFragment.id}</span>
             ) : (
               "SELECT FRAGMENT"
