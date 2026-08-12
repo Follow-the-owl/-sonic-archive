@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Square, Key, Bell, Search, Clock, ShieldAlert, Loader2 } from "lucide-react";
 import { FRAGMENTS, ARCHIVE_CATEGORIES, CLOCK_MEANINGS, Fragment } from "../data";
-import { playFragment, stopAudio, registerAudioCallback, getActiveId, preloadFragment } from "../audio";
+import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 
 interface DeepArchiveSectionProps {
   onRequestVaultAccess: () => void;
@@ -244,7 +244,6 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
-                  onMouseEnter={() => preloadFragment(frag.id)}
                   className={`border p-5 rounded-sm flex flex-col justify-between transition-all duration-700 ${
                     isCurrentPlay || isLoadingThis
                       ? "bg-zinc-950/70 border-gold-muted/40 gold-glow"

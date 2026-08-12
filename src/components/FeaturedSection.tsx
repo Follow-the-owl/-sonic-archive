@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Square, Eye, Compass, Info, X, Loader2 } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
-import { playFragment, stopAudio, registerAudioCallback, getActiveId, preloadFragment } from "../audio";
+import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 export default function FeaturedSection() {
@@ -69,7 +69,6 @@ export default function FeaturedSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: idx * 0.1 }}
-              onMouseEnter={() => preloadFragment(frag.id)}
               className={`p-6 border rounded-none transition-all duration-700 relative flex flex-col justify-between ${
                 isCurrentPlay || isLoadingThis
                   ? "bg-neutral-950/80 border-[#D9D6CA]/60 gold-glow shadow-2xl"
