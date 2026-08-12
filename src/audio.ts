@@ -7,6 +7,10 @@ let toneMasterVolume: Tone.Volume | null = null;
 let rawAnalyser: AnalyserNode | null = null;
 let masterVolumeLevel = 0.7;
 
+// RAM Buffer Cache & Background Preloader
+const bufferCache = new Map<string, Tone.ToneAudioBuffer>();
+const bufferLoadingPromises = new Map<string, Promise<Tone.ToneAudioBuffer | null>>();
+
 // Tone.Player state for MP3 fragment playback
 let currentTonePlayer: Tone.Player | null = null;
 let currentBufferDuration = 0;
@@ -15,6 +19,7 @@ let playbackOffsetSec = 0;
 let isPlayingState = false;
 let isLoadingState = false;
 let activeId: string | null = null;
+let activePlayToken: symbol | null = null;
 
 type AudioCallback = (isPlaying: boolean, fragmentId: string | null, isLoading: boolean) => void;
 const audioCallbacks = new Set<AudioCallback>();
@@ -57,6 +62,9 @@ let currentNodes: {
 } | null = null;
 let lfoOsc: OscillatorNode | null = null;
 
+/**
+ * Smooth decibel mapping for 0..1 volume slider
+ */
 function pctToDb(pct: number): number {
   const clamped = Math.max(0, Math.min(1, pct));
   if (clamped <= 0.0001) return -100;
@@ -129,6 +137,11 @@ export function getMasterVolume(): number {
   return masterVolumeLevel;
 }
 
+/**
+ * 1. Zero-Latency Preloading & Cloudinary Optimization:
+ * Modify Cloudinary .wav URLs on the fly by injecting ac_mp3,br_128k
+ * and changing the extension to .mp3 to serve lightweight preview files.
+ */
 export function getOptimizedAudioUrl(url: string | undefined | null): string {
   if (!url) return "";
 
@@ -136,13 +149,14 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
 
   // Handle Cloudinary delivery URLs
   if (result.includes("cloudinary.com") && result.includes("/upload/")) {
-    if (!result.includes("f_mp3,br_128k") && !result.includes("f_mp3")) {
-      result = result.replace("/upload/", "/upload/f_mp3,br_128k/");
+    if (!result.includes("ac_mp3,br_128k") && !result.includes("f_mp3,br_128k") && !result.includes("f_mp3")) {
+      result = result.replace("/upload/", "/upload/ac_mp3,br_128k/");
     }
     result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
     return result;
   }
 
+  // Handle non-Cloudinary .wav URLs
   if (result.endsWith(".wav")) {
     return result.replace(/\.wav$/, ".mp3");
   }
@@ -150,12 +164,59 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
   return result;
 }
 
+/**
+ * Preloads audio file into Tone.Buffer in background RAM
+ */
+export async function preloadAudioBuffer(urlOrId: string): Promise<Tone.ToneAudioBuffer | null> {
+  const frag = FRAGMENTS.find((f) => f.id === urlOrId);
+  const rawUrl = frag ? frag.mp3Preview : urlOrId;
+  const optimizedUrl = getOptimizedAudioUrl(rawUrl);
+
+  if (!optimizedUrl) return null;
+
+  if (bufferCache.has(optimizedUrl)) {
+    const cached = bufferCache.get(optimizedUrl)!;
+    if (cached.loaded) return cached;
+  }
+
+  if (bufferLoadingPromises.has(optimizedUrl)) {
+    return bufferLoadingPromises.get(optimizedUrl)!;
+  }
+
+  const loadPromise = new Promise<Tone.ToneAudioBuffer | null>((resolve) => {
+    try {
+      const buf = new Tone.ToneAudioBuffer(
+        optimizedUrl,
+        () => {
+          bufferCache.set(optimizedUrl, buf);
+          bufferLoadingPromises.delete(optimizedUrl);
+          resolve(buf);
+        },
+        (err) => {
+          console.warn(`Failed to preload audio buffer for ${optimizedUrl}:`, err);
+          bufferLoadingPromises.delete(optimizedUrl);
+          resolve(null);
+        }
+      );
+    } catch (e) {
+      bufferLoadingPromises.delete(optimizedUrl);
+      resolve(null);
+    }
+  });
+
+  bufferLoadingPromises.set(optimizedUrl, loadPromise);
+  return loadPromise;
+}
+
+export function preloadFragment(id: string) {
+  preloadAudioBuffer(id).catch(() => {});
+}
+
 export function preloadAllAudio() {
   if (typeof window === "undefined") return;
   FRAGMENTS.forEach((frag) => {
     if (frag.mp3Preview) {
-      const optimizedUrl = getOptimizedAudioUrl(frag.mp3Preview);
-      Tone.ToneAudioBuffer.fromUrl(optimizedUrl).catch(() => {});
+      preloadFragment(frag.id);
     }
   });
 }
@@ -235,7 +296,10 @@ export function isAudioLoading(): boolean {
   return isLoadingState;
 }
 
-export function stopAudio() {
+function stopAudioInternal(resetActiveId = true) {
+  // Invalidate any active load token to prevent ghost audio
+  activePlayToken = null;
+
   // CRITICAL: Stop and dispose Tone.Player instance to avoid memory leaks
   if (currentTonePlayer) {
     try {
@@ -264,18 +328,32 @@ export function stopAudio() {
   isLoadingState = false;
   playbackOffsetSec = 0;
   currentBufferDuration = 0;
-  activeId = null;
 
+  if (resetActiveId) {
+    activeId = null;
+  }
+}
+
+export function stopAudio() {
+  stopAudioInternal(true);
   notifyAudioCallbacks();
+}
+
+export function disposeAllAudio() {
+  stopAudio();
+  try {
+    Tone.getTransport().stop();
+    Tone.getTransport().cancel();
+  } catch (e) {}
 }
 
 // Global window unload, pagehide, and visibilitychange listeners
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
-    stopAudio();
+    disposeAllAudio();
   });
   window.addEventListener("pagehide", () => {
-    stopAudio();
+    disposeAllAudio();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -309,8 +387,12 @@ export async function playFragment(
     return;
   }
 
+  // Create unique token for this play attempt
+  const currentToken = Symbol(`play_${id}`);
+  activePlayToken = currentToken;
+
   // Cleanly stop and dispose previous player instance
-  stopAudio();
+  stopAudioInternal(false);
 
   const fragment = FRAGMENTS.find((f) => f.id === id);
   if (fragment && fragment.mp3Preview) {
@@ -318,57 +400,69 @@ export async function playFragment(
     isLoadingState = true;
     activeId = id;
     playbackOffsetSec = 0;
+    notifyAudioCallbacks();
 
     try {
-      const player = new Tone.Player({
-        url: optimizedUrl,
-        loop: true,
-        autostart: false,
-        onload: () => {
-          isLoadingState = false;
-          if (activeId === id && player === currentTonePlayer) {
-            currentBufferDuration = player.buffer.duration || 0;
-            playbackStartedAt = Tone.now() - playbackOffsetSec;
-            player.start(0, playbackOffsetSec);
-            isPlayingState = true;
-            notifyAudioCallbacks();
-          }
-        },
-        onerror: (err) => {
-          console.error("Tone.Player load error for fragment " + id, err);
-          isLoadingState = false;
-          isPlayingState = false;
-          activeId = null;
-          notifyAudioCallbacks();
-        }
-      });
-
-      if (toneMasterVolume) {
-        player.connect(toneMasterVolume);
-      } else {
-        player.toDestination();
+      // 1. Check RAM buffer cache or start preloading
+      let buffer = bufferCache.get(optimizedUrl);
+      if (!buffer || !buffer.loaded) {
+        buffer = await preloadAudioBuffer(id);
       }
 
-      player.loop = true; // Sample-accurate, gapless looping
-      currentTonePlayer = player;
+      // 2. STRICT LIFECYCLE / GHOST AUDIO GUARD:
+      // If user clicked another track, paused, or navigated away while loading, abort!
+      if (activePlayToken !== currentToken || activeId !== id) {
+        return;
+      }
 
-      if (player.loaded) {
-        isLoadingState = false;
-        currentBufferDuration = player.buffer.duration || 0;
+      if (buffer && buffer.loaded) {
+        // Instantiate new Tone.Player using pre-loaded RAM buffer for instant millisecond playback
+        const player = new Tone.Player({
+          url: buffer,
+          loop: true,
+          autostart: false,
+        });
+
+        if (toneMasterVolume) {
+          player.connect(toneMasterVolume);
+        } else {
+          player.toDestination();
+        }
+
+        player.loop = true; // Sample-accurate, gapless looping
+
+        // Double-check token before starting
+        if (activePlayToken !== currentToken || activeId !== id) {
+          player.dispose();
+          return;
+        }
+
+        currentTonePlayer = player;
+        currentBufferDuration = buffer.duration || 0;
         playbackStartedAt = Tone.now() - playbackOffsetSec;
+
         player.start(0, playbackOffsetSec);
         isPlayingState = true;
+        isLoadingState = false;
         notifyAudioCallbacks();
-      } else {
-        notifyAudioCallbacks();
+        return;
       }
-      return;
     } catch (e) {
       console.error("Failed to load or play MP3 with Tone.Player. Falling back to synth.", e);
-      isLoadingState = false;
     }
   }
 
+  // Synth Fallback if token is still active
+  if (activePlayToken === currentToken && activeId === id) {
+    playSynthFallback(id, frequency, synthType);
+  }
+}
+
+function playSynthFallback(
+  id: string,
+  frequency: number,
+  synthType: "drone" | "keys" | "bell" | "noise" | "pulse"
+) {
   // Synth Fallback using Tone Context
   const audioCtx = getAudioCtx();
   if (!audioCtx) return;
