@@ -6,7 +6,7 @@ import { Menu, X, ArrowUpRight, Package, Vault, Mail, Download, ChevronRight } f
 import WelcomeScreen from "./components/WelcomeScreen";
 import SignalTowerSection from "./components/SignalTowerSection";
 import AudioControllerWidget from "./components/AudioControllerWidget";
-import { transitionAmbient, playOwlResonance, preloadAllAudio } from "./audio";
+import { transitionAmbient, preloadAllAudio, stopAudio } from "./audio";
 import OwlClock from "./components/OwlClock";
 import FragmentDetailPage from "./components/FragmentDetailPage";
 import CheckoutPage from "./components/CheckoutPage";
@@ -416,9 +416,19 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeTab]);
 
+  // Ensure complete silence whenever on The Owl Clock tab or leaving a fragment
+  useEffect(() => {
+    if (activeTab === "The Owl Clock" && !selectedFragment) {
+      stopAudio();
+    }
+  }, [activeTab, selectedFragment]);
+
   // Transition ambient background loops smoothly as the client moves between sections
   useEffect(() => {
     if (hasEntered) {
+      if (activeTab === "The Owl Clock") {
+        stopAudio();
+      }
       transitionAmbient(activeTab);
     }
   }, [activeTab, hasEntered]);
@@ -920,12 +930,7 @@ export default function App() {
                       >
                         {isSelected && (
                           <span 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playOwlResonance();
-                            }}
-                            className="text-[11px] animate-pulse hover:scale-130 inline-block transition-transform cursor-pointer"
-                            title="Hear Sentinel Voice"
+                            className="text-[11px] inline-block"
                           >
                             🦉
                           </span>

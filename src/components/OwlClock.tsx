@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
-import { playFragment, stopAudio, getActiveId, registerAudioCallback, playOwlResonance, playCalibrationDenied, playCalibrationSuccess, playTickSound } from "../audio";
+import { stopAudio, getActiveId, registerAudioCallback } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
@@ -163,7 +163,6 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
     if (targetIdx < 0) targetIdx += options.length;
 
     if (lastTickIndexRef.current !== targetIdx) {
-      playTickSound(targetIdx % 5 === 0 ? "low" : "high");
       lastTickIndexRef.current = targetIdx;
     }
   };
@@ -186,13 +185,11 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
     const direction = e.deltaY > 0 ? 1 : -1;
     let targetIdx = (currentIdx + direction) % options.length;
     if (targetIdx < 0) targetIdx += options.length;
-    playTickSound(targetIdx % 5 === 0 ? "low" : "high");
     onChange(options[targetIdx]);
   };
 
   const handleItemClick = (idx: number) => {
     if (idx !== currentIdx) {
-      playTickSound(idx % 5 === 0 ? "low" : "high");
       onChange(options[idx]);
     }
   };
@@ -269,6 +266,11 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
   const [fragments, setFragments] = useState<Fragment[]>(FRAGMENTS);
+
+  // Guarantee complete silence on Owl Clock page mount
+  useEffect(() => {
+    stopAudio();
+  }, []);
 
   useEffect(() => {
     fetch("/api/fragments")
@@ -500,11 +502,10 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     };
   }, [x, y]);
 
-  // Plays signature hoot and triggers automatic timestamp shuffle to an available fragment
+  // Triggers automatic timestamp shuffle to an available fragment (visually silent)
   const handleOwlCall = () => {
     if (isHooting) return;
     setIsHooting(true);
-    playOwlResonance();
 
     // Settle into manual adjustment mode and clear current temporary state
     setIsManual(true);
@@ -546,12 +547,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
       if (count >= maxShuffles) {
         clearInterval(interval);
         setIsHooting(false);
-        // Play success tone and unlock transmission
-        playCalibrationSuccess();
         setCalibrationState("available");
-      } else {
-        // High-speed tick sounds
-        playTickSound(count % 2 === 0 ? "low" : "high");
       }
     }, 100);
   };
@@ -560,18 +556,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     const matchedFrag = fragments.find(f => f.id === item.mappedId);
     if (matchedFrag && onSelectFragment) {
       onSelectFragment(matchedFrag);
-    } else {
-      if (activePlayId === item.id) {
-        stopAudio();
-        setActivePlayId(null);
-      } else {
-        playFragment(item.mappedId, item.frequency, item.synthType);
-        setActivePlayId(item.id);
-        
-        // Auto pulse eye briefly on frequency click
-        setIsHooting(true);
-        setTimeout(() => setIsHooting(false), 600);
-      }
     }
   };
 
@@ -616,7 +600,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setIsManual(true);
     setCalibrationState("idle");
     setPickedHour(h);
-    playTickSound("high");
   };
 
   const handleMinuteClick = (m: number, e?: React.MouseEvent) => {
@@ -624,7 +607,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setIsManual(true);
     setCalibrationState("idle");
     setPickedMinute(m);
-    playTickSound("low");
   };
 
   const handleAMPMClick = (ampm: "AM" | "PM", e?: React.MouseEvent) => {
@@ -632,7 +614,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     setIsManual(true);
     setCalibrationState("idle");
     setPickedAMPM(ampm);
-    playTickSound("high");
   };
 
   // Find the closest fragment circular in time (1440 minutes)
@@ -677,10 +658,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const handleImmediateCheck = () => {
     if (exactClockFragment) {
       setCalibrationState("available");
-      playCalibrationSuccess();
     } else {
       setCalibrationState("restricted");
-      playCalibrationDenied();
     }
   };
 
@@ -693,10 +672,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
     const timer = setTimeout(() => {
       if (exactClockFragment) {
         setCalibrationState("available");
-        playCalibrationSuccess();
       } else {
         setCalibrationState("restricted");
-        playCalibrationDenied();
       }
     }, 750); // 750ms of inactivity represents finishing interaction
 
@@ -704,10 +681,6 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   }, [displayHour, displayMinute, displayAMPM, isManual, exactClockFragment]);
 
   const handleTransmit = () => {
-    if (exactClockFragment) {
-      playFragment(exactClockFragment.mappedId, exactClockFragment.frequency, exactClockFragment.synthType);
-      setActivePlayId(exactClockFragment.id);
-    }
     if (exactActualFrag && onSelectFragment) {
       onSelectFragment(exactActualFrag);
     }
@@ -716,23 +689,11 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
   const currentClockItem = exactClockFragment || CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[0]; // fallback to exactClockFragment or active or 10:00 PM
   const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS.find(f => f.id === "10:00") || FRAGMENTS[0];
   const formattedTitle = matchedFrag.name.toUpperCase();
-  const isPlayingBeat = !!activePlayId;
-
-  // Seamlessly shift playing audio when the user turns or shuffles the time wheel to a new fragment
-  useEffect(() => {
-    if (activePlayId && exactClockFragment && activePlayId !== exactClockFragment.id) {
-      playFragment(exactClockFragment.mappedId, exactClockFragment.frequency, exactClockFragment.synthType);
-      setActivePlayId(exactClockFragment.id);
-    }
-  }, [exactClockFragment, activePlayId]);
+  const isPlayingBeat = false;
 
   const toggleModalPlay = () => {
-    if (isPlayingBeat) {
-      stopAudio();
-      setActivePlayId(null);
-    } else {
-      playFragment(currentClockItem.mappedId, currentClockItem.frequency, currentClockItem.synthType);
-      setActivePlayId(currentClockItem.id);
+    if (exactActualFrag && onSelectFragment) {
+      onSelectFragment(exactActualFrag);
     }
   };
 

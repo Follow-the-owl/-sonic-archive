@@ -227,6 +227,8 @@ export async function resumeAudio() {
   }
 }
 
+let currentAudioSessionToken = 0;
+
 export function isAudioPaused(): boolean {
   return !isPlayingState;
 }
@@ -236,6 +238,7 @@ export function isAudioLoading(): boolean {
 }
 
 export function stopAudio() {
+  currentAudioSessionToken++;
   // CRITICAL: Stop and dispose Tone.Player instance to avoid memory leaks
   if (currentTonePlayer) {
     try {
@@ -312,6 +315,8 @@ export async function playFragment(
   // Cleanly stop and dispose previous player instance
   stopAudio();
 
+  const sessionToken = currentAudioSessionToken;
+
   const fragment = FRAGMENTS.find((f) => f.id === id);
   if (fragment && fragment.mp3Preview) {
     const optimizedUrl = getOptimizedAudioUrl(fragment.mp3Preview);
@@ -325,8 +330,15 @@ export async function playFragment(
         loop: true,
         autostart: false,
         onload: () => {
+          if (currentAudioSessionToken !== sessionToken || activeId !== id) {
+            try {
+              player.stop();
+              player.dispose();
+            } catch (e) {}
+            return;
+          }
           isLoadingState = false;
-          if (activeId === id && player === currentTonePlayer) {
+          if (player === currentTonePlayer) {
             currentBufferDuration = player.buffer.duration || 0;
             playbackStartedAt = Tone.now() - playbackOffsetSec;
             player.start(0, playbackOffsetSec);
@@ -335,6 +347,7 @@ export async function playFragment(
           }
         },
         onerror: (err) => {
+          if (currentAudioSessionToken !== sessionToken) return;
           console.error("Tone.Player load error for fragment " + id, err);
           isLoadingState = false;
           isPlayingState = false;
@@ -353,6 +366,13 @@ export async function playFragment(
       currentTonePlayer = player;
 
       if (player.loaded) {
+        if (currentAudioSessionToken !== sessionToken || activeId !== id) {
+          try {
+            player.stop();
+            player.dispose();
+          } catch (e) {}
+          return;
+        }
         isLoadingState = false;
         currentBufferDuration = player.buffer.duration || 0;
         playbackStartedAt = Tone.now() - playbackOffsetSec;
