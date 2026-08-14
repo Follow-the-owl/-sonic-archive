@@ -2249,7 +2249,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/98 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-6 select-text font-mono"
+            className="transmissions-overlay dashboard-page fixed inset-0 bg-black/98 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-6 select-text font-sans"
           >
             <motion.div 
               initial={{ scale: 0.98, opacity: 0 }}
@@ -2311,13 +2311,13 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-none font-mono"
+            className="transmissions-overlay dashboard-page fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-none font-sans"
           >
           <motion.div 
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="border border-zinc-850 bg-[#050505] p-6 max-w-md w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative rounded-sm"
+            className="border border-zinc-850 bg-[#050505] p-6 max-w-md w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative rounded-sm font-sans"
           >
             {/* Header */}
             <div className="flex justify-between items-start border-b border-zinc-900 pb-3">

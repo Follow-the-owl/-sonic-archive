@@ -1059,7 +1059,7 @@ Proceed with soft deletion?`)) {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#020202] text-zinc-200 font-mono select-text text-left pb-12 flex flex-col md:flex-row gap-6">
+    <div className="admin-dashboard dashboard-page w-full min-h-screen bg-[#020202] text-zinc-200 font-sans select-text text-left pb-12 flex flex-col md:flex-row gap-6">
       {/* Dynamic Toast Message */}
       <AnimatePresence>
         {toastMessage && (

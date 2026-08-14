@@ -270,7 +270,7 @@ export default function CheckoutPage({
   };
 
   return (
-    <div className="w-full min-h-screen bg-black text-[#D9D6CA] font-sans py-12 px-4 md:px-8 select-none">
+    <div className="checkout-page dashboard-page w-full min-h-screen bg-black text-[#D9D6CA] font-sans py-12 px-4 md:px-8 select-none">
       <div className="max-w-6xl mx-auto">
         
         {/* Breadcrumb Indicator */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
-import { stopAudio, getActiveId, registerAudioCallback } from "../audio";
+import { stopAudio, getActiveId, registerAudioCallback, playTickSound } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
@@ -543,6 +543,9 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
       setPickedHour(h);
       setPickedMinute(m);
       setPickedAMPM(ampm);
+
+      // Play mechanical shuffle tick sound
+      playTickSound(count % 2 === 0 ? "low" : "high");
 
       if (count >= maxShuffles) {
         clearInterval(interval);

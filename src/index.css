@@ -18,25 +18,45 @@ html, body, #root, * {
   font-family: "Special Elite", system-ui, serif !important;
 }
 
-/* Policy & Protocol pages - strictly use Poppins font */
-.refund-page,
-.refund-page *,
-.privacy-page,
-.privacy-page *,
-.acceptable-use-page,
-.acceptable-use-page *,
-.cookie-page,
-.cookie-page *,
-.terms-page,
-.terms-page *,
+/* Dashboard, Workspace, Policy & Protocol pages - strictly use Poppins font for clear readability */
+.dashboard-page,
+.dashboard-page *,
+.admin-dashboard,
+.admin-dashboard *,
+.document-dashboard,
+.document-dashboard *,
+.client-dashboard,
+.client-dashboard *,
+.customer-dashboard,
+.customer-dashboard *,
+.transmissions-overlay,
+.transmissions-overlay *,
+.checkout-page,
+.checkout-page *,
+.verification-page,
+.verification-page *,
+.licensing-schedule-page,
+.licensing-schedule-page *,
 .clearance-guide-page,
 .clearance-guide-page *,
 .about-archive-page,
 .about-archive-page *,
 .contact-page,
 .contact-page *,
-.verification-page,
-.verification-page * {
+.terms-page,
+.terms-page *,
+.privacy-page,
+.privacy-page *,
+.cookie-page,
+.cookie-page *,
+.refund-page,
+.refund-page *,
+.acceptable-use-page,
+.acceptable-use-page *,
+.font-poppins,
+.font-poppins *,
+[data-font="poppins"],
+[data-font="poppins"] * {
   font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 

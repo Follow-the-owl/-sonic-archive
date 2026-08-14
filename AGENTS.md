@@ -8,8 +8,8 @@ Use this exact order:
 
 1. ARCHIVE
 2. CLEARANCE
-3. SYSTEM
-4. PROTOCOLS
+3. ABOUT
+4. LEGAL
 5. TRANSMISSIONS
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -20,38 +20,29 @@ Use accordion sections.
 
 ### ARCHIVE
 * Recovered Fragments
-* Composition Archive
 * License Verification
 
 ### CLEARANCE
 * Request Clearance
-* Publishing
-* Metadata
-* Ownership Verification
-* Royalty Administration
-* Rights Administration
+* Fragment Clearance Guide
 
-### SYSTEM
+### ABOUT
 * About the Archive
-* Enterprise
-* Support
 * Contact
 
-### PROTOCOLS
-* Terms
-* Privacy
-* Cookies
-* Refunds
-* Acceptable Use
+### LEGAL
+* Terms of Use
+* Privacy Policy
+* Cookie Policy
+* Refund Policy
+* Acceptable Use Policy
 
 ### TRANSMISSIONS
 * Instagram
 * TikTok
-* YouTube
-* Signal
 
 ### BOTTOM FOOTER
-LOMON LLC
+The Owl Clock
 Publishing • Rights Management • Licensing
 Atlanta, Georgia
 © 2026 LOMON LLC
@@ -64,32 +55,24 @@ Use 5 columns.
 
 ### COLUMN 1 — ARCHIVE
 * Recovered Fragments
-* Composition Archive
 * License Verification
 
 ### COLUMN 2 — CLEARANCE
 * Request Clearance
-* Publishing
-* Metadata
-* Ownership Verification
-* Royalty Administration
-* Rights Administration
+* Fragment Clearance Guide
 
-### COLUMN 3 — SYSTEM
+### COLUMN 3 — ABOUT
 * About the Archive
-* Enterprise
-* Support
 * Contact
 
-### COLUMN 4 — PROTOCOLS
-* Terms
-* Privacy
-* Cookies
-* Refunds
-* Acceptable Use
+### COLUMN 4 — LEGAL
+* Terms of Use
+* Privacy Policy
+* Cookie Policy
+* Refund Policy
+* Acceptable Use Policy
 
 ### COLUMN 5 — TRANSMISSIONS
 * Instagram
 * TikTok
-* YouTube
-* Signal
+

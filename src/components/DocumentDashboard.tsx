@@ -707,7 +707,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
   });
 
   return (
-    <div className="w-full text-zinc-300 font-mono select-text text-left max-w-7xl mx-auto flex flex-col md:flex-row h-full min-h-[550px] gap-6 p-1">
+    <div className="document-dashboard dashboard-page w-full text-zinc-300 font-sans select-text text-left max-w-7xl mx-auto flex flex-col md:flex-row h-full min-h-[550px] gap-6 p-1">
       
       {/* LEFT COLUMN: Sidebar Navigation Panel */}
       <div className="w-full md:w-64 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-zinc-900 pb-4 md:pb-0 md:pr-4 select-none">
