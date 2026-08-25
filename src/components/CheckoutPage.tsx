@@ -2,11 +2,20 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, ArrowUpRight, ChevronRight, Trash2, Mail, Phone, MapPin, 
-  Building, CreditCard, ShieldCheck, ChevronDown, Check, Info 
+  Building, CreditCard, ShieldCheck, ChevronDown, Check, Info,
+  FileText, Download, Copy, CheckCircle2, Scale, ExternalLink
 } from "lucide-react";
 import { CartItem } from "../App";
 import { DEFAULT_LICENSE_TEMPLATES } from "../licenses";
-import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
+import { 
+  openOrDownloadLicenseAgreement, 
+  generateFullAgreementText,
+  getScheduleAData,
+  getScheduleBData,
+  getLegalArticlesForTier,
+  normalizeTierId,
+  LicenseAgreementData 
+} from "../lib/licenseAgreements";
 
 interface CheckoutPageProps {
   cart: CartItem[];
@@ -23,6 +32,7 @@ interface CheckoutPageProps {
   onOpenPrivacy?: () => void;
   onOpenRefunds?: () => void;
   onOpenLicenseAgreement?: () => void;
+  onOpenDashboard?: () => void;
 }
 
 type CheckoutStep = "cart" | "auth" | "billing" | "paypal" | "success";
@@ -41,7 +51,8 @@ export default function CheckoutPage({
   onOpenTerms,
   onOpenPrivacy,
   onOpenRefunds,
-  onOpenLicenseAgreement
+  onOpenLicenseAgreement,
+  onOpenDashboard
 }: CheckoutPageProps) {
   const [step, setStep] = useState<CheckoutStep>(initialStep);
 
@@ -95,6 +106,8 @@ export default function CheckoutPage({
 
   // License review state
   const [reviewLicenseItem, setReviewLicenseItem] = useState<CartItem | null>(null);
+  const [reviewModalTab, setReviewModalTab] = useState<"summary" | "fullText">("summary");
+  const [copiedContract, setCopiedContract] = useState(false);
 
   // PayPal payment interface state
   const [paypalProcessing, setPaypalProcessing] = useState(false);
@@ -192,6 +205,45 @@ export default function CheckoutPage({
     setPaypalProcessing(true);
 
     try {
+      const buyerEmail = (email || currentUserEmail || "evianaconcepts1@gmail.com").toLowerCase().trim();
+      const legalName = `${firstName} ${lastName}`.trim() || buyerEmail;
+
+      // Always save pending purchase details to localStorage for robust recovery across redirects
+      try {
+        localStorage.setItem("lomon_pending_purchase", JSON.stringify(cart));
+        localStorage.setItem("lomon_pending_email", buyerEmail);
+
+        // Pre-seed local licenses for instantaneous dashboard availability
+        const generatedLicenses = cart.map(item => {
+          const uniqueId = `TOC-LIC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100 + Math.random() * 900)}`;
+          return {
+            id: uniqueId,
+            song: item.name,
+            type: item.tierTitle || "Commercial License",
+            date: new Date().toISOString().replace("T", " ").substring(0, 19) + " UTC",
+            isrc: `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+            iswc: `T-302.${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}-1`,
+            email: buyerEmail,
+            signature: `DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ${buyerEmail.toUpperCase()}`,
+            hash: `0x${Math.random().toString(16).substring(2, 18).toUpperCase()}`,
+            tierId: item.tierId || "commercial",
+            licenseeLegalName: legalName,
+            archiveIdentifier: `TOC-${(item.id || item.fragmentId || "FRAG").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`,
+            transactionRef: `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+            purchaseDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+            price: item.price,
+            artwork: item.artwork
+          };
+        });
+        const savedRaw = localStorage.getItem("lomon_user_licenses");
+        const existing = savedRaw ? JSON.parse(savedRaw) : [];
+        const map = new Map();
+        existing.forEach((l: any) => map.set(l.id || l.song, l));
+        generatedLicenses.forEach((l: any) => map.set(l.id || l.song, l));
+        localStorage.setItem("lomon_user_licenses", JSON.stringify(Array.from(map.values())));
+        window.dispatchEvent(new CustomEvent("lomon_licenses_updated"));
+      } catch (_e) {}
+
       // Create order on the backend
       const response = await fetch("/api/paypal/create-order", {
         method: "POST",
@@ -200,8 +252,8 @@ export default function CheckoutPage({
           ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {})
         },
         body: JSON.stringify({
-          email: email || currentUserEmail || "guest@lomon.local",
-          licenseeLegalName: `${firstName} ${lastName}`.trim() || email || currentUserEmail,
+          email: buyerEmail,
+          licenseeLegalName: legalName,
           billing: { firstName, lastName, streetAddress, city, stateProvince, zipCode, country },
           amount: subtotal,
           items: cart.map(item => ({
@@ -386,10 +438,24 @@ export default function CheckoutPage({
                                 </div>
                                 <div className="text-left min-w-0">
                                   <h4 className="text-white font-extrabold text-[15px] tracking-wide leading-tight truncate font-sans">
-                                    {item.name}
+                                    {item.name.replace(/\s*\/\/\s*LOMON CO-SIGN/gi, " . LOMON CO-SIGN").toUpperCase().includes("CO-SIGN") 
+                                      ? item.name.replace(/\s*\/\/\s*LOMON CO-SIGN/gi, " . LOMON CO-SIGN") 
+                                      : item.name.includes("10:00") 
+                                      ? "FRAGMENT 10:00 PM . LOMON CO-SIGN" 
+                                      : item.name.startsWith("FRAGMENT") 
+                                      ? `${item.name} . LOMON CO-SIGN` 
+                                      : `FRAGMENT ${item.name} . LOMON CO-SIGN`}
                                   </h4>
                                   <p className="text-zinc-500 text-[10.5px] mt-1 uppercase tracking-wider font-normal font-sans">
-                                    TRACK • {item.tierId === "access" ? "MP3 License (MP3)" : item.tierId === "release" ? "Unlimited License (Track Stems,WAV,MP3)" : "Commercial License (Full WAV Stems,WAV,MP3)"}
+                                    TRACK • {
+                                      item.tierId === "access" || item.price === "$150" || item.price === "$150.00"
+                                        ? "ARCHIVE ACCESS LICENSE (REFERENCE MP3, WATERMARKED WAV)"
+                                        : item.tierId === "release" || item.price === "$500" || item.price === "$500.00"
+                                        ? "COMMERCIAL RELEASE LICENSE (LOSSLESS WAV, MP3)"
+                                        : item.tierId === "exclusive" || item.price === "$5,000" || item.price === "$5000" || item.price === "$5000.00"
+                                        ? "COMMERCIAL LICENSE (STEMS, WAV, MP3)"
+                                        : "COMMERCIAL LICENSE (STEMS, WAV, MP3)"
+                                    }
                                   </p>
                                 </div>
                               </div>
@@ -1006,7 +1072,7 @@ export default function CheckoutPage({
               </span>
               {cart.map((item) => (
                 <div key={item.id} className="flex justify-between items-center text-[10.5px] text-zinc-400 py-1 border-b border-zinc-950">
-                  <span className="truncate pr-4 font-bold">{item.name} ({item.tierTitle})</span>
+                  <span className="truncate pr-4 font-bold">{item.name.replace(/\s*\/\/\s*LOMON CO-SIGN/gi, " . LOMON CO-SIGN")} ({item.tierTitle})</span>
                   <span className="text-white shrink-0 font-sans font-bold">{item.price}</span>
                 </div>
               ))}
@@ -1059,12 +1125,25 @@ export default function CheckoutPage({
               </div>
             )}
 
-            <button
-              onClick={handleCompleteAll}
-              className="text-[11px] font-sans font-extrabold text-black bg-[#D9D6CA] hover:bg-white px-8 py-3.5 tracking-widest uppercase transition-all rounded-[4px] cursor-pointer shadow-lg"
-            >
-              CLOSE SECURE PORTAL
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
+              {onOpenDashboard && (
+                <button
+                  onClick={() => {
+                    handleCompleteAll();
+                    onOpenDashboard();
+                  }}
+                  className="w-full sm:w-auto text-[11px] font-mono font-bold text-black bg-[#00E676] hover:bg-[#00c853] px-6 py-3.5 tracking-wider uppercase transition-all rounded-[4px] cursor-pointer shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>GO TO CLIENT DASHBOARD →</span>
+                </button>
+              )}
+              <button
+                onClick={handleCompleteAll}
+                className="w-full sm:w-auto text-[11px] font-mono font-bold text-[#D9D6CA] bg-zinc-900 hover:bg-zinc-800 hover:text-white px-6 py-3.5 tracking-wider uppercase transition-all rounded-[4px] cursor-pointer border border-zinc-800"
+              >
+                RETURN TO CATALOG
+              </button>
+            </div>
           </motion.div>
         )}
       </div>
@@ -1072,94 +1151,221 @@ export default function CheckoutPage({
       {/* License terms review dialog */}
       <AnimatePresence>
         {reviewLicenseItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-[440px] bg-zinc-950 border border-zinc-900 p-6 rounded-[4px] flex flex-col text-left font-sans"
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="relative w-full max-w-[620px] bg-[#0c0c0c] border border-zinc-800 p-5 sm:p-7 rounded-[6px] flex flex-col text-left font-sans shadow-2xl max-h-[90vh]"
             >
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4">
-                <span className="text-[10.5px] font-bold text-[#D9D6CA] tracking-widest uppercase">
-                  LICENSE REVIEW — {reviewLicenseItem.name}
-                </span>
-                <button
-                  onClick={() => setReviewLicenseItem(null)}
-                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs"
-                >
-                  ✕
-                </button>
-              </div>
+              {(() => {
+                const normalizedTier = normalizeTierId(reviewLicenseItem.tierId || reviewLicenseItem.price);
+                const licenseData: LicenseAgreementData = {
+                  licenseId: `TOC-LIC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100 + Math.random() * 900)}`,
+                  transactionRef: `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+                  purchaseDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+                  licenseeLegalName: `${firstName} ${lastName}`.trim() || email || currentUserEmail || "Authorized Licensee",
+                  licenseeEmail: email || currentUserEmail || "licensee@lomon.local",
+                  fragmentTitle: reviewLicenseItem.name,
+                  archiveIdentifier: `TOC-${(reviewLicenseItem.id || reviewLicenseItem.fragmentId || "FRAG").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`,
+                  licenseTierId: reviewLicenseItem.tierId || normalizedTier,
+                  licenseTierTitle: reviewLicenseItem.tierTitle,
+                  price: reviewLicenseItem.price
+                };
 
-              <div className="space-y-4 text-[10.5px] leading-relaxed max-h-[350px] overflow-y-auto pr-1">
-                {(() => {
-                  const template = DEFAULT_LICENSE_TEMPLATES.find(t => t.id === reviewLicenseItem.tierId);
-                  return (
-                    <>
+                const schedA = getScheduleAData(licenseData);
+                const schedB = getScheduleBData(licenseData);
+                const legalTier = getLegalArticlesForTier(normalizedTier);
+
+                const handleCopyFullAgreement = () => {
+                  const fullText = generateFullAgreementText(licenseData);
+                  navigator.clipboard.writeText(fullText);
+                  setCopiedContract(true);
+                  setTimeout(() => setCopiedContract(false), 2500);
+                };
+
+                const handleOpenPdf = () => {
+                  openOrDownloadLicenseAgreement(licenseData);
+                };
+
+                return (
+                  <>
+                    {/* Modal Header */}
+                    <div className="flex items-start justify-between border-b border-zinc-800 pb-4 mb-4 gap-3">
                       <div>
-                        <span className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block mb-1">CONTRACT LEVEL</span>
-                        <p className="text-white font-bold uppercase">{template?.title || "CUSTOM CLEARANCE"}</p>
-                        <p className="text-zinc-400 text-[9px] font-mono italic">{template?.subtitle}</p>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-[10px] font-mono font-bold tracking-widest text-[#00E676] uppercase bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-[2px]">
+                            {schedA.licenseFee}
+                          </span>
+                          <span className="text-[10px] font-mono tracking-widest text-zinc-400 uppercase">
+                            EDITION: {schedB.contractVersion}
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-bold text-white tracking-wide uppercase font-sans">
+                          {legalTier.agreementTitle}
+                        </h3>
+                        <p className="text-zinc-400 text-xs font-mono mt-0.5">
+                          Fragment: <span className="text-white font-semibold">{reviewLicenseItem.name}</span> • ID: {schedA.archiveIdentifier}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setReviewLicenseItem(null)}
+                        className="text-zinc-400 hover:text-white p-1 rounded transition-colors cursor-pointer text-sm"
+                        title="Close review"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div className="flex border-b border-zinc-800 mb-4 text-[11px] font-mono uppercase tracking-wider">
+                      <button
+                        onClick={() => setReviewModalTab("summary")}
+                        className={`pb-2.5 px-3 font-semibold transition-colors cursor-pointer border-b-2 ${
+                          reviewModalTab === "summary"
+                            ? "border-[#D9D6CA] text-white"
+                            : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        Contract Schedules (A &amp; B)
+                      </button>
+                      <button
+                        onClick={() => setReviewModalTab("fullText")}
+                        className={`pb-2.5 px-3 font-semibold transition-colors cursor-pointer border-b-2 ${
+                          reviewModalTab === "fullText"
+                            ? "border-[#D9D6CA] text-white"
+                            : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        Verbatim Legal Articles (1–7)
+                      </button>
+                    </div>
+
+                    {/* Scrollable Content Body */}
+                    <div className="overflow-y-auto pr-1.5 space-y-4 max-h-[50vh] text-xs leading-relaxed">
+                      {reviewModalTab === "summary" ? (
+                        <div className="space-y-4">
+                          {/* Notice Banner */}
+                          <div className="p-3 bg-zinc-900/90 border-l-2 border-[#D9D6CA] text-zinc-300 text-[11.5px] rounded-r-[3px] leading-relaxed">
+                            <span className="text-white font-bold block mb-1">OFFICIAL NOTICE:</span>
+                            {legalTier.importantNotice.map((notice, idx) => (
+                              <p key={idx} className="mt-1 first:mt-0">{notice}</p>
+                            ))}
+                          </div>
+
+                          {/* Schedule A Table */}
+                          <div className="border border-zinc-800 rounded-[4px] overflow-hidden bg-zinc-950/60">
+                            <div className="bg-zinc-900/80 px-3 py-2 border-b border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 tracking-wider uppercase">
+                              SCHEDULE A: TRANSACTION &amp; LICENSED ASSET
+                            </div>
+                            <div className="divide-y divide-zinc-900 text-[11px]">
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedA.licensor}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">License Tier:</span>
+                                <span className="col-span-2 text-[#00E676] font-bold">{schedA.licenseTier}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Delivery Package:</span>
+                                <span className="col-span-2 text-zinc-200">{schedA.deliveryPackage}</span>
+                              </div>
+                              {schedA.catalogStatus && (
+                                <div className="grid grid-cols-3 p-2.5">
+                                  <span className="text-zinc-500 font-mono">Catalog Status:</span>
+                                  <span className="col-span-2 text-zinc-300 font-mono">{schedA.catalogStatus}</span>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Permitted Scope:</span>
+                                <div className="col-span-2 space-y-1 text-zinc-300">
+                                  {schedA.permittedScope.map((scopeItem, i) => (
+                                    <div key={i} className="flex items-start gap-1.5">
+                                      <span className="text-[#00E676] font-bold">•</span>
+                                      <span>{scopeItem}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Schedule B Table */}
+                          <div className="border border-zinc-800 rounded-[4px] overflow-hidden bg-zinc-950/60">
+                            <div className="bg-zinc-900/80 px-3 py-2 border-b border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 tracking-wider uppercase">
+                              SCHEDULE B: OWNERSHIP &amp; PUBLISHING SPLITS
+                            </div>
+                            <div className="divide-y divide-zinc-900 text-[11px]">
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Master Ownership:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.masterOwnership}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Publishing Split:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.publishingShare}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Writer Split:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.writerShare}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Exclusivity:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.exclusivity}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 font-mono text-[11px] text-zinc-300">
+                          {legalTier.articles.map((article, aIdx) => (
+                            <div key={aIdx} className="border border-zinc-900 p-3.5 bg-zinc-950/70 rounded-[4px] space-y-2">
+                              <h4 className="text-white font-bold font-sans tracking-wide text-xs uppercase border-b border-zinc-900 pb-1.5">
+                                {article.title}
+                              </h4>
+                              {article.sections.map((section, sIdx) => (
+                                <div key={sIdx} className="space-y-1 pt-1">
+                                  <p className="text-[#D9D6CA] font-bold text-[10.5px]">{section.heading}</p>
+                                  <p className="text-zinc-400 font-sans text-[11px] leading-relaxed whitespace-pre-line">
+                                    {section.text}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Modal Footer Actions */}
+                    <div className="mt-5 pt-4 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={handleOpenPdf}
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-[10.5px] font-mono font-bold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 hover:text-white px-3.5 py-2.5 rounded-[4px] transition-colors border border-zinc-700 cursor-pointer"
+                        >
+                          <FileText size={13} />
+                          <span>PRINT / SAVE PDF</span>
+                        </button>
+                        <button
+                          onClick={handleCopyFullAgreement}
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-[10.5px] font-mono font-bold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 hover:text-white px-3.5 py-2.5 rounded-[4px] transition-colors border border-zinc-700 cursor-pointer"
+                        >
+                          {copiedContract ? <CheckCircle2 size={13} className="text-[#00E676]" /> : <Copy size={13} />}
+                          <span>{copiedContract ? "COPIED TO CLIPBOARD" : "COPY FULL TEXT"}</span>
+                        </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 border-t border-zinc-900 pt-3">
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">FILE DELIVERY</span>
-                          <p className="text-zinc-300 font-sans">{template?.fileDelivery}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">DISTRIBUTION LIMIT</span>
-                          <p className="text-zinc-300 font-sans">{template?.distributionLimit}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">STREAMING LIMIT</span>
-                          <p className="text-zinc-300 font-sans">{template?.streamingLimit}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">VIDEO USE</span>
-                          <p className="text-zinc-300 font-sans">{template?.videoUse}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">MONETIZATION</span>
-                          <p className="text-zinc-300 font-sans">{template?.monetization}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">PERFORMANCE RIGHTS</span>
-                          <p className="text-zinc-300 font-sans">{template?.performanceRights}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">TERM & TERRITORY</span>
-                          <p className="text-zinc-300 font-sans">{template?.term} / {template?.territory}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">PUBLISHING SPLIT</span>
-                          <p className="text-zinc-300 font-sans">{template?.publishingSplit}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">MASTER OWNERSHIP</span>
-                          <p className="text-zinc-300 font-sans">{template?.masterOwnership}</p>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500 uppercase tracking-widest text-[7.5px] font-bold block mb-0.5">EXCLUSIVITY</span>
-                          <p className="text-zinc-300 font-sans">{template?.exclusivity}</p>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-zinc-900 pt-3 flex justify-between items-center text-[8.5px] font-mono text-zinc-500">
-                        <span>CONTRACT VERSION: {template?.contractVersion}</span>
-                        <span>PRICE: ${template?.price}</span>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              <button
-                onClick={() => setReviewLicenseItem(null)}
-                className="mt-6 w-full bg-[#D9D6CA] text-black hover:bg-white transition-all font-sans font-bold text-[11px] py-3 tracking-wider uppercase rounded-[4px] cursor-pointer"
-              >
-                DISMISS TERMS
-              </button>
+                      <button
+                        onClick={() => setReviewLicenseItem(null)}
+                        className="w-full sm:w-auto bg-[#D9D6CA] text-black hover:bg-white transition-all font-sans font-bold text-[11px] px-6 py-2.5 tracking-wider uppercase rounded-[4px] cursor-pointer shadow"
+                      >
+                        DISMISS
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </motion.div>
           </div>
         )}

@@ -20,9 +20,15 @@ interface FragmentDetailPageProps {
   fragment: Fragment;
   onBack: () => void;
   onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
+  onRequestProposal?: (fragmentName?: string, tierTitle?: string) => void;
 }
 
-export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: FragmentDetailPageProps) {
+export default function FragmentDetailPage({ 
+  fragment, 
+  onBack, 
+  onAddToCart,
+  onRequestProposal 
+}: FragmentDetailPageProps) {
   // Active fragment state allowing seamless music shifting right on the detail page
   const [activeFrag, setActiveFrag] = useState<Fragment>(fragment);
   const CONTRACT_TIERS = getLicensesForFragment(activeFrag);
@@ -679,7 +685,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             </span>
           </div>
           <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">PULSE (TEMPO)</span>
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">PULSE</span>
             <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
               {activeFrag.bpm || 110} BPM
             </span>
@@ -696,7 +702,7 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
             </span>
           </button>
           <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
-            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST CO-SIGN</span>
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST</span>
             <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
               {activeFrag.archivist || "LOMON SYSTEM"}
             </span>
@@ -825,6 +831,12 @@ export default function FragmentDetailPage({ fragment, onBack, onAddToCart }: Fr
                               {/* Price check out buttons */}
                               <button
                                 onClick={() => {
+                                  const isCustomProposal = tier.priceDisplay?.toUpperCase().includes("PROPOSAL") || tier.priceDisplay?.toUpperCase().includes("CUSTOM") || tier.id === "sync";
+                                  if (isCustomProposal && onRequestProposal) {
+                                    setShowLicensePanel(false);
+                                    onRequestProposal(activeFrag.timestamp, tier.title);
+                                    return;
+                                  }
                                   if (onAddToCart) {
                                     const displayPrice = tier.priceDisplay || (tier.price ? `$${tier.price}` : "CUSTOM");
                                     onAddToCart(fragment, tier.id, tier.title, displayPrice);

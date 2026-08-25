@@ -19,6 +19,8 @@ interface ClockFragment {
 interface OwlClockProps {
   onSelectFragment?: (frag: Fragment) => void;
   onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
+  onRequestProposal?: (fragmentName?: string, tierTitle?: string) => void;
+  onRequestCollaboration?: (fragmentName?: string) => void;
 }
 
 const CLOCK_FRAGMENTS: ClockFragment[] = [
@@ -262,7 +264,12 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
   );
 }
 
-export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProps) {
+export default function OwlClock({ 
+  onSelectFragment, 
+  onAddToCart,
+  onRequestProposal,
+  onRequestCollaboration
+}: OwlClockProps) {
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
   const [fragments, setFragments] = useState<Fragment[]>(FRAGMENTS);
@@ -971,6 +978,14 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    const isCustomProposal = tier.price?.toUpperCase().includes("PROPOSAL") || tier.price?.toUpperCase().includes("CUSTOM") || tier.id === "sync";
+                                    if (isCustomProposal && onRequestProposal) {
+                                      setShowLicensePanel(false);
+                                      setSelectedTier(null);
+                                      setClientEmail("");
+                                      onRequestProposal(matchedFrag.timestamp, tier.title);
+                                      return;
+                                    }
                                     if (onAddToCart) {
                                       onAddToCart(matchedFrag, tier.id, tier.title, tier.price);
                                     }
@@ -978,7 +993,7 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                                     setSelectedTier(null);
                                     setClientEmail("");
                                   }}
-                                  className="w-full sm:w-auto justify-center bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-2 sm:py-1.5 px-3 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-sm mt-1 sm:mt-0"
+                                  className="w-full sm:w-auto justify-center bg-[#D9D6CA] hover:bg-white text-black font-sans font-bold text-[10px] sm:text-xs py-2 sm:py-1.5 px-3 rounded-lg sm:rounded-xl flex items-center gap-1.5 transition-all duration-300 shrink-0 shadow-sm mt-1 sm:mt-0 cursor-pointer"
                                 >
                                   <Lock size={10} strokeWidth={2.5} className="text-black shrink-0" />
                                   <span>{tier.price}</span>
@@ -1069,6 +1084,15 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                       type="button"
                       onClick={(e) => {
                         if (!selectedTier) return;
+                        const isCustomProposal = selectedTier === "sync" || selectedTier === "collaboration";
+                        if (isCustomProposal && onRequestProposal) {
+                          const currentTierObj = CONTRACT_TIERS.find(t => t.id === selectedTier);
+                          setShowLicensePanel(false);
+                          setSelectedTier(null);
+                          setClientEmail("");
+                          onRequestProposal(matchedFrag?.timestamp, currentTierObj?.title);
+                          return;
+                        }
                         if (!clientEmail) {
                           const inputEl = document.querySelector('input[type="email"]') as HTMLInputElement;
                           if (inputEl) inputEl.focus();
@@ -1085,6 +1109,8 @@ export default function OwlClock({ onSelectFragment, onAddToCart }: OwlClockProp
                     >
                       {isProcessingLicense ? (
                         <span>PROCESSING...</span>
+                      ) : selectedTier === "sync" || selectedTier === "collaboration" ? (
+                        <span>TRANSMIT CUSTOM PROPOSAL →</span>
                       ) : (
                         <span>&lt; REQUEST CLEARANCE →</span>
                       )}

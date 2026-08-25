@@ -71,11 +71,11 @@ export default function SignalTowerSection() {
               <span className="text-zinc-650 block uppercase tracking-wider">DIRECT INBOX:</span>
               <a
                 id="tower-email"
-                href="mailto:followtheowlarchive@gmail.com"
+                href="mailto:contact@theowlclock.com"
                 className="text-zinc-200 hover:text-gold-muted flex items-center gap-1.5 transition-colors"
               >
                 <Mail size={12} className="text-gold-muted/60" />
-                <span>followtheowlarchive@gmail.com</span>
+                <span>contact@theowlclock.com</span>
               </a>
             </div>
 

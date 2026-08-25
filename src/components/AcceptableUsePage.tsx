@@ -439,8 +439,8 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
             </h2>
             <p>Suspected violations of this Policy may be reported to:</p>
             <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-sm w-fit font-mono text-[12px] my-2">
-              <a href="mailto:licensing@theowlclock.com" className="text-zinc-200 hover:text-white underline">
-                licensing@theowlclock.com
+              <a href="mailto:legal@theowlclock.com" className="text-zinc-200 hover:text-white underline">
+                legal@theowlclock.com
               </a>
             </div>
             <p className="text-[12.5px] text-zinc-400">Please include:</p>
@@ -485,7 +485,14 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
                 <p className="text-zinc-400">Licensing Department</p>
               </div>
 
-              <div className="pt-2 border-t border-zinc-900 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="pt-2 border-t border-zinc-900 flex flex-wrap items-center gap-4">
+                <a
+                  href="mailto:legal@theowlclock.com"
+                  className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
+                >
+                  <Mail size={13} className="text-zinc-400" />
+                  <span>legal@theowlclock.com</span>
+                </a>
                 <a
                   href="mailto:licensing@theowlclock.com"
                   className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
@@ -494,12 +501,11 @@ export default function AcceptableUsePage({ onBack }: AcceptableUsePageProps) {
                   <span>licensing@theowlclock.com</span>
                 </a>
                 <a
-                  href="https://theowlclock.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-400 hover:text-white font-mono text-[11px]"
+                  href="mailto:support@theowlclock.com"
+                  className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
                 >
-                  theowlclock.com
+                  <Mail size={13} className="text-zinc-400" />
+                  <span>support@theowlclock.com</span>
                 </a>
               </div>
             </div>

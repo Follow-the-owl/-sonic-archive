@@ -28,11 +28,50 @@ export default function MockPaypalCheckout() {
     e.preventDefault();
     setProcessing(true);
 
+    try {
+      // Also commit any pending purchase directly to localStorage for instant client synchronization
+      const pendingRaw = localStorage.getItem("lomon_pending_purchase") || localStorage.getItem("lomon_cart");
+      if (pendingRaw) {
+        const pendingItems = JSON.parse(pendingRaw);
+        if (Array.isArray(pendingItems) && pendingItems.length > 0) {
+          const userEmail = (params.email || localStorage.getItem("lomon_user_email") || "evianaconcepts1@gmail.com").toLowerCase().trim();
+          const generatedLicenses = pendingItems.map((item: any) => {
+            const uniqueId = `TOC-LIC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100 + Math.random() * 900)}`;
+            return {
+              id: uniqueId,
+              song: item.name,
+              type: item.tierTitle || "Commercial License",
+              date: new Date().toISOString().replace("T", " ").substring(0, 19) + " UTC",
+              isrc: `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+              iswc: `T-302.${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}-1`,
+              email: userEmail,
+              signature: `DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ${userEmail.toUpperCase()}`,
+              hash: `0x${Math.random().toString(16).substring(2, 18).toUpperCase()}`,
+              tierId: item.tierId || "commercial",
+              licenseeLegalName: userEmail,
+              archiveIdentifier: `TOC-${(item.id || item.fragmentId || "FRAG").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`,
+              transactionRef: params.reference || `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+              purchaseDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+              price: item.price,
+              artwork: item.artwork
+            };
+          });
+          const existingRaw = localStorage.getItem("lomon_user_licenses");
+          const existing = existingRaw ? JSON.parse(existingRaw) : [];
+          const map = new Map();
+          existing.forEach((l: any) => map.set(l.id || l.song, l));
+          generatedLicenses.forEach((l: any) => map.set(l.id || l.song, l));
+          localStorage.setItem("lomon_user_licenses", JSON.stringify(Array.from(map.values())));
+          localStorage.removeItem("lomon_cart");
+        }
+      }
+    } catch (_e) {}
+
     setTimeout(() => {
       setProcessing(false);
       setCompleted(true);
       setTimeout(() => {
-        window.location.href = `/api/paypal/return?token=${encodeURIComponent(params.token)}&PayerID=MOCK-PAYER-888`;
+        window.location.href = `/api/paypal/return?token=${encodeURIComponent(params.token)}&PayerID=MOCK-PAYER-888&email=${encodeURIComponent(params.email)}`;
       }, 1000);
     }, 1200);
   };

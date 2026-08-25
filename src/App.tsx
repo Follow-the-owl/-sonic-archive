@@ -12,8 +12,8 @@ import FragmentDetailPage from "./components/FragmentDetailPage";
 import CheckoutPage from "./components/CheckoutPage";
 import TransmissionsOverlay from "./components/TransmissionsOverlay";
 import MockPaypalCheckout from "./components/MockPaypalCheckout";
-import DocumentDashboard from "./components/DocumentDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import ClientDashboard from "./components/ClientDashboard";
 import TermsOfUsePage from "./components/TermsOfUsePage";
 import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
 import CookiePolicyPage from "./components/CookiePolicyPage";
@@ -24,6 +24,7 @@ import ContactPage from "./components/ContactPage";
 import FragmentClearanceGuidePage from "./components/FragmentClearanceGuidePage";
 import FragmentLicensingSchedulePage from "./components/FragmentLicensingSchedulePage";
 import AboutArchivePage from "./components/AboutArchivePage";
+import ProposalPage from "./components/ProposalPage";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import { Fragment } from "./data";
 
@@ -108,7 +109,20 @@ function UserAvatar({ email }: { email: string }) {
 
 export default function App() {
   const [hasEntered, setHasEntered] = useState<boolean>(false);
-  const [adminViewActive, setAdminViewActive] = useState<boolean>(false);
+  const [adminViewActive, setAdminViewActive] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const path = window.location.pathname.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return path === "/admin" || path === "/admin/" || path === "/admindashboard" || path === "/admin-dashboard" || search.includes("admin=true") || hash === "#admin";
+  });
+  const [clientViewActive, setClientViewActive] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const path = window.location.pathname.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return path === "/client" || path === "/client/" || path === "/dashboard" || path === "/dashboard/" || path === "/client-dashboard" || path === "/portal" || path === "/portal/" || search.includes("client=true") || search.includes("dashboard=true") || hash === "#client" || hash === "#dashboard";
+  });
   const [activeTab, setActiveTab] = useState<NavigationTab>("The Owl Clock");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
@@ -153,22 +167,62 @@ export default function App() {
   const [showClearanceGuidePage, setShowClearanceGuidePage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/clearance-guide" || window.location.pathname === "/fragment-clearance-guide"));
   const [showLicensingSchedulePage, setShowLicensingSchedulePage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/licensing-schedule" || window.location.pathname === "/pricing" || window.location.pathname === "/fragment-licensing-schedule"));
   const [showAboutPage, setShowAboutPage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/about" || window.location.pathname === "/about-the-archive"));
+  const [showProposalPage, setShowProposalPage] = useState<boolean>(() => typeof window !== "undefined" && (window.location.pathname === "/proposal" || window.location.pathname === "/collaborate" || window.location.pathname === "/custom-proposal"));
+  const [proposalInitialFragment, setProposalInitialFragment] = useState<string>("");
+  const [proposalInitialScope, setProposalInitialScope] = useState<string>("Synchronization / Commercial Media");
   const [verificationLicenseNumber, setVerificationLicenseNumber] = useState<string>("");
   const [contactInitialDept, setContactInitialDept] = useState<string>("General Inquiries");
   const [contactInitialSubj, setContactInitialSubj] = useState<string>("");
 
+  const handleOpenAdmin = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    setCartOpen(false);
+    setClientViewActive(false);
+    if (typeof window !== "undefined" && window.location.pathname !== "/admin") {
+      window.history.pushState({ admin: true }, "", "/admin");
+    }
+    setAdminViewActive(true);
+  };
+
+  const handleOpenClient = () => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    setCartOpen(false);
+    setAdminViewActive(false);
+    if (typeof window !== "undefined" && window.location.pathname !== "/client") {
+      window.history.pushState({ client: true }, "", "/client");
+    }
+    setClientViewActive(true);
+  };
+
+  const handleCloseDashboards = () => {
+    setAdminViewActive(false);
+    setClientViewActive(false);
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.history.pushState({}, "", "/");
+    }
+  };
+
   useEffect(() => {
     const handlePopState = () => {
-      setShowTermsPage(window.location.pathname === "/terms");
-      setShowPrivacyPage(window.location.pathname === "/privacy");
-      setShowCookiePage(window.location.pathname === "/cookies");
-      setShowRefundPage(window.location.pathname === "/refunds" || window.location.pathname === "/refund-policy");
-      setShowAcceptableUsePage(window.location.pathname === "/acceptable-use" || window.location.pathname === "/acceptable-use-policy");
-      setShowVerificationPage(window.location.pathname.startsWith("/verify") || window.location.pathname.startsWith("/license-verification"));
-      setShowContactPage(window.location.pathname === "/contact" || window.location.pathname === "/contact-us");
-      setShowClearanceGuidePage(window.location.pathname === "/clearance-guide" || window.location.pathname === "/fragment-clearance-guide");
-      setShowLicensingSchedulePage(window.location.pathname === "/licensing-schedule" || window.location.pathname === "/pricing" || window.location.pathname === "/fragment-licensing-schedule");
-      setShowAboutPage(window.location.pathname === "/about" || window.location.pathname === "/about-the-archive");
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+
+      setShowTermsPage(path === "/terms");
+      setShowPrivacyPage(path === "/privacy");
+      setShowCookiePage(path === "/cookies");
+      setShowRefundPage(path === "/refunds" || path === "/refund-policy");
+      setShowAcceptableUsePage(path === "/acceptable-use" || path === "/acceptable-use-policy");
+      setShowVerificationPage(path.startsWith("/verify") || path.startsWith("/license-verification"));
+      setShowContactPage(path === "/contact" || path === "/contact-us");
+      setShowClearanceGuidePage(path === "/clearance-guide" || path === "/fragment-clearance-guide");
+      setShowLicensingSchedulePage(path === "/licensing-schedule" || path === "/pricing" || path === "/fragment-licensing-schedule");
+      setShowAboutPage(path === "/about" || path === "/about-the-archive");
+      setShowProposalPage(path === "/proposal" || path === "/collaborate" || path === "/custom-proposal");
+      setAdminViewActive(path === "/admin" || path === "/admin/" || path === "/admindashboard" || path === "/admin-dashboard" || search.includes("admin=true") || hash === "#admin");
+      setClientViewActive(path === "/client" || path === "/client/" || path === "/dashboard" || path === "/dashboard/" || path === "/client-dashboard" || path === "/portal" || path === "/portal/" || search.includes("client=true") || search.includes("dashboard=true") || hash === "#client" || hash === "#dashboard");
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -398,6 +452,28 @@ export default function App() {
       }
     }
   };
+
+  const handleOpenProposal = (fragmentName?: string, scope?: string) => {
+    setMobileMenuOpen(false);
+    setInfoOverlay(null);
+    if (fragmentName) setProposalInitialFragment(fragmentName);
+    if (scope) setProposalInitialScope(scope);
+    if (typeof window !== "undefined" && window.location.pathname !== "/proposal") {
+      window.history.pushState({ proposal: true }, "", "/proposal");
+    }
+    setShowProposalPage(true);
+  };
+
+  const handleBackFromProposal = () => {
+    setShowProposalPage(false);
+    if (typeof window !== "undefined" && (window.location.pathname === "/proposal" || window.location.pathname === "/collaborate" || window.location.pathname === "/custom-proposal")) {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.history.pushState({}, "", "/");
+      }
+    }
+  };
   const [mobileFooterExpanded, setMobileFooterExpanded] = useState<Record<string, boolean>>({
     ARCHIVE: false,
     CLEARANCE: false,
@@ -441,7 +517,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment_success") === "true") {
       const token = params.get("auth_token");
-      const email = params.get("email");
+      const email = params.get("email") || currentUserEmail || "evianaconcepts1@gmail.com";
       const previewUrl = params.get("email_preview_url");
 
       if (token) {
@@ -451,7 +527,67 @@ export default function App() {
         setCurrentUserEmail(email || "");
         setCheckoutEmail(email || "");
         fetchUserData(token);
+      } else if (email) {
+        setCurrentUserEmail(email);
+        setCheckoutEmail(email);
       }
+
+      // Recover purchased items from pending storage or current cart
+      try {
+        const pendingRaw = localStorage.getItem("lomon_pending_purchase") || localStorage.getItem("lomon_cart");
+        const pendingItems = pendingRaw ? JSON.parse(pendingRaw) : (cart && cart.length > 0 ? cart : []);
+        if (Array.isArray(pendingItems) && pendingItems.length > 0) {
+          const generatedLicenses = pendingItems.map((item: any) => {
+            const uniqueId = `TOC-LIC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100 + Math.random() * 900)}`;
+            return {
+              id: uniqueId,
+              song: item.name,
+              type: item.tierTitle || "Commercial License",
+              date: new Date().toISOString().replace("T", " ").substring(0, 19) + " UTC",
+              isrc: `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+              iswc: `T-302.${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}-1`,
+              email: (email || "evianaconcepts1@gmail.com").toLowerCase().trim(),
+              signature: `DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ${(email || "EVIANACONCEPTS1@GMAIL.COM").toUpperCase()}`,
+              hash: `0x${Math.random().toString(16).substring(2, 18).toUpperCase()}`,
+              tierId: item.tierId || "commercial",
+              licenseeLegalName: email || "Authorized Client",
+              archiveIdentifier: `TOC-${(item.id || item.fragmentId || "FRAG").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`,
+              transactionRef: params.get("reference") || `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+              purchaseDate: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+              price: item.price,
+              artwork: item.artwork
+            };
+          });
+
+          // Save to localStorage lomon_user_licenses
+          const existingRaw = localStorage.getItem("lomon_user_licenses");
+          const existing = existingRaw ? JSON.parse(existingRaw) : [];
+          const map = new Map();
+          existing.forEach((l: any) => map.set(l.id || l.song, l));
+          generatedLicenses.forEach((l: any) => map.set(l.id || l.song, l));
+          const updated = Array.from(map.values());
+          localStorage.setItem("lomon_user_licenses", JSON.stringify(updated));
+          setUserLicenses(updated);
+          localStorage.removeItem("lomon_pending_purchase");
+
+          // Also persist directly to server
+          fetch("/api/user/purchase", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { "Authorization": `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              items: pendingItems,
+              email: email
+            })
+          }).catch(() => {});
+        }
+      } catch (_e) {}
+
+      // Dispatch event to any open listeners
+      window.dispatchEvent(new CustomEvent("lomon_licenses_updated"));
+
       if (previewUrl) {
         setEmailPreviewUrl(previewUrl);
       }
@@ -598,7 +734,11 @@ export default function App() {
         onBack={handleBackFromLicensingSchedule}
         onRequestClearance={(licenseId?: string) => {
           handleBackFromLicensingSchedule();
-          handleOpenContact("Fragment Licensing", licenseId ? `Clearance Request for ${licenseId.toUpperCase()} Tier` : "Fragment Clearance Request & Collaboration");
+          if (licenseId === "sync" || licenseId === "custom" || licenseId === "sync_media") {
+            handleOpenProposal("", "Synchronization / Commercial Media");
+          } else {
+            handleOpenContact("Fragment Licensing", licenseId ? `Clearance Request for ${licenseId.toUpperCase()} Tier` : "Fragment Clearance Request & Collaboration");
+          }
         }}
         onContact={handleOpenContact}
       />
@@ -618,51 +758,73 @@ export default function App() {
     );
   }
 
-  const isAdminDashboard = typeof window !== "undefined" && window.location.pathname === "/AdminDashboard";
+  if (showProposalPage) {
+    return (
+      <ProposalPage 
+        onBack={handleBackFromProposal}
+        initialFragment={proposalInitialFragment}
+        initialProjectScope={proposalInitialScope}
+        onOpenClearanceGuide={handleOpenClearanceGuide}
+        onOpenLicensingSchedule={handleOpenLicensingSchedule}
+      />
+    );
+  }
+
+  const isAdminDashboard = typeof window !== "undefined" && (
+    window.location.pathname.toLowerCase() === "/admin" ||
+    window.location.pathname.toLowerCase() === "/admin/" ||
+    window.location.pathname.toLowerCase() === "/admindashboard" ||
+    window.location.pathname.toLowerCase() === "/admin-dashboard" ||
+    window.location.search.toLowerCase().includes("admin=true") ||
+    window.location.hash.toLowerCase() === "#admin"
+  );
 
   if (isAdminDashboard || adminViewActive) {
     return (
-      <div className="min-h-screen bg-[#020202] text-zinc-100 p-6 select-text font-mono flex flex-col justify-between">
-        <div className="max-w-7xl w-full mx-auto space-y-6 flex-grow">
-          <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase">
-                SYSTEM ADMINISTRATIVE PORTAL //
-              </span>
-              <span className="text-[10px] text-emerald-400 font-extrabold tracking-widest uppercase animate-pulse">
-                SECURE CONSOLE ACTIVE
-              </span>
-            </div>
-            <button 
-              onClick={() => {
-                if (isAdminDashboard) {
-                  window.location.href = "/";
-                } else {
-                  setAdminViewActive(false);
-                }
-              }}
-              className="text-[10px] text-zinc-500 hover:text-white transition-colors uppercase font-bold tracking-wider cursor-pointer bg-transparent border-none"
-            >
-              ← BACK TO MAIN APPMENU
-            </button>
-          </div>
-          <AdminDashboard
-            currentUserEmail={currentUserEmail || "evianaconcepts1@gmail.com"}
-            onClose={() => {
-              if (isAdminDashboard) {
-                window.location.href = "/";
-              } else {
-                setAdminViewActive(false);
-              }
-            }}
-          />
-        </div>
-      </div>
+      <AdminDashboard
+        currentUserEmail={currentUserEmail || "evianaconcepts1@gmail.com"}
+        onClose={handleCloseDashboards}
+        onOpenClient={handleOpenClient}
+      />
+    );
+  }
+
+  const isClientDashboard = typeof window !== "undefined" && (
+    window.location.pathname.toLowerCase() === "/client" ||
+    window.location.pathname.toLowerCase() === "/client/" ||
+    window.location.pathname.toLowerCase() === "/dashboard" ||
+    window.location.pathname.toLowerCase() === "/dashboard/" ||
+    window.location.pathname.toLowerCase() === "/client-dashboard" ||
+    window.location.pathname.toLowerCase() === "/portal" ||
+    window.location.pathname.toLowerCase() === "/portal/" ||
+    window.location.search.toLowerCase().includes("client=true") ||
+    window.location.search.toLowerCase().includes("dashboard=true") ||
+    window.location.hash.toLowerCase() === "#client" ||
+    window.location.hash.toLowerCase() === "#dashboard"
+  );
+
+  if (isClientDashboard || clientViewActive) {
+    return (
+      <ClientDashboard
+        currentUserEmail={currentUserEmail || "evianaconcepts1@gmail.com"}
+        authToken={authToken}
+        userLicenses={userLicenses}
+        onClose={handleCloseDashboards}
+        onOpenAdmin={handleOpenAdmin}
+        onRefreshData={() => {
+          if (authToken) {
+            fetchUserData(authToken);
+          } else {
+            loadFallbackUserData();
+          }
+        }}
+      />
     );
   }
 
   function fetchUserData(token: string) {
-    fetch("/api/user/data", {
+    const emailToFetch = currentUserEmail || "evianaconcepts1@gmail.com";
+    fetch(`/api/user/data?email=${encodeURIComponent(emailToFetch)}`, {
       headers: {
         "Authorization": `Bearer ${token}`
       }
@@ -676,6 +838,18 @@ export default function App() {
         setUserLicenses(data.licenses || []);
         setUserRequests(data.requests || []);
         setUserEmailLogs(data.emailLogs || []);
+
+        // Cache and merge to localStorage
+        try {
+          const savedRaw = localStorage.getItem("lomon_user_licenses");
+          const existing = savedRaw ? JSON.parse(savedRaw) : [];
+          const map = new Map();
+          existing.forEach((l: any) => map.set(l.id || l.song, l));
+          (data.licenses || []).forEach((l: any) => map.set(l.id || l.song, l));
+          const merged = Array.from(map.values());
+          localStorage.setItem("lomon_user_licenses", JSON.stringify(merged));
+          window.dispatchEvent(new CustomEvent("lomon_licenses_updated"));
+        } catch (_e) {}
       } else {
         loadFallbackUserData();
       }
@@ -690,7 +864,17 @@ export default function App() {
       const savedLicenses = localStorage.getItem("lomon_user_licenses");
       if (savedLicenses) {
         const parsed = JSON.parse(savedLicenses);
-        if (Array.isArray(parsed)) setUserLicenses(parsed);
+        if (Array.isArray(parsed)) {
+          const cleanLicenses = parsed.filter(l => 
+            !l.id?.includes("30192") && 
+            !l.id?.includes("84920") && 
+            !l.id?.includes("77102") && 
+            !l.id?.includes("00482") && 
+            !l.id?.includes("99001") && 
+            !l.id?.includes("55201")
+          );
+          setUserLicenses(cleanLicenses);
+        }
       }
       const savedRequests = localStorage.getItem("lomon_user_requests");
       if (savedRequests) {
@@ -744,10 +928,18 @@ export default function App() {
       return;
     }
 
+    const formattedName = fragment.name.toUpperCase().includes("CO-SIGN")
+      ? fragment.name.replace(/\s*\/\/\s*LOMON CO-SIGN/gi, " . LOMON CO-SIGN")
+      : fragment.name.includes("10:00")
+      ? "FRAGMENT 10:00 PM . LOMON CO-SIGN"
+      : fragment.name.startsWith("FRAGMENT")
+      ? `${fragment.name} . LOMON CO-SIGN`
+      : `FRAGMENT ${fragment.name} . LOMON CO-SIGN`;
+
     const newItem: CartItem = {
       id: itemId,
       fragmentId: fragment.id,
-      name: fragment.name,
+      name: formattedName,
       timestamp: fragment.timestamp,
       artwork: "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg",
       tierId,
@@ -941,22 +1133,44 @@ export default function App() {
                   })}
                 </nav>
 
-                {/* Right Column: Collection / Crate + Archive Access */}
+                {/* Right Column: Collection / Crate + Archive Access + Dashboard Access */}
                 <div className="flex items-center gap-2 xl:gap-3 shrink-0">
+                  {/* Admin Console direct access for Admin */}
+                  {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local" || !isLoggedIn) && (
+                    <button
+                      onClick={handleOpenAdmin}
+                      className="flex items-center gap-1 xl:gap-1.5 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-amber-500 hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
+                      title="Open Master Administrative Dashboard"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <span>ADMIN</span>
+                    </button>
+                  )}
+
+                  {/* Dashboard direct access */}
+                  <button
+                    onClick={handleOpenClient}
+                    className="flex items-center gap-1 xl:gap-1.5 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#00E676] hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
+                    title="Open Client Dashboard"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00E676] animate-pulse" />
+                    <span>DASHBOARD</span>
+                  </button>
+
                   {/* Collection / Crate button */}
                   <button 
                     onClick={() => {
                       setCartOpen(!cartOpen);
                     }}
-                    className={`flex items-center gap-1 xl:gap-1.5 border px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 border px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap leading-none ${
                       cartOpen 
                         ? "border-[#D9D6CA] bg-zinc-950 text-white font-bold" 
                         : "border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA]"
                     }`}
                     title="View Cart"
                   >
-                    <Package size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>CART ({cart.length})</span>
+                    <Package size={11} className={`shrink-0 ${cart.length > 0 ? "text-[#D9D6CA]" : ""}`} />
+                    <span className="leading-none flex items-center">CART {cart.length}</span>
                   </button>
 
                    {isLoggedIn ? (
@@ -1001,21 +1215,13 @@ export default function App() {
                               {/* Demarcation line */}
                               <div className="h-[1px] bg-zinc-900 w-full" />
 
-                              {/* Navigation Link to Dashboard (My Licenses) */}
+                              {/* Navigation Link to Dashboard (Client Portal) */}
                               <div>
                                 <button
-                                  onClick={() => {
-                                    setProfileDropdownOpen(false);
-                                    setInfoOverlay({
-                                      title: "My Licenses",
-                                      subtitle: "ACCOUNT DEP",
-                                      body: "",
-                                      type: "my-licenses"
-                                    });
-                                  }}
+                                  onClick={handleOpenClient}
                                   className="w-full text-left text-[9.5px] text-[#D9D6CA] hover:text-white uppercase transition-colors flex items-center justify-between cursor-pointer py-1 font-bold tracking-wider"
                                 >
-                                  <span>My Dashboard</span>
+                                  <span>Client Dashboard</span>
                                   <span className="text-zinc-600 font-bold">→</span>
                                 </button>
                               </div>
@@ -1024,14 +1230,11 @@ export default function App() {
                               <div className="h-[1px] bg-zinc-900 w-full" />
 
                               {/* Administrative Console Link */}
-                              {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local") && (
+                              {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local" || !isLoggedIn) && (
                                 <>
                                   <div>
                                     <button
-                                      onClick={() => {
-                                        setProfileDropdownOpen(false);
-                                        setAdminViewActive(true);
-                                      }}
+                                      onClick={handleOpenAdmin}
                                       className="w-full text-left text-[9.5px] text-[#D9D6CA] hover:text-white uppercase transition-colors flex items-center justify-between cursor-pointer py-1 font-bold tracking-wider"
                                     >
                                       <span>Admin Dashboard</span>
@@ -1098,12 +1301,7 @@ export default function App() {
                   {isLoggedIn ? (
                     <button
                       onClick={() => {
-                        setInfoOverlay({
-                          title: "My Licenses",
-                          subtitle: "ACCOUNT DEP",
-                          body: "",
-                          type: "my-licenses"
-                        });
+                        setClientViewActive(true);
                       }}
                       className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2 py-1 text-[9px] uppercase tracking-wider transition-colors cursor-pointer rounded-none select-none"
                       title="My Dashboard"
@@ -1125,10 +1323,10 @@ export default function App() {
                       setCartOpen(false);
                       setMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-1 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none"
+                    className="flex items-center gap-1.5 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-[#D9D6CA] px-2 py-1.5 text-[9px] uppercase tracking-widest transition-colors cursor-pointer rounded-none select-none leading-none"
                   >
-                    <Package size={11} className={cart.length > 0 ? "text-[#D9D6CA]" : ""} />
-                    <span>CART ({cart.length})</span>
+                    <Package size={11} className={`shrink-0 ${cart.length > 0 ? "text-[#D9D6CA]" : ""}`} />
+                    <span className="leading-none flex items-center">CART {cart.length}</span>
                   </button>
 
                   <button
@@ -1179,28 +1377,17 @@ export default function App() {
                             </div>
                             <div className="grid grid-cols-1 gap-1.5 pt-1">
                               <button
-                                onClick={() => {
-                                  setInfoOverlay({
-                                    title: "My Licenses",
-                                    subtitle: "ACCOUNT DEP",
-                                    body: "",
-                                    type: "my-licenses"
-                                  });
-                                  setMobileMenuOpen(false);
-                                }}
-                                className="text-left text-[#D9D6CA] hover:text-white uppercase font-bold text-[10.5px] py-1 flex items-center justify-between"
+                                onClick={handleOpenClient}
+                                className="text-left text-[#D9D6CA] hover:text-white uppercase font-bold text-[10.5px] py-1 flex items-center justify-between cursor-pointer"
                               >
-                                <span>* My Dashboard</span>
+                                <span>* Client Dashboard</span>
                                 <span>→</span>
                               </button>
 
-                              {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local") && (
+                              {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local" || !isLoggedIn) && (
                                 <button
-                                  onClick={() => {
-                                    setAdminViewActive(true);
-                                    setMobileMenuOpen(false);
-                                  }}
-                                  className="text-left text-[#D9D6CA] hover:text-white uppercase font-bold text-[10.5px] py-1 flex items-center justify-between"
+                                  onClick={handleOpenAdmin}
+                                  className="text-left text-[#D9D6CA] hover:text-white uppercase font-bold text-[10.5px] py-1 flex items-center justify-between cursor-pointer"
                                 >
                                   <span>* Admin Dashboard</span>
                                   <span>→</span>
@@ -1208,40 +1395,28 @@ export default function App() {
                               )}
 
                               <button
-                                onClick={() => {
-                                  handleLinkClick("My Licenses", "ACCOUNT DEP", "my-licenses");
-                                  setMobileMenuOpen(false);
-                                }}
-                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                                onClick={handleOpenClient}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5 cursor-pointer"
                               >
                                 • My Licenses
                               </button>
                               <button
-                                onClick={() => {
-                                  handleLinkClick("My Certificates", "ACCOUNT DEP", "my-certificates");
-                                  setMobileMenuOpen(false);
-                                }}
-                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                                onClick={handleOpenClient}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5 cursor-pointer"
                               >
-                                • My Certificates
+                                • My Fragments
                               </button>
                               <button
-                                onClick={() => {
-                                  handleLinkClick("My Downloads", "ACCOUNT DEP", "my-downloads");
-                                  setMobileMenuOpen(false);
-                                }}
-                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                                onClick={handleOpenClient}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5 cursor-pointer"
                               >
-                                • My Downloads
+                                • Clearance Requests
                               </button>
                               <button
-                                onClick={() => {
-                                  handleLinkClick("My Requests", "ACCOUNT DEP", "my-requests");
-                                  setMobileMenuOpen(false);
-                                }}
-                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5"
+                                onClick={handleOpenClient}
+                                className="text-left text-zinc-400 hover:text-white uppercase text-[10px] py-0.5 cursor-pointer"
                               >
-                                • My Requests
+                                • Account Profile
                               </button>
                             </div>
                           </div>
@@ -1304,7 +1479,7 @@ export default function App() {
                               checkoutActive ? "text-white font-bold" : "text-zinc-400 hover:text-white"
                             }`}
                           >
-                            <span>* Cart / Checkout ({cart.length})</span>
+                            <span>* Cart {cart.length}</span>
                             {checkoutActive && <span className="text-[9px] text-[#D9D6CA]">[ ACTIVE ]</span>}
                           </button>
                         </div>
@@ -1507,6 +1682,10 @@ export default function App() {
                 onOpenTerms={handleOpenTerms}
                 onOpenPrivacy={handleOpenPrivacy}
                 onOpenRefunds={handleOpenRefunds}
+                onOpenDashboard={() => {
+                  setCheckoutActive(false);
+                  setClientViewActive(true);
+                }}
               />
             ) : selectedFragment ? (
               <FragmentDetailPage 
@@ -1516,6 +1695,7 @@ export default function App() {
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }} 
                 onAddToCart={handleAddToCart}
+                onRequestProposal={(fragName, tierTitle) => handleOpenProposal(fragName, tierTitle)}
               />
             ) : (
               <main 
@@ -1541,6 +1721,8 @@ export default function App() {
                       <OwlClock 
                         onSelectFragment={(frag) => setSelectedFragment(frag)} 
                         onAddToCart={handleAddToCart}
+                        onRequestProposal={(fragName, tierTitle) => handleOpenProposal(fragName, tierTitle)}
+                        onRequestCollaboration={(fragName) => handleOpenProposal(fragName, "Producer Collaboration")}
                       />
                     )}
                     {activeTab === "Signal tower" && (
@@ -1907,10 +2089,16 @@ export default function App() {
                             </div>
                             <div className="flex-grow min-w-0 flex flex-col justify-center text-left pl-1">
                               <h5 className="text-white font-bold text-[11px] truncate leading-tight">
-                                {item.name}
+                                {item.name.replace(/\s*\/\/\s*LOMON CO-SIGN/gi, " . LOMON CO-SIGN")}
                               </h5>
                               <span className="text-zinc-500 text-[9px] font-mono tracking-widest mt-1 uppercase">
-                                TRACK — {item.tierTitle}
+                                TRACK • {
+                                  item.tierId === "access" || item.price === "$150" || item.price === "$150.00"
+                                    ? "ARCHIVE ACCESS LICENSE (MP3, WAV)"
+                                    : item.tierId === "release" || item.price === "$500" || item.price === "$500.00"
+                                    ? "COMMERCIAL RELEASE LICENSE (WAV, MP3)"
+                                    : "COMMERCIAL LICENSE (STEMS, WAV, MP3)"
+                                }
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -1964,11 +2152,16 @@ export default function App() {
               userRequests={userRequests}
               userEmailLogs={userEmailLogs}
               onRefreshData={() => authToken && fetchUserData(authToken)}
+              onOpenAdmin={() => {
+                setInfoOverlay(null);
+                setAdminViewActive(true);
+              }}
               onOpenTerms={handleOpenTerms}
               onOpenPrivacy={handleOpenPrivacy}
               onOpenCookies={handleOpenCookies}
               onOpenRefunds={handleOpenRefunds}
               onOpenAcceptableUse={handleOpenAcceptableUse}
+              onOpenProposal={handleOpenProposal}
             />
 
             {/* Cookie Consent Banner */}

@@ -74,7 +74,7 @@ export default function AudioControllerWidget() {
           </span>
           <span className="text-zinc-200 tracking-wide truncate">
             {(isPlaying || isLoading) && activeFragment ? (
-              <span className="text-gold-muted font-medium">FRAGMENT {activeFragment.id}</span>
+              <span className="text-gold-muted font-medium">{activeFragment.timestamp || activeFragment.name || `FRAGMENT ${activeFragment.id}`}</span>
             ) : (
               "SELECT FRAGMENT"
             )}

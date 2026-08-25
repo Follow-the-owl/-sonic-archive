@@ -73,7 +73,8 @@ export default function AboutArchivePage({
           </div>
 
           <p className="text-[13.5px] leading-relaxed text-zinc-200 font-sans pt-2">
-            <strong className="text-white">The Owl Clock</strong> is an archival music system dedicated to preserving original musical fragments as timeless creative assets.
+            <strong className="text-white">The Owl Clock</strong> is a vault for raw musical inspiration.
+            <br className="hidden sm:inline" /> Each fragment is cataloged by timestamp, preserving original sound for creators who require pure source material.
           </p>
 
           <p className="text-[13px] leading-relaxed text-zinc-300 font-sans">

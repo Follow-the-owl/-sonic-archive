@@ -47,7 +47,47 @@ export default function ContactPage({
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSubmitted(true);
-      setTransmissionId(`TRM-${Math.floor(100000 + Math.random() * 900000)}`);
+      const generatedRef = `TRM-${Math.floor(100000 + Math.random() * 900000)}`;
+      setTransmissionId(generatedRef);
+
+      // If this is a licensing/clearance transmission, automatically register into admin clearance ledger
+      if (typeof window !== "undefined") {
+        try {
+          const isClearance = formData.department.toLowerCase().includes("licens") || 
+                              formData.subject.toLowerCase().includes("clearance") ||
+                              formData.message.toLowerCase().includes("clearance") ||
+                              formData.message.toLowerCase().includes("license");
+          
+          if (isClearance) {
+            const rawSaved = localStorage.getItem("lomon_admin_clearance_requests");
+            const currentList = rawSaved ? JSON.parse(rawSaved) : [];
+            const newRecord = {
+              ref: `CLR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+              fragmentId: "10:00",
+              fragmentName: formData.subject ? formData.subject.toUpperCase() : "GENERAL CLEARANCE INQUIRY",
+              clientId: `LOC-CLT-${Math.floor(1000 + Math.random() * 9000)}`,
+              clientName: formData.name,
+              clientEmail: formData.email,
+              requestedLicense: "Custom Rights Clearance Petition",
+              status: "NEW",
+              paymentStatus: "PAYMENT PENDING",
+              feeAmount: 1000,
+              date: new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" }),
+              projectDescription: formData.message,
+              historyLog: [
+                {
+                  date: `${new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })} ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} UTC`,
+                  author: "CLIENT",
+                  message: "Public clearance transmission petition submitted via portal."
+                }
+              ]
+            };
+            localStorage.setItem("lomon_admin_clearance_requests", JSON.stringify([newRecord, ...currentList]));
+          }
+        } catch {
+          // ignore
+        }
+      }
     }, 1200);
   };
 
@@ -101,7 +141,9 @@ export default function ContactPage({
             </div>
             <div className="p-3.5 bg-zinc-950 border border-zinc-900/80 rounded-sm space-y-1 sm:col-span-2 lg:col-span-1">
               <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">DIRECT EMAIL</span>
-              <p className="text-[12px] font-bold text-white uppercase tracking-wider">vault@lomon.llc</p>
+              <a href="mailto:contact@theowlclock.com" className="text-[12px] font-bold text-white uppercase tracking-wider hover:text-zinc-300 transition-colors block">
+                contact@theowlclock.com
+              </a>
               <p className="text-[11px] text-zinc-400 font-mono">Encrypted Archival Desk</p>
             </div>
           </div>
@@ -275,28 +317,40 @@ export default function ContactPage({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px] leading-relaxed font-mono">
             <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-sm space-y-2">
-              <span className="text-white font-bold uppercase tracking-wider block text-[11px]">GENERAL INQUIRIES</span>
+              <div className="flex items-center justify-between">
+                <span className="text-white font-bold uppercase tracking-wider block text-[11px]">GENERAL INQUIRIES</span>
+                <a href="mailto:contact@theowlclock.com" className="text-[10.5px] text-zinc-400 hover:text-white underline tracking-tight">contact@theowlclock.com</a>
+              </div>
               <p className="text-zinc-400 text-[11.5px]">
                 Questions regarding the story, philosophy, mission, and public archive of The Owl Clock.
               </p>
             </div>
 
             <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-sm space-y-2">
-              <span className="text-white font-bold uppercase tracking-wider block text-[11px]">LICENSING &amp; CLEARANCE</span>
+              <div className="flex items-center justify-between">
+                <span className="text-white font-bold uppercase tracking-wider block text-[11px]">LICENSING &amp; CLEARANCE</span>
+                <a href="mailto:licensing@theowlclock.com" className="text-[10.5px] text-zinc-400 hover:text-white underline tracking-tight">licensing@theowlclock.com</a>
+              </div>
               <p className="text-zinc-400 text-[11.5px]">
                 Requesting commercial clearance, synchronization permissions, master rights, or custom composition usage.
               </p>
             </div>
 
             <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-sm space-y-2">
-              <span className="text-white font-bold uppercase tracking-wider block text-[11px]">COLLABORATIONS</span>
+              <div className="flex items-center justify-between">
+                <span className="text-white font-bold uppercase tracking-wider block text-[11px]">LEGAL &amp; COLLABORATIONS</span>
+                <a href="mailto:legal@theowlclock.com" className="text-[10.5px] text-zinc-400 hover:text-white underline tracking-tight">legal@theowlclock.com</a>
+              </div>
               <p className="text-zinc-400 text-[11.5px]">
-                Artistic co-creations, bespoke sound design, custom score restoration, and archival publishing proposals.
+                Rights management, intellectual property agreements, bespoke sound design, and publishing co-creations.
               </p>
             </div>
 
             <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-sm space-y-2">
-              <span className="text-white font-bold uppercase tracking-wider block text-[11px]">TECHNICAL SUPPORT</span>
+              <div className="flex items-center justify-between">
+                <span className="text-white font-bold uppercase tracking-wider block text-[11px]">TECHNICAL SUPPORT</span>
+                <a href="mailto:support@theowlclock.com" className="text-[10.5px] text-zinc-400 hover:text-white underline tracking-tight">support@theowlclock.com</a>
+              </div>
               <p className="text-zinc-400 text-[11.5px]">
                 Assistance with license certificate verification, digital download stems, transaction records, or account access.
               </p>

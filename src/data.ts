@@ -45,6 +45,74 @@ export interface Fragment {
   timeCapsule?: TimeCapsuleData;
 }
 
+export const FRAGMENT_CANONICAL_NAMES: Record<string, string> = {
+  "00:50": "00:50 AM",
+  "0050": "00:50 AM",
+  "07:46": "07:46 AM",
+  "0746": "07:46 AM",
+  "7:46": "07:46 AM",
+  "746": "07:46 AM",
+  "02:17": "02:17 AM",
+  "0217": "02:17 AM",
+  "2:17": "02:17 AM",
+  "217": "02:17 AM",
+  "05:58": "05:58 AM",
+  "0558": "05:58 AM",
+  "5:58": "05:58 AM",
+  "558": "05:58 AM",
+  "03:33": "03:33 AM",
+  "0333": "03:33 AM",
+  "3:33": "03:33 AM",
+  "333": "03:33 AM",
+  "09:41": "9:41 PM",
+  "0941": "9:41 PM",
+  "9:41": "9:41 PM",
+  "941": "9:41 PM",
+  "10:00": "10:00 PM",
+  "1000": "10:00 PM",
+  "10:14": "10:14 PM",
+  "1014": "10:14 PM",
+  "11:11": "11:11 PM",
+  "1111": "11:11 PM",
+  "11:28": "11:28 PM",
+  "1128": "11:28 PM",
+  "11:28-alt": "11:28 PM",
+  "11:59": "11:59 PM",
+  "1159": "11:59 PM"
+};
+
+export function getFragmentTimeName(input: any): string {
+  if (!input) return "Recovered Fragment";
+  if (typeof input === "object") {
+    if (input.timestamp && (input.timestamp.includes("AM") || input.timestamp.includes("PM"))) {
+      return input.timestamp;
+    }
+    const id = String(input.id || "").trim();
+    if (FRAGMENT_CANONICAL_NAMES[id]) return FRAGMENT_CANONICAL_NAMES[id];
+    const rawName = String(input.name || input.song || input.title || "").trim();
+    if (rawName.includes("AM") || rawName.includes("PM")) return rawName;
+    const cleanId = id.replace(/[^0-9]/g, "");
+    if (cleanId && FRAGMENT_CANONICAL_NAMES[cleanId]) return FRAGMENT_CANONICAL_NAMES[cleanId];
+  }
+  const str = String(input).trim();
+  if (FRAGMENT_CANONICAL_NAMES[str]) return FRAGMENT_CANONICAL_NAMES[str];
+  const clean = str.replace(/[^0-9]/g, "");
+  if (clean && FRAGMENT_CANONICAL_NAMES[clean]) return FRAGMENT_CANONICAL_NAMES[clean];
+  
+  // Legacy aliases replacement
+  const upper = str.toUpperCase();
+  if (upper.includes("BANDIT")) return "07:46 AM";
+  if (upper.includes("OCTANE")) return "03:33 AM";
+  if (upper.includes("HARDSTONE")) return "11:28 PM";
+  if (upper.includes("KRYPTONITE")) return "02:17 AM";
+  if (upper.includes("SIREN") || upper.includes("TORE UP")) return "05:58 AM";
+  if (upper.includes("WATER") || upper.includes("SUBMERGED")) return "00:50 AM";
+  if (upper.includes("BLACKOUT") || upper.includes("DEVIANT")) return "11:59 PM";
+  if (upper.includes("RESTLESS")) return "10:14 PM";
+
+  return str;
+}
+
 export interface JournalEntry {
   id: string;
   title: string;
@@ -64,32 +132,32 @@ export interface ObservatoryMedia {
 export const CLOCK_MEANINGS = [
   {
     hour: "00:50",
-    name: "DEEP IN THE WATER",
+    name: "00:50 AM",
     description: "The separation threshold between heavy thoughts and deep sleep. Mimics slow, submerged keys.",
   },
   {
     hour: "02:17",
-    name: "KRYPTONITE CORED",
+    name: "02:17 AM",
     description: "Lost copper shortwave signals found accidentally under the stone-cold Houston peaks.",
   },
   {
     hour: "03:33",
-    name: "OCTANE NIGHT SHIFT",
+    name: "03:33 AM",
     description: "The watch hour where the chronicle owl is awake and industrial engines rumble in the dark.",
   },
   {
     hour: "05:58",
-    name: "TORE UP BEFORE DAWN",
+    name: "05:58 AM",
     description: "Evolving synthesizer siren pads layered with cold 05:58 AM sunrise drone elements.",
   },
   {
     hour: "10:00",
-    name: "LOMON RECOVERY",
+    name: "10:00 PM",
     description: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered. Full Recovery: 2025.07.14. Archivist: Lomon.",
   },
   {
     hour: "11:11",
-    name: "LAST LAUGH ECHOES",
+    name: "11:11 PM",
     description: "Rare celestial fragments decaying inside vintage tape reels. Hopeful and decaying.",
   }
 ];
@@ -97,7 +165,7 @@ export const CLOCK_MEANINGS = [
 export const FRAGMENTS: Fragment[] = [
   {
     id: "00:50",
-    name: "DEEP IN THE WATER",
+    name: "00:50 AM",
     timestamp: "00:50 AM",
     classification: "THRESHOLD COIL",
     observation: "Registered in a submerged concrete chamber with heavy hydrostatic filters.",
@@ -118,7 +186,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "07:46",
-    name: "BANDIT",
+    name: "07:46 AM",
     timestamp: "07:46 AM",
     classification: "MOONLIT RUN",
     observation: "Traced on empty Houston freeways. Motorcycle exhaust heat waves visible.",
@@ -136,14 +204,14 @@ export const FRAGMENTS: Fragment[] = [
       exclusive: {
         priceOverride: 3200,
         overrides: {
-          subtitle: "PREMIUM BANDIT EXCLUSIVE ACQUISITION"
+          subtitle: "PREMIUM 07:46 AM EXCLUSIVE ACQUISITION"
         }
       }
     }
   },
   {
     id: "02:17",
-    name: "KRYPTONITE",
+    name: "02:17 AM",
     timestamp: "02:17 AM",
     classification: "DISCOVERY FREQ",
     observation: "Captured on an old copper shortwave receiver under radio tower shadows.",
@@ -156,7 +224,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "05:58",
-    name: "TORE UP",
+    name: "05:58 AM",
     timestamp: "05:58 AM",
     classification: "SUNRISE SIREN",
     observation: "Triggered as the eastern sky changed from black velvet to radioactive neon-orange.",
@@ -169,7 +237,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "03:33",
-    name: "OCTANE",
+    name: "03:33 AM",
     timestamp: "03:33 AM",
     classification: "WATCH CORE",
     observation: "The watch-owl guide is fully alert. Low-frequency exhaust vibrations recorded.",
@@ -182,7 +250,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "10:14",
-    name: "GLOCK",
+    name: "10:14 PM",
     timestamp: "10:14 PM",
     classification: "RESTLESS COID",
     observation: "Dynamic chamber echoes registered during heavy storm conditions.",
@@ -195,7 +263,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "11:28",
-    name: "HARDSTONE NATIONAL",
+    name: "11:28 PM",
     timestamp: "11:28 PM",
     classification: "CHRONO ANTHEM",
     observation: "Simultaneous signal broadcasted to all active members of the watch.",
@@ -208,7 +276,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "11:59",
-    name: "LAST LAUGH",
+    name: "11:59 PM",
     timestamp: "11:59 PM",
     classification: "DEVIANT KEYS",
     observation: "Recorded during a temporary electrical blackout across the main signal tower.",
@@ -221,7 +289,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "11:28-alt",
-    name: "LAST LAUGH ECHOES",
+    name: "11:28 PM",
     timestamp: "11:28 PM",
     classification: "SHADOW HARMONY",
     observation: "Eerie low-RPM engine hum detected from the local Hardstone MC clubhouse.",
@@ -234,7 +302,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "10:00",
-    name: "LOMON RECOVERY",
+    name: "10:00 PM",
     timestamp: "10:00 PM",
     classification: "RECOVERY STATE",
     observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.",
@@ -252,7 +320,7 @@ export const FRAGMENTS: Fragment[] = [
   },
   {
     id: "11:11",
-    name: "LAST LAUGH ECHOES",
+    name: "11:11 PM",
     timestamp: "11:11 PM",
     classification: "DEVIANT KEYS",
     observation: "Celestial tape reel fragment captured at 11:11 PM under rare alignment.",
@@ -392,19 +460,19 @@ export const ARCHIVE_CATEGORIES = [
 export const JOURNAL_ENTRIES: JournalEntry[] = [
   {
     id: "journal-01",
-    title: "Houston at 03:33 // Octane Sessions",
+    title: "Houston at 03:33 AM // Midnight Sessions",
     date: "June 11, 2026",
     time: "03:33 AM",
     excerpt: "At this hour, the street belongs to the riders. We recorded the hum of custom twin-cylinders bleeding into the synthesizers.",
-    content: "At exactly 03:33 AM, the sound field behaves differently. The humid Texas night air absorbs high frequencies, leaving only the dark sub-bass of the earth and the slow, heavy resonance of distant motor exhausts. To record 'OCTANE' under these conditions is to capture a city at its rawest. The chronicle owl sits perched upon the signal tower, guiding the frequency gatekeepers. These frequencies are not composed; they are dug out of the concrete."
+    content: "At exactly 03:33 AM, the sound field behaves differently. The humid Texas night air absorbs high frequencies, leaving only the dark sub-bass of the earth and the slow, heavy resonance of distant motor exhausts. To record '03:33 AM' under these conditions is to capture a city at its rawest. The chronicle owl sits perched upon the signal tower, guiding the frequency gatekeepers. These frequencies are not composed; they are dug out of the concrete."
   },
   {
     id: "journal-02",
-    title: "Tore Up: The Dawn Sirens",
+    title: "05:58 AM: The Dawn Sirens",
     date: "May 28, 2026",
     time: "05:58 AM",
     excerpt: "The exact moment the night dissolves and turns into fire. We recorded the sirens in the cold morning twilight.",
-    content: "When the sky transitions from absolute black velvet to a bruised, smoky orange, a physical vibration shifts. The temperature drops rapidly. The highway is empty except for the heavy fog and the distant neon flashes. This is 'TORE UP'. The synths generated here carry a shivering, crystalline friction. It is the sound of absolute momentum before the sun rises."
+    content: "When the sky transitions from absolute black velvet to a bruised, smoky orange, a physical vibration shifts. The temperature drops rapidly. The highway is empty except for the heavy fog and the distant neon flashes. This is '05:58 AM'. The synths generated here carry a shivering, crystalline friction. It is the sound of absolute momentum before the sun rises."
   },
   {
     id: "journal-03",
@@ -412,7 +480,7 @@ export const JOURNAL_ENTRIES: JournalEntry[] = [
     date: "April 14, 2026",
     time: "02:11 AM",
     excerpt: "Modern streaming is hyper-compressed. We prefer the raw scratch of leather on asphalt, documented on vintage reels.",
-    content: "We reject the hyper-sterile, flat digital world. The Hardstone aesthetic is built on texture—the heavy grain of vintage leather, the heat off a raw steel engine, the warm pitch flutter of magnetic tape. In the gaps of 'DEEP IN THE WATER', we left three seconds of absolute black static. It forces you to hear your own breathing, your own space. Contemplation is the ultimate luxury."
+    content: "We reject the hyper-sterile, flat digital world. The physical aesthetic is built on texture—the heavy grain of vintage leather, the heat off a raw steel engine, the warm pitch flutter of magnetic tape. In the gaps of '00:50 AM', we left three seconds of absolute black static. It forces you to hear your own breathing, your own space. Contemplation is the ultimate luxury."
   },
   {
     id: "journal-04",
@@ -420,7 +488,7 @@ export const JOURNAL_ENTRIES: JournalEntry[] = [
     date: "March 03, 2026",
     time: "11:50 PM",
     excerpt: "The owl watcher doesn't sleep. It knows that true colors are only seen in complete darkness under the neon.",
-    content: "People fear the dark, but in our reserve, darkness is where the real signal begins. Our custom equipment has been calibrated to pick up the faint, eerie hum we call the 'Kryptonite Glow'. It is a frequency that vibrates at the base of the throat, mimicking the electric energy of nocturnal cities. To hear it, you must switch your interface to raw, dim your headlights, and let the sound do the navigation."
+    content: "People fear the dark, but in our reserve, darkness is where the real signal begins. Our custom equipment has been calibrated to pick up the faint, eerie hum we call the '02:17 AM Glow'. It is a frequency that vibrates at the base of the throat, mimicking the electric energy of nocturnal cities. To hear it, you must switch your interface to raw, dim your headlights, and let the sound do the navigation."
   }
 ];
 
@@ -433,7 +501,7 @@ export const OBSERVATORY_IMAGES: ObservatoryMedia[] = [
   },
   {
     id: "obs-02",
-    title: "HARDSTONE RUN 04:00",
+    title: "NIGHT RUN 04:00 AM",
     imageUrl: "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=1200&q=80", 
     description: "Headlights slicing through thick fog on an empty high-contrast highway. Sensed at 04:00 AM."
   },
@@ -445,7 +513,7 @@ export const OBSERVATORY_IMAGES: ObservatoryMedia[] = [
   },
   {
     id: "obs-04",
-    title: "DEEP WATER SOUND CHAMBER",
+    title: "00:50 AM SOUND CHAMBER",
     imageUrl: "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80", 
     description: "The concrete chamber where physical pressings are verified inside complete sensory deprivation."
   },

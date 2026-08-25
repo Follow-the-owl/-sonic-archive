@@ -422,7 +422,7 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
                 Atlanta, Georgia, United States
               </div>
 
-              <div className="pt-3 border-t border-zinc-900 flex flex-col sm:flex-row sm:items-center gap-4 text-[11px]">
+              <div className="pt-3 border-t border-zinc-900 flex flex-wrap items-center gap-4 text-[11px]">
                 <a
                   href="mailto:licensing@theowlclock.com"
                   className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
@@ -431,18 +431,25 @@ export default function TermsOfUsePage({ onBack }: TermsOfUsePageProps) {
                   <span>licensing@theowlclock.com</span>
                 </a>
                 <a
-                  href="mailto:clearance@theowlclock.com"
+                  href="mailto:legal@theowlclock.com"
                   className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <Mail size={13} />
-                  <span>clearance@theowlclock.com</span>
+                  <span>legal@theowlclock.com</span>
                 </a>
                 <a
-                  href="mailto:contact@lomonllc.com"
+                  href="mailto:contact@theowlclock.com"
                   className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <Mail size={13} />
-                  <span>contact@lomonllc.com</span>
+                  <span>contact@theowlclock.com</span>
+                </a>
+                <a
+                  href="mailto:support@theowlclock.com"
+                  className="inline-flex items-center gap-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Mail size={13} />
+                  <span>support@theowlclock.com</span>
                 </a>
               </div>
             </div>

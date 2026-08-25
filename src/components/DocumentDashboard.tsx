@@ -177,102 +177,202 @@ const determineDefaultStatus = (name: string, section: string): DocumentItem["st
   return "Active";
 };
 
-// Static helper to generate complete list of mock documents
+// Helper to transform genuine user licenses into full dashboard documents
+export const buildDocumentsFromLicenses = (licenses: any[], userEmail: string): DocumentItem[] => {
+  if (!licenses || !Array.isArray(licenses)) return [];
+  const list: DocumentItem[] = [];
+
+  licenses.forEach((lic, idx) => {
+    const formattedDate = lic.purchaseDate || lic.date || new Date().toISOString().split("T")[0];
+    const cleanId = lic.id || `TOC-LIC-${idx + 1}`;
+    const cleanSong = lic.song || "Archived Fragment";
+    const cleanTier = lic.type || lic.tierTitle || "Archive Access License ($150 USD)";
+    const cleanClient = lic.licenseeLegalName || userEmail || "Authorized Client";
+    const cleanHash = lic.hash || `0x${Math.floor(Math.random() * 1000000000).toString(16).toUpperCase()}`;
+
+    // 1. Executed License Agreement
+    list.push({
+      id: `DOC-LIC-${cleanId}`,
+      name: `License Agreement: ${cleanSong}`,
+      documentType: "Producer Agreement",
+      version: "v1.0-executed",
+      dateAdded: formattedDate,
+      section: "LICENSES",
+      compositionId: lic.archiveIdentifier || `TOC-${cleanSong.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`,
+      clientId: cleanClient,
+      dateCreated: formattedDate,
+      status: "Signed",
+      visibility: "Private",
+      signatureStatus: "Executed",
+      isSigned: "Signed",
+      expirationDate: "Perpetual / Non-Exclusive",
+      verificationStatus: "Valid",
+      licenseId: cleanId,
+      adminNotes: `AUTHENTICATED DIGITAL LICENSE FOR ${cleanSong.toUpperCase()} (${cleanTier}). TOKEN: ${cleanHash}`,
+      activityLog: [
+        { date: formattedDate, action: `License agreement digitally registered and issued to ${cleanClient}.` },
+        { date: formattedDate, action: `Cryptographic SHA-256 seal verified with hash ${cleanHash}.` }
+      ]
+    });
+
+    // 2. Official Vault Certificate
+    list.push({
+      id: `DOC-CERT-${cleanId}`,
+      name: `Issued License Certificate: ${cleanSong}`,
+      documentType: "Copyright Registration",
+      version: "v1.0-verified",
+      dateAdded: formattedDate,
+      section: "DOCUMENT VAULT",
+      compositionId: lic.archiveIdentifier || `TOC-${cleanSong.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`,
+      clientId: cleanClient,
+      dateCreated: formattedDate,
+      status: "Signed",
+      visibility: "Private",
+      signatureStatus: "Verified",
+      isSigned: "Signed",
+      expirationDate: "N/A",
+      verificationStatus: "Valid",
+      certificateId: `CERT-${cleanId}`,
+      licenseId: cleanId,
+      adminNotes: `OFFICIAL VAULT CERTIFICATE FOR ${cleanSong.toUpperCase()}.`,
+      activityLog: [
+        { date: formattedDate, action: `Certificate minted and deposited to user's secure vault.` }
+      ]
+    });
+
+    // 3. Audio & Master Stem Delivery Record
+    list.push({
+      id: `DOC-STEM-${cleanId}`,
+      name: `Audio Master Delivery Record: ${cleanSong}`,
+      documentType: "Ownership Document",
+      version: "v1.0",
+      dateAdded: formattedDate,
+      section: "ARCHIVE",
+      compositionId: lic.archiveIdentifier || `TOC-${cleanSong.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`,
+      clientId: cleanClient,
+      dateCreated: formattedDate,
+      status: "Active",
+      visibility: "Private",
+      signatureStatus: "Executed",
+      isSigned: "Signed",
+      expirationDate: "N/A",
+      verificationStatus: "Valid",
+      fragmentId: lic.archiveIdentifier || `TOC-${cleanSong.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`,
+      adminNotes: `Lossless master WAV files and audio stems cleared for direct download.`,
+      activityLog: [
+        { date: formattedDate, action: `Master audio delivery authorized.` }
+      ]
+    });
+
+    // 4. Split Sheet Declaration
+    list.push({
+      id: `DOC-SPLIT-${cleanId}`,
+      name: `Split Sheet Declaration: ${cleanSong}`,
+      documentType: "Split Sheet",
+      version: "v1.0-approved",
+      dateAdded: formattedDate,
+      section: "ROYALTIES",
+      compositionId: lic.archiveIdentifier || `TOC-${cleanSong.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`,
+      clientId: cleanClient,
+      dateCreated: formattedDate,
+      status: "Approved",
+      visibility: "Private",
+      signatureStatus: "Executed",
+      isSigned: "Signed",
+      expirationDate: "N/A",
+      verificationStatus: "Valid",
+      royaltyId: `ROY-${cleanId}`,
+      adminNotes: `50/50 Master & Publishing standard split record.`,
+      activityLog: [
+        { date: formattedDate, action: `Split sheet registered.` }
+      ]
+    });
+
+    // 5. Master Clearance Record
+    list.push({
+      id: `DOC-CLR-${cleanId}`,
+      name: `Clearance Status Record: ${cleanSong}`,
+      documentType: "Clearance Record",
+      version: "v1.0",
+      dateAdded: formattedDate,
+      section: "CLEARANCE",
+      compositionId: lic.archiveIdentifier || `TOC-${cleanSong.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`,
+      clientId: cleanClient,
+      dateCreated: formattedDate,
+      status: "Approved",
+      visibility: "Private",
+      signatureStatus: "Executed",
+      isSigned: "Signed",
+      expirationDate: "N/A",
+      verificationStatus: "Valid",
+      clearanceId: `CLR-${cleanId}`,
+      adminNotes: `Clearance status: Approved and recorded.`,
+      activityLog: [
+        { date: formattedDate, action: `Clearance granted via instant purchase handshake.` }
+      ]
+    });
+  });
+
+  return list;
+};
+
+// Static helper to generate clean baseline list of official legal documents and blank templates
 const generateDefaultDocuments = (): DocumentItem[] => {
   const list: DocumentItem[] = [];
   let index = 1;
 
   Object.entries(INITIAL_DOC_MAPPING).forEach(([section, docNames]) => {
+    // Skip creating fake items in DOCUMENT VAULT — it will be populated purely by authentic user documents!
+    if (section === "DOCUMENT VAULT") return;
+
     docNames.forEach((name, sIndex) => {
       const docNum = String(index).padStart(4, "0");
-      const compNum = String((index % 8) + 1).padStart(4, "0");
-      const cltNum = String(((index * 3) % 15) + 1).padStart(4, "0");
-      
-      const docId = `LOC-DOC-${docNum}`;
-      const compId = `LOC-COMP-${compNum}`;
-      const cltId = `LOC-CLT-${cltNum}`;
-
-      const docStatus = determineDefaultStatus(name, section);
+      const docId = `TOC-DOC-${docNum}`;
+      const docStatus = section === "LEGAL" ? "Active" : "Draft";
       const docType = determineDocumentType(name);
-      const isSignedState: "Signed" | "Unsigned" = (docStatus === "Signed" || docStatus === "Approved" || docStatus === "Active") ? "Signed" : "Unsigned";
+      const isSignedState: "Signed" | "Unsigned" = section === "LEGAL" ? "Signed" : "Unsigned";
       
-      // Expire only appropriate files
-      let expDate = "N/A";
-      if (docStatus === "Expired") {
-        expDate = "2026-06-30 UTC";
-      } else if (docType === "Producer Agreement" || docType === "Work-for-Hire Agreement" || docType === "Clearance Record") {
-        expDate = `2028-12-31 UTC`;
-      }
-
-      // Default Visibility setting
-      let visibilitySetting: "Private" | "Authorized Only" | "Public" = "Private";
-      if (section === "LEGAL") {
+      let visibilitySetting: "Private" | "Authorized Only" | "Public" = "Authorized Only";
+      if (section === "LEGAL" || section === "VERIFICATION") {
         visibilitySetting = "Public";
-      } else if (section === "VERIFICATION") {
-        visibilitySetting = "Public";
-      } else if (name.includes("Template") || name.includes("Form")) {
-        visibilitySetting = "Authorized Only";
       }
 
       const item: DocumentItem = {
         id: docId,
         name,
         documentType: docType,
-        version: name.includes("Draft") || docStatus === "Draft" ? "v1.0-draft" : "v1.0",
-        dateAdded: `2026-06-${String((index % 25) + 1).padStart(2, "0")} UTC`,
+        version: "v1.0",
+        dateAdded: "2026-08-01 UTC",
         section,
-        compositionId: compId,
-        clientId: cltId,
-        dateCreated: `2026-06-${String((index % 25) + 1).padStart(2, "0")} UTC`,
+        compositionId: "GENERAL",
+        clientId: "OFFICIAL",
+        dateCreated: "2026-08-01 UTC",
         status: docStatus,
         visibility: visibilitySetting,
-        signatureStatus: "Draft",
+        signatureStatus: section === "LEGAL" ? "Executed" : "Draft",
         isSigned: isSignedState,
-        expirationDate: expDate,
-        verificationStatus: "Unverified",
-        adminNotes: `SYSTEM VERIFICATION LOG: Initialization completed. Integrity verified. Associated with client ID ${cltId}.`,
+        expirationDate: "N/A",
+        verificationStatus: section === "LEGAL" ? "Valid" : "Unverified",
+        adminNotes: `STANDARD TEMPLATE: ${name}. Official archive reference record.`,
         activityLog: [
-          { date: "2026-06-01 00:00 UTC", action: "Document registration initialized." },
-          { date: "2026-06-15 14:32 UTC", action: "System Registry synchronized with Database Nodes." }
+          { date: "2026-08-01 00:00 UTC", action: "Template initialized in system registry." }
         ]
       };
 
-      // Set contextual ID values
       if (section === "ARCHIVE") {
-        item.fragmentId = `LOC-FRAG-${String(sIndex + 1).padStart(4, "0")}`;
+        item.fragmentId = `TOC-FRAG-${String(sIndex + 1).padStart(3, "0")}`;
       } else if (section === "CLEARANCE") {
-        item.clearanceId = `LOC-CLR-${String(sIndex + 1).padStart(4, "0")}`;
-        item.activityLog.push({ date: "2026-06-20 09:12 UTC", action: "Clearance tracking ID mapped successfully." });
+        item.clearanceId = `TOC-CLR-${String(sIndex + 1).padStart(3, "0")}`;
       } else if (section === "LICENSES") {
-        item.licenseId = `LOC-LIC-${String(sIndex + 1).padStart(4, "0")}`;
-        item.activityLog.push({ date: "2026-06-20 10:45 UTC", action: "Tokenized license key minted in ledger." });
+        item.licenseId = `TOC-LIC-TMPL-${String(sIndex + 1).padStart(3, "0")}`;
       } else if (section === "ROYALTIES") {
-        item.royaltyId = `LOC-ROY-${String(sIndex + 1).padStart(4, "0")}`;
+        item.royaltyId = `TOC-ROY-${String(sIndex + 1).padStart(3, "0")}`;
       } else if (section === "PUBLISHING") {
-        item.publishingId = `LOC-PUB-${String(sIndex + 1).padStart(4, "0")}`;
+        item.publishingId = `TOC-PUB-${String(sIndex + 1).padStart(3, "0")}`;
       } else if (section === "METADATA") {
-        item.metadataId = `LOC-META-${String(sIndex + 1).padStart(4, "0")}`;
+        item.metadataId = `TOC-META-${String(sIndex + 1).padStart(3, "0")}`;
       } else if (section === "VERIFICATION") {
-        item.certificateId = `LOC-CERT-${String(sIndex + 1).padStart(4, "0")}`;
-        item.activityLog.push({ date: "2026-06-22 11:30 UTC", action: "QR verification blockhash calculated." });
-      }
-
-      // Configure default signature and verification states based on status
-      if (item.status === "Active" || item.status === "Approved") {
-        item.signatureStatus = "Executed";
-        item.verificationStatus = "Valid";
-      } else if (item.status === "Signed") {
-        item.signatureStatus = "Verified";
-        item.verificationStatus = "Valid";
-      } else if (item.status === "Pending Signature") {
-        item.signatureStatus = "Pending Signature";
-        item.verificationStatus = "Under Review";
-      } else if (item.status === "Draft") {
-        item.signatureStatus = "Draft";
-        item.verificationStatus = "Unverified";
-      } else if (item.status === "Rejected" || item.status === "Revoked") {
-        item.signatureStatus = "Not Required";
-        item.verificationStatus = "Warning";
+        item.certificateId = `TOC-CERT-${String(sIndex + 1).padStart(3, "0")}`;
       }
 
       list.push(item);
@@ -300,19 +400,112 @@ export default function DocumentDashboard({
     return "CLIENT";
   }) as any);
   
-  // Dynamic document database state
-  const [documents, setDocuments] = useState<DocumentItem[]>(() => {
+  // Helper to load clean documents (strips legacy dummy files)
+  const getInitialCleanDocs = (): DocumentItem[] => {
+    const baseDocs = generateDefaultDocuments();
+    let userLicenses: any[] = [];
+    try {
+      const savedLic = localStorage.getItem("lomon_user_licenses");
+      if (savedLic) {
+        const parsedLic = JSON.parse(savedLic);
+        if (Array.isArray(parsedLic)) {
+          // filter out old mock licenses
+          userLicenses = parsedLic.filter(l => 
+            !l.id?.includes("30192") && 
+            !l.id?.includes("84920") && 
+            !l.id?.includes("77102") && 
+            !l.id?.includes("00482") && 
+            !l.id?.includes("99001") && 
+            !l.id?.includes("55201")
+          );
+        }
+      }
+    } catch (_e) {}
+
+    const licenseDocs = buildDocumentsFromLicenses(userLicenses, currentUserEmail);
+
     const saved = localStorage.getItem("dashboard_vault_documents");
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Check if it's the old dummy dataset
+          const hasOldDummy = parsed.some(d => d.id?.startsWith("LOC-DOC-") || d.clientId?.startsWith("LOC-CLT-"));
+          if (!hasOldDummy) {
+            // Merge newly constructed license docs if missing
+            const existingIds = new Set(parsed.map(d => d.id));
+            const merged = [...parsed];
+            licenseDocs.forEach(ld => {
+              if (!existingIds.has(ld.id)) merged.unshift(ld);
+            });
+            return merged;
+          }
+        }
+      } catch (e) { /* fallback */ }
     }
-    return generateDefaultDocuments();
-  });
+
+    return [...licenseDocs, ...baseDocs];
+  };
+
+  // Dynamic document database state
+  const [documents, setDocuments] = useState<DocumentItem[]>(getInitialCleanDocs);
+
+  // Sync state and listen for real-time document events
+  const reloadFromStorageAndUser = () => {
+    setDocuments(getInitialCleanDocs());
+  };
+
+  useEffect(() => {
+    reloadFromStorageAndUser();
+
+    // Fetch user data from server if token exists
+    const token = localStorage.getItem("lomon_auth_token");
+    if (token) {
+      fetch("/api/user/data", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.licenses)) {
+          const userDocs = buildDocumentsFromLicenses(data.licenses, currentUserEmail);
+          const baseDocs = generateDefaultDocuments();
+          setDocuments(prev => {
+            const existingIds = new Set(userDocs.map(d => d.id));
+            const retainedCustom = prev.filter(d => !d.id.startsWith("DOC-") && !d.id.startsWith("TOC-DOC-"));
+            return [...userDocs, ...retainedCustom, ...baseDocs];
+          });
+        }
+      })
+      .catch(() => {});
+    }
+
+    const handleDocsUpdate = () => reloadFromStorageAndUser();
+    window.addEventListener("lomon_documents_updated", handleDocsUpdate);
+    window.addEventListener("storage", handleDocsUpdate);
+
+    return () => {
+      window.removeEventListener("lomon_documents_updated", handleDocsUpdate);
+      window.removeEventListener("storage", handleDocsUpdate);
+    };
+  }, [currentUserEmail, isLoggedIn]);
 
   // Persistent state synchronization
   useEffect(() => {
     localStorage.setItem("dashboard_vault_documents", JSON.stringify(documents));
   }, [documents]);
+
+  // Hard Reset / Cache Purge Handler
+  const handlePurgeAndReset = async () => {
+    if (window.confirm("Reset document repository and clear legacy cache? Your active licenses will be re-synchronized with the secure archive.")) {
+      try {
+        localStorage.removeItem("dashboard_vault_documents");
+        // Also call backend to clear dummy history
+        await fetch("/api/user/clear-history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).catch(() => {});
+      } catch (_e) {}
+      reloadFromStorageAndUser();
+      if (onRefreshData) onRefreshData();
+    }
+  };
 
   // Set default view menu mode on load depending on login state, route, or mode prop
   useEffect(() => {
@@ -856,6 +1049,25 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
             <option value="Revoked">Revoked</option>
             <option value="Archived">Archived</option>
           </select>
+
+          {/* Sync & Clear Storage Action Buttons */}
+          <div className="flex gap-1.5 shrink-0">
+            <button
+              onClick={() => reloadFromStorageAndUser()}
+              title="Refresh Vault Documents"
+              className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 text-zinc-400 hover:text-white px-3 py-2 text-[9px] font-mono uppercase tracking-wider rounded-none transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span>↻</span>
+              <span>SYNC</span>
+            </button>
+            <button
+              onClick={handlePurgeAndReset}
+              title="Clear Cache and Reset Vault"
+              className="bg-zinc-950 hover:bg-red-950/40 border border-zinc-900 hover:border-red-900/60 text-zinc-500 hover:text-red-400 px-3 py-2 text-[9px] font-mono uppercase tracking-wider rounded-none transition-colors cursor-pointer"
+            >
+              PURGE CACHE
+            </button>
+          </div>
         </div>
 
         {/* Document Grid / Table */}

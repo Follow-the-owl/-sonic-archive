@@ -4,7 +4,7 @@ import {
   X, Check, AlertCircle, FileText, Search, ShieldCheck, 
   Send, DollarSign, List, Plus, Landmark, History, FileCheck, ExternalLink, Mail
 } from "lucide-react";
-import DocumentDashboard from "./DocumentDashboard";
+import ClientDashboard from "./ClientDashboard";
 import LicenseVerificationPage from "./LicenseVerificationPage";
 import JSZip from "jszip";
 import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
@@ -23,11 +23,13 @@ interface TransmissionsOverlayProps {
   userRequests?: any[];
   userEmailLogs?: any[];
   onRefreshData?: () => void;
+  onOpenAdmin?: () => void;
   onOpenTerms?: () => void;
   onOpenPrivacy?: () => void;
   onOpenCookies?: () => void;
   onOpenRefunds?: () => void;
   onOpenAcceptableUse?: () => void;
+  onOpenProposal?: (fragmentName?: string, tierTitle?: string) => void;
 }
 
 export default function TransmissionsOverlay({
@@ -44,11 +46,13 @@ export default function TransmissionsOverlay({
   userRequests = [],
   userEmailLogs = [],
   onRefreshData,
+  onOpenAdmin,
   onOpenTerms,
   onOpenPrivacy,
   onOpenCookies,
   onOpenRefunds,
-  onOpenAcceptableUse
+  onOpenAcceptableUse,
+  onOpenProposal
 }: TransmissionsOverlayProps) {
   // Audio WAV and Stems ZIP Generator Helpers
   const generateTinyWavBlob = () => {
@@ -1456,184 +1460,19 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
     }
 
     // ----------------------------------------------------
-    // 7A. MY LICENSES (ACCOUNT SECTION)
+    // 7A. MY FRAGMENTS / CLIENT DASHBOARD (ACCOUNT SECTION)
     // ----------------------------------------------------
-    if (slug === "my-licenses") {
-      if (activeAdminLocalView && currentUserEmail === "evianaconcepts1@gmail.com") {
-        return (
-          <div className="space-y-4">
-            <button
-              onClick={() => setActiveAdminLocalView(false)}
-              className="text-zinc-400 hover:text-white text-[9px] font-mono uppercase cursor-pointer flex items-center gap-1.5 border border-zinc-900 bg-neutral-950 px-2.5 py-1.5 rounded-sm"
-            >
-              ← BACK TO LICENSE REGISTRY
-            </button>
-            {renderAdminPanel()}
-          </div>
-        );
-      }
-
+    if (slug === "my-licenses" || slug === "client-dashboard" || slug === "dashboard") {
       return (
         <div className="space-y-4 text-left">
-          <div className="space-y-1">
-            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
-              [ ACCOUNT / ACTIVE LICENSES ]
-            </span>
-            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
-              The currently active licenses assigned to your secure email terminal.
-            </p>
-          </div>
-
-          {currentUserEmail === "evianaconcepts1@gmail.com" && (
-            <div className="border border-yellow-500 bg-yellow-500/5 p-3 rounded-sm space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-yellow-500 text-[9.5px] font-bold uppercase">ADMINISTRATOR DIRECTORY TERMINAL DETECTED</span>
-                <span className="text-[7.5px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 font-bold font-mono">ROOT</span>
-              </div>
-              <p className="text-[9.5px] text-zinc-400 uppercase leading-normal">
-                You are authorized with root permissions. Access the complete Payments, Users, and License Registry CRUD terminal below.
-              </p>
-              <button
-                onClick={() => setActiveAdminLocalView(true)}
-                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-mono font-bold text-[9px] tracking-widest py-2 transition-all cursor-pointer uppercase"
-              >
-                Open Root Admin Control Center ⚙
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-2.5 border-t border-zinc-900 pt-3">
-            {!isLoggedIn ? (
-              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
-                Terminal authorization required. Please establish a secure connection via checkout or support node to access active licenses.
-              </div>
-            ) : (userLicenses && userLicenses.length > 0) ? (
-              userLicenses.map((license) => (
-                <div key={license.id} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white text-[11px] font-bold uppercase">{license.song}</span>
-                    <span className="text-[8.5px] text-[#00E676] bg-[#00E676]/10 px-1.5 py-0.5 font-bold uppercase">ACTIVE</span>
-                  </div>
-                  <div className="grid grid-cols-2 text-[9px] font-mono text-zinc-400 font-bold">
-                    <div>TYPE: {license.type}</div>
-                    <div>ISSUED: {license.date}</div>
-                  </div>
-                  <div className="text-[8.5px] text-zinc-500 font-mono border-t border-zinc-900 pt-1.5 flex justify-between items-center">
-                    <span>ID: {license.id}</span>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => {
-                          if (transferringId === license.id) {
-                            setTransferringId(null);
-                            setTransferError("");
-                            setTransferSuccessMsg("");
-                          } else {
-                            setTransferringId(license.id);
-                            setRecipientEmail("");
-                            setTransferError("");
-                            setTransferSuccessMsg("");
-                          }
-                        }}
-                        className="text-yellow-500 hover:underline cursor-pointer uppercase text-[8px] font-bold"
-                      >
-                        {transferringId === license.id ? "Cancel Transfer ✕" : "Transfer License ⇄"}
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setVerificationInput(license.id);
-                          setVerificationResult({
-                            id: license.id,
-                            status: "SECURED / ACTIVE",
-                            composition: license.song,
-                            type: license.type,
-                            isrc: license.isrc || "US-LMN-26-00301",
-                            iswc: license.iswc || "T-302.459.882-1",
-                            issuedTo: currentUserEmail || userEmail,
-                            issuedDate: license.date,
-                            signature: license.signature || "DIGITALLY REGISTERED VIA SECURE CRYPTOGRAPHIC PROTOCOL",
-                            hash: license.hash || "0x8F9C2B7A1E4D039F"
-                          });
-                        }}
-                        className="text-[#D9D6CA] hover:underline cursor-pointer uppercase text-[8px] font-bold"
-                      >
-                        View Certificate →
-                      </button>
-                      <button 
-                        onClick={() => {
-                          openOrDownloadLicenseAgreement({
-                            licenseId: license.id,
-                            transactionRef: license.transactionRef || license.hash || "LMN-TX-892019",
-                            purchaseDate: license.purchaseDate || license.date || "August 4, 2026",
-                            licenseeLegalName: license.licenseeLegalName || currentUserEmail || "John Smith",
-                            licenseeEmail: license.email || currentUserEmail || "guest@lomon.local",
-                            fragmentTitle: license.song || license.fragment || "Composition",
-                            archiveIdentifier: license.archiveIdentifier || `TOC-${(license.id || "LIC").replace(/[^a-zA-Z0-9]/g, "")}-001`,
-                            licenseTierId: license.tierId || (((license.type || "").toLowerCase().includes("exclusive")) ? "exclusive" : ((license.type || "").toLowerCase().includes("commercial")) ? "commercial" : ((license.type || "").toLowerCase().includes("release")) ? "release" : "access"),
-                            licenseTierTitle: license.type || "Archive License"
-                          });
-                        }}
-                        className="text-[#00E676] hover:underline cursor-pointer uppercase text-[8px] font-bold"
-                      >
-                        View Executed Agreement (Schedules A & B) 📄
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Inline Transfer Form */}
-                  {transferringId === license.id && (
-                    <motion.form 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      onSubmit={handleTransferLicense}
-                      className="border-t border-dashed border-zinc-900 pt-2.5 mt-2 space-y-2"
-                    >
-                      <p className="text-[8.5px] text-zinc-400 font-mono uppercase leading-tight">
-                        Transfer Ownership of this composition license. The recipient must be a registered terminal user. This operation is cryptographically irreversible.
-                      </p>
-                      
-                      {transferError && (
-                        <div className="text-[8.5px] text-red-500 font-mono uppercase bg-red-950/10 border border-red-900/40 p-1.5 rounded-sm">
-                          ERROR: {transferError}
-                        </div>
-                      )}
-
-                      {transferSuccessMsg && (
-                        <div className="text-[8.5px] text-[#00E676] font-mono uppercase bg-[#00E676]/10 border border-[#00E676]/30 p-1.5 rounded-sm">
-                          SUCCESS: {transferSuccessMsg}
-                        </div>
-                      )}
-
-                      {!transferSuccessMsg && (
-                        <div className="flex gap-2">
-                          <input 
-                            type="email"
-                            required
-                            placeholder="RECIPIENT@EMAIL.COM"
-                            value={recipientEmail}
-                            onChange={(e) => setRecipientEmail(e.target.value)}
-                            className="flex-grow bg-black border border-zinc-850 px-2 py-1.5 text-[9px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-800"
-                          />
-                          <button 
-                            type="submit"
-                            disabled={isTransferring}
-                            className="bg-yellow-500 text-black font-mono font-bold text-[8px] tracking-wider px-3 py-1.5 hover:bg-yellow-400 transition-colors cursor-pointer"
-                          >
-                            {isTransferring ? "XFER..." : "CONFIRM XFER"}
-                          </button>
-                        </div>
-                      )}
-                    </motion.form>
-                  )}
-                </div>
-
-              ))
-            ) : (
-              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
-                No active license records found for terminal {currentUserEmail}.
-              </div>
-            )}
-          </div>
+          <ClientDashboard
+            currentUserEmail={currentUserEmail || userEmail || "evianaconcepts1@gmail.com"}
+            userLicenses={userLicenses}
+            onClose={onClose}
+            onOpenAdmin={onOpenAdmin}
+            onRefreshData={onRefreshData}
+            initialSection="01_MY_FRAGMENTS"
+          />
         </div>
       );
     }
@@ -2278,13 +2117,12 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
               </div>
 
               {/* Scrollable Workspace */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                <DocumentDashboard
+              <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+                <ClientDashboard
                   currentUserEmail={currentUserEmail || userEmail}
-                  isLoggedIn={isLoggedIn}
                   onClose={onClose}
+                  onOpenAdmin={onOpenAdmin}
                   onRefreshData={onRefreshData}
-                  mode="CLIENT"
                 />
               </div>
 

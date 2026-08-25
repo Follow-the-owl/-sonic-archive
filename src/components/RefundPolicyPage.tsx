@@ -459,21 +459,20 @@ export default function RefundPolicyPage({ onBack }: RefundPolicyPageProps) {
                 <p className="text-zinc-400">Licensing Department</p>
               </div>
 
-              <div className="pt-2 border-t border-zinc-900 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="pt-2 border-t border-zinc-900 flex flex-wrap items-center gap-4">
+                <a
+                  href="mailto:support@theowlclock.com"
+                  className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
+                >
+                  <Mail size={13} className="text-zinc-400" />
+                  <span>support@theowlclock.com</span>
+                </a>
                 <a
                   href="mailto:licensing@theowlclock.com"
                   className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
                 >
                   <Mail size={13} className="text-zinc-400" />
                   <span>licensing@theowlclock.com</span>
-                </a>
-                <a
-                  href="https://theowlclock.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-400 hover:text-white font-mono text-[11px]"
-                >
-                  theowlclock.com
                 </a>
               </div>
             </div>

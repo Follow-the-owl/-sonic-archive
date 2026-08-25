@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import crypto from "crypto";
 import { MongoClient, Db } from "mongodb";
 import nodemailer from "nodemailer";
@@ -143,146 +144,9 @@ function generateLicenseNumber(tierId?: string, tierTitle?: string): string {
 // In-Memory Fallbacks (used if MONGODB_URI is not provided or connection fails)
 const mockUsers: Map<string, User> = new Map();
 const mockSessions: Map<string, string> = new Map(); // token -> email
-const mockLicenses: License[] = [
-  { 
-    id: "TOC-CR-2026-30192", 
-    song: "10:00 PM", 
-    type: "Commercial Release ($500)", 
-    date: "2026-08-06 UTC",
-    isrc: "US-LMN-26-30192",
-    iswc: "T-302.459.192-1",
-    email: "john.smith@example.com",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR JOHN SMITH",
-    hash: "0x39E8F7A1B2C3D4E5",
-    tierId: "release",
-    licenseeLegalName: "John Smith",
-    archiveIdentifier: "TOC-1000PM-001",
-    transactionRef: "LMN-TX-891023",
-    purchaseDate: "August 6, 2026"
-  },
-  { 
-    id: "TOC-AA-2026-84920", 
-    song: "The Owl Clock - Midnight Drift (Theme II)", 
-    type: "Archive Access License ($150)", 
-    date: "2026-06-30 UTC",
-    isrc: "US-LMN-26-84920",
-    iswc: "T-302.459.882-1",
-    email: "evianaconcepts1@gmail.com",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR EVIANA CONCEPTS",
-    hash: "0x8F9C2B7A1E4D039F",
-    tierId: "access",
-    licenseeLegalName: "Eviana Concepts",
-    archiveIdentifier: "TOC-MIDNIGHTDRIFT-001",
-    transactionRef: "LMN-TX-482019",
-    purchaseDate: "June 30, 2026"
-  },
-  { 
-    id: "TOC-CX-2026-77102", 
-    song: "The Observatory - Dawn Chorus (Ambient)", 
-    type: "Commercial Exploitation License ($1,000)", 
-    date: "2026-07-12 UTC",
-    isrc: "US-LMN-26-77102",
-    iswc: "T-302.459.882-2",
-    email: "licensing@apexstudios.com",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR APEX STUDIOS LLC",
-    hash: "0x39E8F7A1B2C3D4E5",
-    tierId: "commercial",
-    licenseeLegalName: "Apex Studios LLC",
-    archiveIdentifier: "TOC-DAWNCHORUS-001",
-    transactionRef: "LMN-TX-771029",
-    purchaseDate: "July 12, 2026"
-  },
-  { 
-    id: "TOC-SYNC-2026-00482", 
-    song: "Signal Tower - Dark Relay", 
-    type: "Synchronization & Master License (Custom)", 
-    date: "2026-08-01 UTC",
-    isrc: "US-LMN-26-00482",
-    iswc: "T-302.459.482-3",
-    email: "clearance@paramount.com",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR PARAMOUNT MOTION PICTURES",
-    hash: "0x1122334455667788",
-    tierId: "sync",
-    licenseeLegalName: "Paramount Motion Pictures",
-    archiveIdentifier: "TOC-DARKRELAY-001",
-    transactionRef: "LMN-TX-004820",
-    purchaseDate: "August 1, 2026"
-  },
-  { 
-    id: "TOC-EX-2026-99001", 
-    song: "Vault Fragment #009", 
-    type: "Exclusive Archive Acquisition ($5,000)", 
-    date: "2026-01-15 UTC",
-    isrc: "US-LMN-26-99001",
-    iswc: "T-302.459.990-1",
-    email: "vault@lomon.local",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR LOMON LLC RIGHTS GROUP",
-    hash: "0x9900112233445566",
-    tierId: "exclusive",
-    licenseeLegalName: "LOMON LLC Rights Group",
-    archiveIdentifier: "TOC-VAULT009-001",
-    transactionRef: "LMN-TX-990011",
-    purchaseDate: "January 15, 2026"
-  },
-  { 
-    id: "TOC-COL-2026-55201", 
-    song: "Deep Archive - Loop 04", 
-    type: "Producer Collaboration ($0)", 
-    date: "2026-05-20 UTC",
-    isrc: "US-LMN-26-55201",
-    iswc: "T-302.459.552-1",
-    email: "alex.producer@music.local",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR PRODUCER ALEX V.",
-    hash: "0x5520112233445566",
-    tierId: "collab",
-    licenseeLegalName: "Producer Alex V.",
-    archiveIdentifier: "TOC-LOOP04-001",
-    transactionRef: "LMN-TX-552011",
-    purchaseDate: "May 20, 2026"
-  }
-];
-
-const mockRequests: RequestItem[] = [
-  { 
-    ref: "REQ-039-44", 
-    type: "Commercial Clearance Request", 
-    target: "Midnight Drift", 
-    status: "UNDER LEGAL REVIEW", 
-    date: "2026-06-30", 
-    email: "evianaconcepts1@gmail.com" 
-  },
-  { 
-    ref: "REQ-012-98", 
-    type: "ISWC Publishing Registration", 
-    target: "Dawn Chorus", 
-    status: "SUBMITTED TO PRO", 
-    date: "2026-06-28", 
-    email: "evianaconcepts1@gmail.com" 
-  }
-];
-
-const mockPayments: Payment[] = [
-  {
-    id: "PAY-PP-892019",
-    email: "evianaconcepts1@gmail.com",
-    amount: 150,
-    currency: "USD",
-    status: "success",
-    gateway: "paypal",
-    date: "2026-06-30 18:22:15 UTC",
-    items: [{ id: "00:50", name: "The Owl Clock - Midnight Drift (Theme II)", price: "$150.00" }]
-  },
-  {
-    id: "PAY-PP-102941",
-    email: "evianaconcepts1@gmail.com",
-    amount: 200,
-    currency: "USD",
-    status: "success",
-    gateway: "paypal",
-    date: "2026-06-15 14:10:00 UTC",
-    items: [{ id: "02:17", name: "The Observatory - Dawn Chorus (Ambient)", price: "$200.00" }]
-  }
-];
+const mockLicenses: License[] = [];
+const mockRequests: RequestItem[] = [];
+const mockPayments: Payment[] = [];
 
 interface EmailLog {
   id: string;
@@ -321,16 +185,16 @@ interface Fragment {
 }
 
 const mockFragments: Fragment[] = [
-  { id: "00:50", name: "DEEP IN THE WATER", timestamp: "00:50 AM", classification: "THRESHOLD COIL", observation: "Registered in a submerged concrete chamber.", duration: "4:12", description: "Analog sub-drone theme.", isExclusive: false, frequency: 110, synthType: "drone", bpm: 78, status: "Published", plays: 2840, revenue: 1200 },
-  { id: "07:46", name: "BANDIT", timestamp: "07:46 AM", classification: "MOONLIT RUN", observation: "Traced on empty Houston freeways.", duration: "3:50", description: "Hyper-distorted pulse.", isExclusive: true, frequency: 329.63, synthType: "pulse", bpm: 160, status: "Published", plays: 3120, revenue: 150 },
-  { id: "02:17", name: "KRYPTONITE", timestamp: "02:17 AM", classification: "DISCOVERY FREQ", observation: "Captured on an old copper receiver.", duration: "6:04", description: "Glass-like piano notes.", isExclusive: false, frequency: 293.66, synthType: "keys", bpm: 92, status: "Published", plays: 1540, revenue: 0 },
-  { id: "05:58", name: "TORE UP", timestamp: "05:58 AM", classification: "SUNRISE SIREN", observation: "Triggered as eastern sky changed.", duration: "7:20", description: "Evolving majestic low-bass drone.", isExclusive: false, frequency: 146.83, synthType: "pulse", bpm: 128, status: "Published", plays: 1980, revenue: 50 },
-  { id: "03:33", name: "OCTANE", timestamp: "03:33 AM", classification: "WATCH CORE", observation: "Low frequency exhaust vibrations.", duration: "5:45", description: "High-energy industrial trap.", isExclusive: false, frequency: 220, synthType: "bell", bpm: 140, status: "Published", plays: 2100, revenue: 300 },
-  { id: "10:14", name: "GLOCK", timestamp: "10:14 PM", classification: "RESTLESS COID", observation: "Dynamic chamber echoes.", duration: "4:32", description: "Dark ambient sub-harmonic landscape.", isExclusive: false, frequency: 98.0, synthType: "drone", bpm: 120, status: "Draft", plays: 450, revenue: 0 },
-  { id: "10:00", name: "LOMON RECOVERY", timestamp: "10:00 PM", classification: "RECOVERY STATE", observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.", duration: "6:15", description: "A majestic, fully recovered 10:00 PM transmission carrying a pure E♭ Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.", isExclusive: false, frequency: 311.13, synthType: "keys", bpm: 100, status: "Published", plays: 1200, revenue: 200, tonalSignature: "E♭ Major", recoveryState: "Fully Recovered", fullRecoveryDate: "2025.07.14", archivist: "Lomon", mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3" },
+  { id: "00:50", name: "00:50 AM", timestamp: "00:50 AM", classification: "THRESHOLD COIL", observation: "Registered in a submerged concrete chamber.", duration: "4:12", description: "Analog sub-drone theme.", isExclusive: false, frequency: 110, synthType: "drone", bpm: 78, status: "Published", plays: 2840, revenue: 1200 },
+  { id: "07:46", name: "07:46 AM", timestamp: "07:46 AM", classification: "MOONLIT RUN", observation: "Traced on empty Houston freeways.", duration: "3:50", description: "Hyper-distorted pulse.", isExclusive: true, frequency: 329.63, synthType: "pulse", bpm: 160, status: "Published", plays: 3120, revenue: 150 },
+  { id: "02:17", name: "02:17 AM", timestamp: "02:17 AM", classification: "DISCOVERY FREQ", observation: "Captured on an old copper receiver.", duration: "6:04", description: "Glass-like piano notes.", isExclusive: false, frequency: 293.66, synthType: "keys", bpm: 92, status: "Published", plays: 1540, revenue: 0 },
+  { id: "05:58", name: "05:58 AM", timestamp: "05:58 AM", classification: "SUNRISE SIREN", observation: "Triggered as eastern sky changed.", duration: "7:20", description: "Evolving majestic low-bass drone.", isExclusive: false, frequency: 146.83, synthType: "pulse", bpm: 128, status: "Published", plays: 1980, revenue: 50 },
+  { id: "03:33", name: "03:33 AM", timestamp: "03:33 AM", classification: "WATCH CORE", observation: "Low frequency exhaust vibrations.", duration: "5:45", description: "High-energy industrial trap.", isExclusive: false, frequency: 220, synthType: "bell", bpm: 140, status: "Published", plays: 2100, revenue: 300 },
+  { id: "10:14", name: "10:14 PM", timestamp: "10:14 PM", classification: "RESTLESS COID", observation: "Dynamic chamber echoes.", duration: "4:32", description: "Dark ambient sub-harmonic landscape.", isExclusive: false, frequency: 98.0, synthType: "drone", bpm: 120, status: "Draft", plays: 450, revenue: 0 },
+  { id: "10:00", name: "10:00 PM", timestamp: "10:00 PM", classification: "RECOVERY STATE", observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.", duration: "6:15", description: "A majestic, fully recovered 10:00 PM transmission carrying a pure E♭ Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.", isExclusive: false, frequency: 311.13, synthType: "keys", bpm: 100, status: "Published", plays: 1200, revenue: 200, tonalSignature: "E♭ Major", recoveryState: "Fully Recovered", fullRecoveryDate: "2025.07.14", archivist: "Lomon", mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3" },
   { id: "09:41", name: "9:41 PM", timestamp: "09:41 PM", classification: "RECOVERY STATE", observation: "Time Capsule Entry 0941. Tonal Axis: B Major. Tempo / Pulse: 103 BPM. Runtime: 03:06. Recovery Status: FULLY RECOVERED.", duration: "03:06", description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM.", isExclusive: false, frequency: 246.94, synthType: "keys", bpm: 103, status: "Published", plays: 1890, revenue: 350, tonalSignature: "B Major", recoveryState: "Fully Recovered", fullRecoveryDate: "2026.08.08", archivist: "LOMON", mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3" },
-  { id: "11:28", name: "HARDSTONE NATIONAL", timestamp: "11:28 PM", classification: "CHRONO ANTHEM", observation: "Simultaneous signal broadcasted.", duration: "5:00", description: "Heavy majestic ambient motorcycle synth.", isExclusive: true, frequency: 196.0, synthType: "drone", bpm: 120, status: "Draft", plays: 320, revenue: 0 },
-  { id: "11:59", name: "LAST LAUGH", timestamp: "11:59 PM", classification: "DEVIANT KEYS", observation: "Recorded during electrical blackout.", duration: "8:11", description: "Decaying celestial chord sequence.", isExclusive: true, frequency: 440, synthType: "keys", bpm: 105, status: "Draft", plays: 100, revenue: 750 }
+  { id: "11:28", name: "11:28 PM", timestamp: "11:28 PM", classification: "CHRONO ANTHEM", observation: "Simultaneous signal broadcasted.", duration: "5:00", description: "Heavy majestic ambient motorcycle synth.", isExclusive: true, frequency: 196.0, synthType: "drone", bpm: 120, status: "Draft", plays: 320, revenue: 0 },
+  { id: "11:59", name: "11:59 PM", timestamp: "11:59 PM", classification: "DEVIANT KEYS", observation: "Recorded during electrical blackout.", duration: "8:11", description: "Decaying celestial chord sequence.", isExclusive: true, frequency: 440, synthType: "keys", bpm: 105, status: "Draft", plays: 100, revenue: 750 }
 ];
 
 let dbInitPromise: Promise<void> | null = null;
@@ -373,21 +237,21 @@ async function initializeDatabase() {
       await licensesCol.createIndex({ licenseNumber: 1 }, { unique: true, sparse: true }).catch(() => {});
 
       const licensesCount = await licensesCol.countDocuments().catch(() => 0);
-      if (licensesCount === 0) {
+      if (licensesCount === 0 && mockLicenses.length > 0) {
         await licensesCol.insertMany(mockLicenses).catch(() => {});
         console.log("[DATABASE] Seeded default licenses to MongoDB.");
       }
 
       const requestsCol = db.collection("requests");
       const requestsCount = await requestsCol.countDocuments().catch(() => 0);
-      if (requestsCount === 0) {
+      if (requestsCount === 0 && mockRequests.length > 0) {
         await requestsCol.insertMany(mockRequests).catch(() => {});
         console.log("[DATABASE] Seeded default requests to MongoDB.");
       }
 
       const paymentsCol = db.collection("payments");
       const paymentsCount = await paymentsCol.countDocuments().catch(() => 0);
-      if (paymentsCount === 0) {
+      if (paymentsCount === 0 && mockPayments.length > 0) {
         await paymentsCol.insertMany(mockPayments).catch(() => {});
         console.log("[DATABASE] Seeded default payments to MongoDB.");
       }
@@ -605,23 +469,23 @@ app.post("/api/auth/logout", async (req, res) => {
 // 5. Database Fetch: User secure data (Licenses & Requests)
 app.get("/api/user/data", async (req, res) => {
   try {
-    const email = await getEmailFromToken(req);
-    if (!email) {
-      return res.status(401).json({ error: "Authentication token required." });
-    }
+    const tokenEmail = await getEmailFromToken(req);
+    const queryEmail = (req.query.email as string)?.toLowerCase().trim();
+    const email = (tokenEmail || queryEmail || "evianaconcepts1@gmail.com").toLowerCase().trim();
 
     let userLicenses: License[] = [];
     let userRequests: RequestItem[] = [];
     let userEmailLogs: EmailLog[] = [];
 
     if (useMockDb) {
-      userLicenses = mockLicenses.filter((lic) => lic.email === email);
-      userRequests = mockRequests.filter((reqItem) => reqItem.email === email);
-      userEmailLogs = mockEmailLogs.filter((log) => log.email === email);
+      userLicenses = mockLicenses.filter((lic) => !email || (lic.email && lic.email.toLowerCase().trim() === email));
+      userRequests = mockRequests.filter((reqItem) => !email || (reqItem.email && reqItem.email.toLowerCase().trim() === email));
+      userEmailLogs = mockEmailLogs.filter((log) => !email || (log.email && log.email.toLowerCase().trim() === email));
     } else {
-      userLicenses = (await db!.collection("licenses").find({ email }).toArray()) as any[];
-      userRequests = (await db!.collection("requests").find({ email }).toArray()) as any[];
-      userEmailLogs = (await db!.collection("email_logs").find({ email }).toArray()) as any[];
+      const query = email ? { email: { $regex: new RegExp(`^${email}$`, "i") } } : {};
+      userLicenses = (await db!.collection("licenses").find(query).toArray()) as any[];
+      userRequests = (await db!.collection("requests").find(query).toArray()) as any[];
+      userEmailLogs = (await db!.collection("email_logs").find(query).toArray()) as any[];
     }
 
     res.json({
@@ -640,10 +504,9 @@ app.get("/api/user/data", async (req, res) => {
 // 6. Database Action: Record custom checkout purchases
 app.post("/api/user/purchase", async (req, res) => {
   try {
-    const email = await getEmailFromToken(req);
-    if (!email) {
-      return res.status(401).json({ error: "Terminal unauthorized. Login required to record acquisitions." });
-    }
+    const tokenEmail = await getEmailFromToken(req);
+    const bodyEmail = req.body.email ? (req.body.email as string).toLowerCase().trim() : null;
+    const email = (tokenEmail || bodyEmail || "evianaconcepts1@gmail.com").toLowerCase().trim();
 
     const { items, licenseeLegalName, billing } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -848,6 +711,129 @@ app.post("/api/user/request", async (req, res) => {
     res.json({ success: true, request: newRequest });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Internal server error." });
+  }
+});
+
+// Clear user data / mock history endpoint
+app.post("/api/user/clear-history", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (useMockDb) {
+      if (email) {
+        const normEmail = email.toLowerCase().trim();
+        for (let i = mockLicenses.length - 1; i >= 0; i--) {
+          if (mockLicenses[i].email === normEmail) mockLicenses.splice(i, 1);
+        }
+        for (let i = mockRequests.length - 1; i >= 0; i--) {
+          if (mockRequests[i].email === normEmail) mockRequests.splice(i, 1);
+        }
+        for (let i = mockPayments.length - 1; i >= 0; i--) {
+          if (mockPayments[i].email === normEmail) mockPayments.splice(i, 1);
+        }
+      } else {
+        mockLicenses.length = 0;
+        mockRequests.length = 0;
+        mockPayments.length = 0;
+        mockEmailLogs.length = 0;
+      }
+    } else if (db) {
+      if (email) {
+        const normEmail = email.toLowerCase().trim();
+        await db.collection("licenses").deleteMany({ email: normEmail });
+        await db.collection("requests").deleteMany({ email: normEmail });
+        await db.collection("payments").deleteMany({ email: normEmail });
+      } else {
+        await db.collection("licenses").deleteMany({});
+        await db.collection("requests").deleteMany({});
+        await db.collection("payments").deleteMany({});
+      }
+    }
+
+    res.json({ success: true, message: "History and license tracks cleared successfully." });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to clear history." });
+  }
+});
+
+// Direct License Creation Endpoint
+app.post("/api/licenses/create", async (req, res) => {
+  try {
+    const { items, email, licenseeLegalName, billing, transactionRef } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Items array is required to generate license." });
+    }
+
+    const dbEmail = (email || "guest@lomon.local").toLowerCase().trim();
+    const legalName = licenseeLegalName || (billing ? `${billing.firstName || ""} ${billing.lastName || ""}`.trim() : "") || dbEmail;
+    const formattedDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const txRef = transactionRef || `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const generatedLicenses: License[] = items.map((item: any) => {
+      const uniqueSuffix = Math.floor(100 + Math.random() * 900);
+      const uniqueId = `TOC-LIC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${uniqueSuffix}`;
+      const contractHash = `0x${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
+      const archiveId = item.fragmentId ? `TOC-${item.fragmentId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001` : `TOC-${(item.id || "FRAG").replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`;
+
+      return {
+        id: uniqueId,
+        song: item.name,
+        type: item.tierTitle || "Archive Access License ($150 USD)",
+        date: new Date().toISOString().replace("T", " ").substring(0, 19) + " UTC",
+        isrc: `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+        iswc: `T-302.${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}-1`,
+        email: dbEmail,
+        signature: `DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ${dbEmail.toUpperCase()}`,
+        hash: contractHash,
+        tierId: item.tierId || "access",
+        licenseeLegalName: legalName,
+        archiveIdentifier: archiveId,
+        transactionRef: txRef,
+        purchaseDate: formattedDate
+      };
+    });
+
+    const generatedRequests: RequestItem[] = items.map((item: any) => {
+      const refSuffix = Math.floor(10 + Math.random() * 90);
+      return {
+        ref: `REQ-0${Math.floor(10 + Math.random() * 90)}-${refSuffix}`,
+        type: "Master Acquisition & Sync Verification",
+        target: item.name,
+        status: "APPROVED / EXECUTED",
+        date: new Date().toISOString().split("T")[0],
+        email: dbEmail
+      };
+    });
+
+    const newPayment: Payment = {
+      id: txRef,
+      email: dbEmail,
+      amount: items.reduce((sum, item) => sum + (parseFloat(String(item.price || "").replace(/[^0-9.]/g, "")) || 0), 0),
+      currency: "USD",
+      status: "success",
+      gateway: "paypal",
+      date: new Date().toISOString().replace("T", " ").substring(0, 19) + " UTC",
+      items
+    };
+
+    if (useMockDb) {
+      mockLicenses.push(...generatedLicenses);
+      mockRequests.push(...generatedRequests);
+      mockPayments.push(newPayment);
+    } else if (db) {
+      await db.collection("licenses").insertMany(generatedLicenses);
+      await db.collection("requests").insertMany(generatedRequests);
+      await db.collection("payments").insertOne(newPayment);
+    }
+
+    res.json({
+      success: true,
+      reference: txRef,
+      licenses: generatedLicenses,
+      requests: generatedRequests,
+      payment: newPayment
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to create license." });
   }
 });
 
@@ -1334,8 +1320,8 @@ app.post("/api/licenses/transfer", async (req, res) => {
   }
 });
 
-// 11. Payments CRUD: Read (All payments)
-app.get("/api/admin/payments", async (req, res) => {
+// 11. Payments & Transactions CRUD: Read (All payments)
+app.get(["/api/admin/payments", "/api/admin/transactions"], async (req, res) => {
   try {
     let payments: Payment[] = [];
     if (useMockDb) {
@@ -1343,9 +1329,189 @@ app.get("/api/admin/payments", async (req, res) => {
     } else {
       payments = (await db!.collection("payments").find({}).toArray()) as any[];
     }
-    res.json({ success: true, payments });
+    res.json({ success: true, payments, transactions: payments });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to retrieve payments." });
+  }
+});
+
+// Admin Clearance / Requests CRUD
+app.get(["/api/admin/clearance", "/api/admin/requests"], async (req, res) => {
+  try {
+    let requests: RequestItem[] = [];
+    if (useMockDb) {
+      requests = mockRequests;
+    } else {
+      requests = (await db!.collection("requests").find({}).toArray()) as any[];
+    }
+    res.json({ success: true, requests });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to retrieve clearance requests." });
+  }
+});
+
+app.post(["/api/admin/clearance", "/api/admin/requests"], async (req, res) => {
+  try {
+    const { ref, type, target, status, date, email, clientName, requestedLicense, notes, paymentStatus } = req.body;
+    const cleanRef = ref || `REQ-${Math.floor(100 + Math.random() * 900)}-${Math.floor(10 + Math.random() * 90)}`;
+    const newReq: any = {
+      ref: cleanRef,
+      type: type || requestedLicense || "Commercial Exploitation",
+      target: target || "Archived Fragment",
+      status: status || "NEW",
+      date: date || new Date().toISOString().split("T")[0],
+      email: (email || "client@lomon.local").toLowerCase().trim(),
+      clientName: clientName || email || "Authorized Client",
+      requestedLicense: requestedLicense || type || "Commercial Exploitation",
+      notes: notes || "",
+      paymentStatus: paymentStatus || "PAYMENT PENDING"
+    };
+
+    if (useMockDb) {
+      mockRequests.unshift(newReq);
+    } else {
+      await db!.collection("requests").insertOne(newReq);
+    }
+    res.json({ success: true, request: newReq });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to create clearance request." });
+  }
+});
+
+app.put(["/api/admin/clearance", "/api/admin/requests"], async (req, res) => {
+  try {
+    const { ref, status, notes, paymentStatus, requestedLicense } = req.body;
+    if (!ref) {
+      return res.status(400).json({ error: "Reference ID is required to update clearance request." });
+    }
+
+    let updated = false;
+    if (useMockDb) {
+      const idx = mockRequests.findIndex(r => r.ref === ref);
+      if (idx !== -1) {
+        if (status) mockRequests[idx].status = status;
+        if (notes !== undefined) (mockRequests[idx] as any).notes = notes;
+        if (paymentStatus) (mockRequests[idx] as any).paymentStatus = paymentStatus;
+        if (requestedLicense) (mockRequests[idx] as any).requestedLicense = requestedLicense;
+        updated = true;
+      }
+    } else {
+      const fields: any = {};
+      if (status) fields.status = status;
+      if (notes !== undefined) fields.notes = notes;
+      if (paymentStatus) fields.paymentStatus = paymentStatus;
+      if (requestedLicense) fields.requestedLicense = requestedLicense;
+      const resCol = await db!.collection("requests").updateOne({ ref }, { $set: fields });
+      updated = resCol.matchedCount > 0;
+    }
+
+    if (updated) {
+      res.json({ success: true, message: `Clearance request ${ref} updated.` });
+    } else {
+      res.status(404).json({ error: "Clearance request not found." });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to update clearance request." });
+  }
+});
+
+// Admin All Licenses CRUD
+app.get("/api/admin/licenses", async (req, res) => {
+  try {
+    let licenses: License[] = [];
+    if (useMockDb) {
+      licenses = mockLicenses;
+    } else {
+      licenses = (await db!.collection("licenses").find({}).toArray()) as any[];
+    }
+    res.json({ success: true, licenses });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to retrieve licenses." });
+  }
+});
+
+app.post("/api/admin/licenses", async (req, res) => {
+  try {
+    const licData = req.body;
+    const cleanId = licData.id || `TOC-LIC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100 + Math.random() * 900)}`;
+    const newLic: License = {
+      id: cleanId,
+      song: licData.song || "Archived Fragment",
+      type: licData.type || "Commercial Exploitation ($1,000)",
+      date: licData.date || new Date().toISOString().replace("T", " ").substring(0, 19) + " UTC",
+      isrc: licData.isrc || `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+      iswc: licData.iswc || `T-302.${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}-1`,
+      email: (licData.email || "client@lomon.local").toLowerCase().trim(),
+      signature: licData.signature || `DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ${(licData.email || "CLIENT").toUpperCase()}`,
+      hash: licData.hash || `0x${crypto.randomBytes(8).toString("hex").toUpperCase()}`,
+      tierId: licData.tierId || "commercial",
+      licenseeLegalName: licData.licenseeLegalName || licData.email || "Authorized Licensee",
+      archiveIdentifier: licData.archiveIdentifier || `TOC-${licData.song ? licData.song.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() : "FRAG"}-001`,
+      transactionRef: licData.transactionRef || `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+      purchaseDate: licData.purchaseDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    };
+
+    if (useMockDb) {
+      mockLicenses.unshift(newLic);
+    } else {
+      await db!.collection("licenses").insertOne(newLic);
+    }
+
+    res.json({ success: true, license: newLic });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to create license." });
+  }
+});
+
+app.put("/api/admin/licenses/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    let updated = false;
+
+    if (useMockDb) {
+      const idx = mockLicenses.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        mockLicenses[idx] = { ...mockLicenses[idx], ...updateData };
+        updated = true;
+      }
+    } else {
+      const result = await db!.collection("licenses").updateOne({ id }, { $set: updateData });
+      updated = result.matchedCount > 0;
+    }
+
+    if (updated) {
+      res.json({ success: true, message: `License ${id} updated.` });
+    } else {
+      res.status(404).json({ error: "License not found." });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to update license." });
+  }
+});
+
+app.delete("/api/admin/licenses/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let deleted = false;
+    if (useMockDb) {
+      const idx = mockLicenses.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        mockLicenses.splice(idx, 1);
+        deleted = true;
+      }
+    } else {
+      const result = await db!.collection("licenses").deleteOne({ id });
+      deleted = result.deletedCount > 0;
+    }
+
+    if (deleted) {
+      res.json({ success: true, message: `License ${id} revoked/deleted.` });
+    } else {
+      res.status(404).json({ error: "License not found." });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to delete license." });
   }
 });
 
@@ -1846,6 +2012,28 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+
+    app.use("*", async (req, res, next) => {
+      const url = req.originalUrl;
+      if (url.startsWith("/api")) {
+        return next();
+      }
+      try {
+        const indexPath = path.resolve(process.cwd(), "index.html");
+        if (fs.existsSync(indexPath)) {
+          let template = fs.readFileSync(indexPath, "utf-8");
+          template = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ "Content-Type": "text/html" }).end(template);
+        } else {
+          next();
+        }
+      } catch (e: any) {
+        if (vite && vite.ssrFixStacktrace) {
+          vite.ssrFixStacktrace(e);
+        }
+        next(e);
+      }
+    });
   } else {
     console.log("[SERVER] Mounting static asset serve for production...");
     const distPath = path.join(process.cwd(), "dist");

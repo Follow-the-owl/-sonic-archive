@@ -1,3260 +1,2812 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import FragmentDetailPage from "./FragmentDetailPage";
 import { 
-  Folder, File, Image, Music, FileText, Check, Plus, Trash2, 
-  Copy, Archive, Edit2, Download, ExternalLink, Settings as SettingsIcon, 
-  Activity, Users, ShoppingBag, Database, ArrowUpRight, BarChart3, Upload, Loader2, Play, X
+  Folder, FileText, Check, Plus, Trash2, Copy, Archive, Edit2, 
+  Download, ExternalLink, Settings as SettingsIcon, Activity, Users, 
+  ShoppingBag, Database, ArrowUpRight, BarChart3, Upload, Loader2, Play, 
+  Pause, X, Search, Filter, ShieldCheck, Mail, RefreshCw, Layers, CheckCircle2,
+  AlertCircle, Clock, DollarSign, FileCheck, Landmark, Lock, ArrowRight, ChevronRight,
+  Eye, User, Key, Server, ArrowRightLeft, Send, Menu, Music, Sparkles, Sliders,
+  HelpCircle, Shield, Award, Terminal, Cpu, FileSignature, CheckSquare, Hash
 } from "lucide-react";
-import { Fragment } from "../data";
+import { Fragment, FRAGMENTS, CLOCK_MEANINGS, getFragmentTimeName } from "../data";
 import { DEFAULT_LICENSE_TEMPLATES, LicenseTemplate } from "../licenses";
+import { 
+  openOrDownloadLicenseAgreement,
+  generateFullAgreementText,
+  getScheduleAData,
+  getScheduleBData,
+  getLegalArticlesForTier,
+  normalizeTierId,
+  LicenseAgreementData 
+} from "../lib/licenseAgreements";
+import { playFragment, stopAudio } from "../audio";
 
-// Type definitions matching user specifications
-export type AdminTab = 
-  | "Dashboard" 
-  | "Fragments" 
-  | "New Fragment" 
-  | "Orders" 
-  | "Customers" 
-  | "Analytics" 
-  | "Media Library" 
-  | "Settings";
+// ============================================================================
+// THE OWL CLOCK / LOMON — ADMIN / ARCHIVIST DASHBOARD
+// Six Primary Sections:
+// 01 — ARCHIVE
+// 02 — CLEARANCE
+// 03 — CLIENTS
+// 04 — LICENSES
+// 05 — TRANSACTIONS
+// 06 — SYSTEM
+// ============================================================================
+
+export type AdminSection = 
+  | "01_ARCHIVE"
+  | "02_CLEARANCE"
+  | "03_CLIENTS"
+  | "04_LICENSES"
+  | "05_TRANSACTIONS"
+  | "06_SYSTEM";
+
+export type ClearanceStatus = 
+  | "NEW" 
+  | "UNDER REVIEW" 
+  | "ACTION REQUIRED" 
+  | "APPROVED" 
+  | "PAYMENT PENDING" 
+  | "COMPLETED" 
+  | "DECLINED";
+
+export interface ClearanceRequestRecord {
+  ref: string; // e.g. CLR-2026-0941
+  fragmentId: string;
+  fragmentName: string;
+  clientId: string; // LOC-CLT-0014
+  clientName: string;
+  clientEmail: string;
+  requestedLicense: string;
+  status: ClearanceStatus;
+  paymentStatus: "PAID" | "PAYMENT PENDING" | "REFUNDED" | "WAIVED";
+  feeAmount: number;
+  date: string;
+  notes?: string;
+  projectDescription?: string;
+  historyLog?: { date: string; message: string; author: string }[];
+  connectedLicenseId?: string;
+  connectedTransactionId?: string;
+}
+
+export interface IssuedLicenseRecord {
+  id: string; // e.g. TOC-LIC-2026-00481
+  archiveIdentifier: string; // e.g. TOC-0941PM-001
+  fragmentId: string;
+  song: string; // Human-readable Fragment Name (e.g. 9:41 PM)
+  clientName: string;
+  clientEmail: string;
+  clientId: string; // e.g. LOC-CLT-0014
+  documentId: string; // e.g. LOC-DOC-0029
+  type: string; // e.g. Commercial Exploitation ($1,000 USD)
+  tierId: string;
+  agreementVersion: string;
+  status: "ACTIVE" | "EXCLUSIVELY TRANSFERRED" | "EXPIRED" | "REVOKED";
+  executionStatus: "Fully Executed & Sealed" | "Signed" | "Pending Counter-signature";
+  effectiveDate: string;
+  purchaseDate: string;
+  expirationDate: string;
+  transactionRef: string; // Connected Transaction ID (e.g. LMN-TX-883102)
+  certificateId: string; // e.g. TOC-CERT-00481
+  hash: string;
+  signature: string;
+  isrc?: string;
+  iswc?: string;
+  masterOwnership?: string;
+  publishingShare?: string;
+}
+
+export interface TransactionRecord {
+  id: string; // e.g. LMN-TX-883102
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  fragmentId: string;
+  fragmentName: string;
+  licenseType: string;
+  amount: number;
+  currency: string;
+  paymentMethod: "PayPal" | "Stripe" | "Manual Wire" | "Crypto";
+  paymentStatus: "Completed" | "Pending" | "Refunded" | "Failed";
+  transactionDate: string;
+  refundStatus: "None" | "Eligible" | "Refunded";
+  connectedClearanceRef?: string;
+  connectedLicenseId?: string;
+  receiptUrl?: string;
+}
+
+export interface ClientProfile {
+  id: string; // e.g. LOC-CLT-0014
+  name: string;
+  email: string;
+  organization?: string;
+  registeredDate: string;
+  activeFragmentsCount: number;
+  clearanceRequestsCount: number;
+  totalSpent: number;
+  status: "ACTIVE" | "VERIFIED" | "PENDING";
+  location?: string;
+}
 
 interface AdminDashboardProps {
   onClose?: () => void;
+  onOpenClient?: () => void;
   currentUserEmail: string;
 }
 
-// Initial default settings
-const INITIAL_SETTINGS = {
-  paymentMethods: { paypal: true, stripe: false, crypto: true },
-  storeName: "LOMON ARCHIVE",
-  address: "Atlanta, Georgia",
-  branding: "Classic Monochromatic Slate",
-  taxRate: 0,
-  emailNotifications: true
-};
+const ADMIN_NAVIGATION_TABS = [
+  { id: "01_ARCHIVE", label: "ARCHIVE", icon: Music, subtitle: "Master sound recordings and permanent fragment database." },
+  { id: "02_CLEARANCE", label: "CLEARANCE", icon: ShieldCheck, subtitle: "Clearance petitions and approval workflows." },
+  { id: "03_CLIENTS", label: "CLIENTS", icon: Users, subtitle: "Licensee directory, account dossiers, and spend ledger." },
+  { id: "04_LICENSES", label: "LICENSES", icon: FileText, subtitle: "Issued digital agreements, covenants, and certificates." },
+  { id: "05_TRANSACTIONS", label: "TRANSACTIONS", icon: Database, subtitle: "Commercial payment logs, PayPal ledger, and receipts." },
+  { id: "06_SYSTEM", label: "SYSTEM", icon: Server, subtitle: "Legal contract templates, licensing schedules, and audit infrastructure." },
+];
 
-export default function AdminDashboard({ onClose, currentUserEmail }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<AdminTab>("Dashboard");
+// Master Seed Records for Admin Single Source of Truth
+const SEED_CLEARANCE_REQUESTS: ClearanceRequestRecord[] = [];
 
-  // Load / initialize fragments list
-  const [fragments, setFragments] = useState<Fragment[]>([]);
+const DEMO_CLEARANCE_SAMPLE: ClearanceRequestRecord[] = [
+  {
+    ref: "CLR-2026-0941",
+    fragmentId: "09:41",
+    fragmentName: "9:41 PM",
+    clientId: "LOC-CLT-0014",
+    clientName: "Paramount Pictures / Sync Dept",
+    clientEmail: "sync@paramount.com",
+    requestedLicense: "Commercial Synchronization ($1,000 USD)",
+    status: "APPROVED",
+    paymentStatus: "PAID",
+    feeAmount: 1000,
+    date: "August 08, 2026",
+    projectDescription: "Original trailer synchronization and broadcast campaign for upcoming feature film.",
+    historyLog: [
+      { date: "August 08, 2026 14:20 UTC", author: "SYSTEM", message: "Commercial license executed and sealed." },
+      { date: "August 08, 2026 11:15 UTC", author: "ADMIN", message: "Clearance petition approved by Rights Registrar." },
+      { date: "August 08, 2026 09:30 UTC", author: "CLIENT", message: "Petition submitted with multi-track stem request." }
+    ],
+    connectedLicenseId: "TOC-LIC-2026-00941",
+    connectedTransactionId: "LMN-TX-941001"
+  }
+];
 
-  useEffect(() => {
-    fetch("/api/fragments")
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.fragments)) {
-          setFragments(data.fragments);
-        } else {
-          // Fallback to local storage if API is unsuccessful
-          const saved = localStorage.getItem("lomon_stored_fragments");
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) setFragments(parsed);
-          }
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch fragments from database API:", err);
-        const saved = localStorage.getItem("lomon_stored_fragments");
+const SEED_LICENSES: IssuedLicenseRecord[] = [
+  {
+    id: "TOC-LIC-2026-00941",
+    archiveIdentifier: "TOC-941PM-001",
+    fragmentId: "09:41",
+    song: "9:41 PM",
+    clientName: "Paramount Pictures / Sync Dept",
+    clientEmail: "sync@paramount.com",
+    clientId: "LOC-CLT-0014",
+    documentId: "LOC-DOC-00941",
+    type: "Commercial Synchronization ($1,000 USD)",
+    tierId: "commercial",
+    agreementVersion: "v2.4 - Standard Synchronization",
+    status: "ACTIVE",
+    executionStatus: "Fully Executed & Sealed",
+    effectiveDate: "August 08, 2026",
+    purchaseDate: "August 08, 2026",
+    expirationDate: "Perpetual / Worldwide",
+    transactionRef: "LMN-TX-941001",
+    certificateId: "TOC-CERT-00941",
+    hash: "0xE5A3F1C9D7B5E3A1F9D7B5E3A1F9D7B5",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
+    isrc: "US-LMN-26-00941",
+    iswc: "T-932.408.941-4",
+    masterOwnership: "100% LOMON LLC",
+    publishingShare: "100% LOMON Publishing (BMI)"
+  },
+  {
+    id: "TOC-LIC-2026-01000",
+    archiveIdentifier: "TOC-1000PM-001",
+    fragmentId: "10:00",
+    song: "10:00 PM",
+    clientName: "Eva Concepts Media",
+    clientEmail: "evianaconcepts1@gmail.com",
+    clientId: "LOC-CLT-0082",
+    documentId: "LOC-DOC-01000",
+    type: "Commercial Synchronization ($1,000 USD)",
+    tierId: "commercial",
+    agreementVersion: "v2.4 - Standard Synchronization",
+    status: "ACTIVE",
+    executionStatus: "Fully Executed & Sealed",
+    effectiveDate: "July 14, 2026",
+    purchaseDate: "July 14, 2026",
+    expirationDate: "Perpetual / Worldwide",
+    transactionRef: "LMN-TX-100002",
+    certificateId: "TOC-CERT-01000",
+    hash: "0x8B2D4F6A0C1E3E5B7D9F1A3C5E7A9B1D",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
+    isrc: "US-LMN-26-01000",
+    iswc: "T-932.408.100-2",
+    masterOwnership: "100% LOMON LLC",
+    publishingShare: "100% LOMON Publishing (BMI)"
+  }
+];
+
+const SEED_TRANSACTIONS: TransactionRecord[] = [
+  {
+    id: "LMN-TX-941001",
+    clientId: "LOC-CLT-0014",
+    clientName: "Paramount Pictures / Sync Dept",
+    clientEmail: "sync@paramount.com",
+    fragmentId: "09:41",
+    fragmentName: "9:41 PM",
+    licenseType: "Commercial Synchronization",
+    amount: 1000,
+    currency: "USD",
+    paymentMethod: "PayPal",
+    paymentStatus: "Completed",
+    transactionDate: "August 08, 2026",
+    refundStatus: "None",
+    connectedClearanceRef: "CLR-2026-0941",
+    connectedLicenseId: "TOC-LIC-2026-00941"
+  },
+  {
+    id: "LMN-TX-100002",
+    clientId: "LOC-CLT-0082",
+    clientName: "Eva Concepts Media",
+    clientEmail: "evianaconcepts1@gmail.com",
+    fragmentId: "10:00",
+    fragmentName: "10:00 PM",
+    licenseType: "Commercial Synchronization",
+    amount: 1000,
+    currency: "USD",
+    paymentMethod: "PayPal",
+    paymentStatus: "Completed",
+    transactionDate: "July 14, 2026",
+    refundStatus: "None",
+    connectedClearanceRef: "CLR-2026-1000",
+    connectedLicenseId: "TOC-LIC-2026-01000"
+  }
+];
+
+function normalizeRawLicense(raw: any, index: number): IssuedLicenseRecord {
+  const song = raw.song || raw.fragmentName || raw.fragmentTitle || "Recovered Fragment";
+  const email = (raw.clientEmail || raw.email || "client@lomon.local").toLowerCase().trim();
+  const name = raw.clientName || raw.licenseeLegalName || raw.email || "Authorized Licensee";
+  const id = raw.id || `TOC-LIC-${202600 + index}`;
+  const archiveId = raw.archiveIdentifier || `TOC-${song.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`;
+
+  return {
+    id,
+    archiveIdentifier: archiveId,
+    fragmentId: raw.fragmentId || "09:41",
+    song,
+    clientName: name,
+    clientEmail: email,
+    clientId: raw.clientId || `LOC-CLT-${1000 + index}`,
+    documentId: raw.documentId || `LOC-DOC-${1000 + index}`,
+    type: raw.type || raw.tierTitle || "Commercial Synchronization ($1,000 USD)",
+    tierId: raw.tierId || "commercial",
+    agreementVersion: raw.agreementVersion || "v2.4 - Standard Synchronization",
+    status: raw.status || "ACTIVE",
+    executionStatus: raw.executionStatus || "Fully Executed & Sealed",
+    effectiveDate: raw.effectiveDate || raw.date || raw.purchaseDate || "August 2026",
+    purchaseDate: raw.purchaseDate || raw.date || "August 2026",
+    expirationDate: raw.expirationDate || "Perpetual / Worldwide",
+    transactionRef: raw.transactionRef || `LMN-TX-${800000 + index}`,
+    certificateId: raw.certificateId || `TOC-CERT-${1000 + index}`,
+    hash: raw.hash || "0x" + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join("").toUpperCase(),
+    signature: raw.signature || `DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ${email.toUpperCase()}`,
+    isrc: raw.isrc || `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+    iswc: raw.iswc || `T-932.408.${Math.floor(100 + Math.random() * 900)}-1`,
+    masterOwnership: raw.masterOwnership || "100% LOMON LLC",
+    publishingShare: raw.publishingShare || "100% LOMON Publishing (BMI)"
+  };
+}
+
+function normalizeRawRequest(raw: any, index: number): ClearanceRequestRecord {
+  const fragName = raw.fragmentName || raw.target || "9:41 PM";
+  const email = (raw.clientEmail || raw.email || "applicant@client.local").toLowerCase().trim();
+  const name = raw.clientName || raw.email || "Authorized Licensee";
+  const ref = raw.ref || `CLR-2026-${1000 + index}`;
+  const fee = typeof raw.feeAmount === "number" ? raw.feeAmount : typeof raw.amount === "number" ? raw.amount : 1000;
+
+  return {
+    ref,
+    fragmentId: raw.fragmentId || "09:41",
+    fragmentName: fragName,
+    clientId: raw.clientId || `LOC-CLT-${1000 + index}`,
+    clientName: name,
+    clientEmail: email,
+    requestedLicense: raw.requestedLicense || raw.type || "Commercial Synchronization ($1,000 USD)",
+    status: raw.status || "UNDER REVIEW",
+    paymentStatus: raw.paymentStatus || (raw.status === "APPROVED" || raw.status === "COMPLETED" ? "PAID" : "PAYMENT PENDING"),
+    feeAmount: fee,
+    date: raw.date || "August 2026",
+    notes: raw.notes || "",
+    projectDescription: raw.projectDescription || raw.notes || "Commercial broadcast & streaming sync placement.",
+    historyLog: Array.isArray(raw.historyLog) && raw.historyLog.length > 0 ? raw.historyLog : [
+      { date: raw.date || "August 2026", author: "SYSTEM", message: "Petition received and logged into archive database." }
+    ],
+    connectedLicenseId: raw.connectedLicenseId,
+    connectedTransactionId: raw.connectedTransactionId
+  };
+}
+
+function normalizeRawTransaction(raw: any, index: number): TransactionRecord {
+  const email = (raw.clientEmail || raw.email || "partner@client.local").toLowerCase().trim();
+  const name = raw.clientName || raw.email || "Commercial Partner";
+  const fragName = raw.fragmentName || (raw.items?.[0]?.name) || "9:41 PM";
+  const numAmount = typeof raw.amount === "number" ? raw.amount : (parseFloat(raw.amount) || 1000);
+
+  return {
+    id: raw.id || `LMN-TX-${900000 + index}`,
+    clientId: raw.clientId || `LOC-CLT-${1000 + index}`,
+    clientName: name,
+    clientEmail: email,
+    fragmentId: raw.fragmentId || (raw.items?.[0]?.fragmentId) || "09:41",
+    fragmentName: fragName,
+    licenseType: raw.licenseType || (raw.items?.[0]?.tierTitle) || "Commercial Synchronization",
+    amount: numAmount,
+    currency: raw.currency || "USD",
+    paymentMethod: raw.paymentMethod || (raw.gateway === "paypal" ? "PayPal" : "PayPal"),
+    paymentStatus: raw.paymentStatus || (raw.status === "success" || raw.status === "COMPLETED" ? "Completed" : "Completed"),
+    transactionDate: raw.transactionDate || raw.date || "August 2026",
+    refundStatus: raw.refundStatus || "None",
+    connectedClearanceRef: raw.connectedClearanceRef,
+    connectedLicenseId: raw.connectedLicenseId
+  };
+}
+
+export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail }: AdminDashboardProps) {
+  // Navigation State
+  const [activeSection, setActiveSection] = useState<AdminSection>("01_ARCHIVE");
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+
+  // Global search & filter query
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  // Master Fragments State
+  const [fragments, setFragments] = useState<Fragment[]>(FRAGMENTS);
+  const [clearanceRequests, setClearanceRequests] = useState<ClearanceRequestRecord[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("lomon_admin_clearance_requests");
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) setFragments(parsed);
+          if (Array.isArray(parsed)) return parsed;
         }
-      });
-  }, []);
-
-  // Track state in local storage to keep updates synchronized as secondary backup
-  useEffect(() => {
-    if (fragments.length > 0) {
-      try {
-        localStorage.setItem("lomon_stored_fragments", JSON.stringify(fragments));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, [fragments]);
-
-  // Initial mock orders matching specs
-  const [orders, setOrders] = useState(() => {
-    try {
-      const saved = localStorage.getItem("lomon_admin_orders");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to load admin orders", e);
-    }
-    return [
-      { id: "ORD-2026-001", customerName: "John Doe", customerEmail: "john@example.com", fragmentName: "BANDIT", licenseType: "WAV", amountPaid: 150, date: "2026-07-01", files: ["bandit_master.wav", "bandit_preview.mp3"] },
-      { id: "ORD-2026-002", customerName: "Jane Smith", customerEmail: "jane@domain.com", fragmentName: "DEEP IN THE WATER", licenseType: "Exclusive", amountPaid: 1200, date: "2026-07-03", files: ["deep_water_master.wav", "deep_water_stems.zip", "license_exclusive.pdf"] },
-      { id: "ORD-2026-003", customerName: "Carlos Slim", customerEmail: "carlos@telecom.net", fragmentName: "TORE UP", licenseType: "MP3", amountPaid: 50, date: "2026-07-04", files: ["tore_up_preview.mp3"] },
-      { id: "ORD-2026-004", customerName: "Alice Vance", customerEmail: "alice@sound.design", fragmentName: "OCTANE", licenseType: "Trackouts", amountPaid: 300, date: "2026-07-05", files: ["octane_stems.zip", "octane_preview.mp3"] },
-      { id: "ORD-2026-005", customerName: "Bob Dylan", customerEmail: "bob@folk.com", fragmentName: "LAST LAUGH", licenseType: "Unlimited", amountPaid: 750, date: "2026-07-06", files: ["last_laugh_master.wav", "last_laugh_stems.zip", "unlimited_license.pdf"] }
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("lomon_admin_orders", JSON.stringify(orders));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [orders]);
-
-  // Initial mock customers matching specs
-  const [customers, setCustomers] = useState(() => {
-    try {
-      const saved = localStorage.getItem("lomon_admin_customers");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error("Failed to load admin customers", e);
-    }
-    return [
-      { name: "John Doe", email: "john@example.com", purchases: 1, totalSpent: 150 },
-      { name: "Jane Smith", email: "jane@domain.com", purchases: 1, totalSpent: 1200 },
-      { name: "Carlos Slim", email: "carlos@telecom.net", purchases: 1, totalSpent: 50 },
-      { name: "Alice Vance", email: "alice@sound.design", purchases: 1, totalSpent: 300 },
-      { name: "Bob Dylan", email: "bob@folk.com", purchases: 1, totalSpent: 750 }
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("lomon_admin_customers", JSON.stringify(customers));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [customers]);
-
-  // Settings State
-  const [settings, setSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem("lomon_admin_settings");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === "object") {
-          return {
-            ...INITIAL_SETTINGS,
-            ...parsed,
-            paymentMethods: {
-              ...INITIAL_SETTINGS.paymentMethods,
-              ...(parsed.paymentMethods || {})
-            }
-          };
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load admin settings", e);
-    }
-    return INITIAL_SETTINGS;
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("lomon_admin_settings", JSON.stringify(settings));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [settings]);
-
-  // Media Library State
-  const [mediaFolders, setMediaFolders] = useState({
-    Images: ["cover_bandit.jpg", "cover_deep_water.jpg", "cover_kryptonite.jpg", "default_artwork.png"],
-    MP3: ["bandit_preview.mp3", "deep_water_preview.mp3", "kryptonite_preview.mp3", "tore_up_preview.mp3", "octane_preview.mp3"],
-    WAV: ["bandit_master.wav", "deep_water_master.wav", "kryptonite_master.wav"],
-    Stems: ["bandit_stems.zip", "deep_water_stems.zip", "octane_stems.zip"],
-    Documents: ["bandit_license_agreement.pdf", "split_sheet_deep_water.pdf", "lomon_terms_2026.pdf"]
-  });
-  const [activeMediaFolder, setActiveMediaFolder] = useState<keyof typeof mediaFolders>("Images");
-  const [mediaUploadProgress, setMediaUploadProgress] = useState<number | null>(null);
-
-  // New Fragment Creation / Editing State with local storage restore (Rule 2)
-  const [currentStep, setCurrentStep] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_wizard_currentStep");
-      if (saved) return parseInt(saved, 10) || 1;
-    }
-    return 1;
-  });
-  const [editingFragmentId, setEditingFragmentId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lomon_wizard_editingFragmentId");
-    }
-    return null;
-  });
-
-  // Custom interactive publishing validation and preview states
-  const [ownershipConfirmed, setOwnershipConfirmed] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lomon_wizard_ownershipConfirmed") === "true";
-    }
-    return false;
-  });
-  const [publicPreviewApproved, setPublicPreviewApproved] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lomon_wizard_publicPreviewApproved") === "true";
-    }
-    return false;
-  });
-  const [previewFragmentObj, setPreviewFragmentObj] = useState<Fragment | null>(null);
-  const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
-  const [globalTemplates, setGlobalTemplates] = useState<LicenseTemplate[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_license_templates");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return DEFAULT_LICENSE_TEMPLATES;
-  });
-
-  // Step-by-Step Form state
-  const [formInfo, setFormInfo] = useState<{
-    timestamp: string;
-    name: string;
-    classification: string;
-    bpm: number | "";
-    key: string;
-    genre: string;
-    mood: string;
-    status: string;
-    duration: string;
-  }>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_wizard_formInfo");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return {
-      timestamp: "",
-      name: "",
-      classification: "",
-      bpm: "",
-      key: "",
-      genre: "",
-      mood: "",
-      status: "Draft",
-      duration: ""
-    };
-  });
-
-  const [formArtwork, setFormArtwork] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lomon_wizard_formArtwork") || "";
-    }
-    return "";
-  });
-  const [formAudioFiles, setFormAudioFiles] = useState<{ mp3Preview: string; wavMaster: string }>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_wizard_formAudioFiles");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return {
-      mp3Preview: "",
-      wavMaster: ""
-    };
-  });
-
-  const [formStems, setFormStems] = useState<{ type: "file" | "multiple"; list: string[] }>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_wizard_formStems");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return {
-      type: "multiple",
-      list: []
-    };
-  });
-
-  const [formDocuments, setFormDocuments] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_wizard_formDocuments");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
+      } catch {
+        // ignore
       }
     }
     return [];
   });
+  const [licenses, setLicenses] = useState<IssuedLicenseRecord[]>(SEED_LICENSES);
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(SEED_TRANSACTIONS);
 
-  const [newDocName, setNewDocName] = useState("");
-  const [newDocVersion, setNewDocVersion] = useState("1.0");
-
-  const [formLicensing, setFormLicensing] = useState<Record<string, { enabled: boolean; price: number; overrides?: Partial<LicenseTemplate> }>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_wizard_formLicensing");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return {
-      access: { enabled: true, price: 100 },
-      release: { enabled: true, price: 250 },
-      commercial: { enabled: true, price: 500 },
-      exclusive: { enabled: true, price: 2500 },
-      sync: { enabled: true, price: 750 },
-      clearance: { enabled: true, price: 150 }
-    };
+  // New Clearance Petition State
+  const [showCreateClearanceModal, setShowCreateClearanceModal] = useState<boolean>(false);
+  const [newPetitionForm, setNewPetitionForm] = useState({
+    fragmentId: "10:00",
+    fragmentName: "10:00 PM",
+    clientName: "",
+    clientEmail: "",
+    tier: "commercial",
+    requestedLicense: "Commercial Synchronization ($1,000 USD)",
+    feeAmount: 1000,
+    status: "NEW",
+    projectDescription: ""
   });
 
-  // Keep Wizard state synchronized to localStorage to prevent losing it (Rules 1 & 2)
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_formInfo", JSON.stringify(formInfo));
-  }, [formInfo]);
+  const handleCreatePetition = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPetitionForm.clientName || !newPetitionForm.clientEmail) return;
 
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_formArtwork", formArtwork);
-  }, [formArtwork]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_formAudioFiles", JSON.stringify(formAudioFiles));
-  }, [formAudioFiles]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_formStems", JSON.stringify(formStems));
-  }, [formStems]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_formDocuments", JSON.stringify(formDocuments));
-  }, [formDocuments]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_formLicensing", JSON.stringify(formLicensing));
-  }, [formLicensing]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_currentStep", String(currentStep));
-  }, [currentStep]);
-
-  useEffect(() => {
-    if (editingFragmentId) {
-      localStorage.setItem("lomon_wizard_editingFragmentId", editingFragmentId);
-    } else {
-      localStorage.removeItem("lomon_wizard_editingFragmentId");
-    }
-  }, [editingFragmentId]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_ownershipConfirmed", String(ownershipConfirmed));
-  }, [ownershipConfirmed]);
-
-  useEffect(() => {
-    localStorage.setItem("lomon_wizard_publicPreviewApproved", String(publicPreviewApproved));
-  }, [publicPreviewApproved]);
-
-  const clearWizardStorage = () => {
-    localStorage.removeItem("lomon_wizard_formInfo");
-    localStorage.removeItem("lomon_wizard_formArtwork");
-    localStorage.removeItem("lomon_wizard_formAudioFiles");
-    localStorage.removeItem("lomon_wizard_formStems");
-    localStorage.removeItem("lomon_wizard_formDocuments");
-    localStorage.removeItem("lomon_wizard_formLicensing");
-    localStorage.removeItem("lomon_wizard_currentStep");
-    localStorage.removeItem("lomon_wizard_editingFragmentId");
-    localStorage.removeItem("lomon_wizard_ownershipConfirmed");
-    localStorage.removeItem("lomon_wizard_publicPreviewApproved");
-  };
-
-  // Rule 3: Show completion status on every tab helper
-  const isStepCompleted = (stepNum: number): boolean => {
-    switch (stepNum) {
-      case 1:
-        return !!formInfo.name && !!formInfo.timestamp;
-      case 2:
-        return !!formArtwork;
-      case 3:
-        return !!formAudioFiles.mp3Preview && !!formAudioFiles.wavMaster;
-      case 4:
-        return formStems.list.length > 0;
-      case 5:
-        return formDocuments.length > 0;
-      case 6:
-        return Object.values(formLicensing).some((l: any) => l.enabled);
-      case 7:
-        return ownershipConfirmed && publicPreviewApproved;
-      default:
-        return false;
-    }
-  };
-
-  // Rule 6: Structured activity log tracking
-  const [activityLogs, setActivityLogs] = useState<{ id: string; timestamp: string; action: string; details: string }[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("lomon_activity_logs");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {}
-      }
-    }
-    return [
-      { id: "log-1", timestamp: new Date().toISOString(), action: "SYSTEM_START", details: "Lomon Archive Management Engine v3.0 started." },
-      { id: "log-2", timestamp: new Date().toISOString(), action: "AUTH_SUCCESS", details: `Secure session established for terminal ${currentUserEmail}` }
-    ];
-  });
-
-  const logActivity = (action: string, details: string) => {
-    const newLog = {
-      id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      timestamp: new Date().toISOString(),
-      action,
-      details
-    };
-    setActivityLogs(prev => {
-      const updated = [newLog, ...prev];
-      localStorage.setItem("lomon_activity_logs", JSON.stringify(updated));
-      return updated;
-    });
-    const timeStr = new Date().toLocaleTimeString();
-    setTerminalLogs(prev => [...prev, `[${timeStr}] ${action}: ${details}`]);
-  };
-
-  // Rule 1: Autosave step as draft on database (and local state)
-  const handleAutosaveDraft = () => {
-    if (!formInfo.name) return; // Must have name to save draft
-
-    const targetId = editingFragmentId || formInfo.timestamp.replace(/\s+/g, "").toLowerCase() || `frag_draft_${Date.now()}`;
-    const licenseOverridesObj: Record<string, any> = {};
-    Object.entries(formLicensing).forEach(([key, value]: [string, any]) => {
-      licenseOverridesObj[key] = {
-        enabled: value.enabled,
-        priceOverride: value.price,
-        overrides: value.overrides || {}
-      };
-    });
-
-    const draftPayload = {
-      id: targetId,
-      timestamp: formInfo.timestamp || new Date().toISOString().slice(0, 10).replace(/-/g, "/"),
-      name: formInfo.name,
-      classification: formInfo.classification || "THRESHOLD COIL",
-      bpm: formInfo.bpm ? Number(formInfo.bpm) : 120,
-      key: formInfo.key || "C Minor",
-      genre: formInfo.genre || "Ambient",
-      mood: formInfo.mood || "Mysterious",
-      status: "Draft", // Step progress wizard autosaves are drafts
-      duration: formInfo.duration || "4:00",
-      artwork: formArtwork || "cover_bandit.jpg",
-      mp3Preview: formAudioFiles.mp3Preview || "bandit_preview.mp3",
-      wavMaster: formAudioFiles.wavMaster || "bandit_master.wav",
-      stems: formStems.list,
-      documents: formDocuments,
-      licensing: {
-        mp3: { enabled: formLicensing.access?.enabled ?? false, price: formLicensing.access?.price ?? 100 },
-        wav: { enabled: formLicensing.release?.enabled ?? false, price: formLicensing.release?.price ?? 250 },
-        trackouts: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
-        unlimited: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
-        exclusive: { enabled: formLicensing.exclusive?.enabled ?? false, price: formLicensing.exclusive?.price ?? 2500 }
-      },
-      licenseOverrides: licenseOverridesObj,
-      plays: editingFragmentId ? (fragments.find(f => f.id === editingFragmentId) as any)?.plays || 0 : 0,
-      revenue: editingFragmentId ? (fragments.find(f => f.id === editingFragmentId) as any)?.revenue || 0 : 0
-    };
-
-    // Save locally
-    setFragments(prev => {
-      const exists = prev.some(f => f.id === targetId);
-      if (exists) {
-        return prev.map(f => f.id === targetId ? (draftPayload as any) : f);
-      } else {
-        return [draftPayload as any, ...prev];
-      }
-    });
-
-    if (!editingFragmentId) {
-      setEditingFragmentId(targetId);
-    }
-
-    const method = editingFragmentId ? "PUT" : "POST";
-    const url = editingFragmentId ? `/api/fragments/${editingFragmentId}` : "/api/fragments";
-
-    fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draftPayload)
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        console.log("[Autosave DB saved successful]", data.fragment);
-        logActivity("AUTOSAVE_DRAFT", `Autosaved draft composition "${formInfo.name}" to database (Step ${currentStep})`);
-      }
-    })
-    .catch(err => {
-      console.warn("[Autosave DB failed, remaining in state/localStorage]", err);
-    });
-  };
-
-  // Autosave when stepping through the wizard
-  useEffect(() => {
-    if (formInfo.name && activeTab === "New Fragment") {
-      handleAutosaveDraft();
-    }
-  }, [currentStep]);
-
-
-  // Calculate Metrics
-  const totalFragmentsCount = fragments.length;
-  const publishedFragmentsCount = fragments.filter(f => (f as any).status === "Published").length;
-  const draftFragmentsCount = fragments.filter(f => (f as any).status === "Draft" || !(f as any).status).length;
-  const totalOrdersCount = orders.length;
-  const totalRevenueSum = orders.reduce((sum, o) => sum + o.amountPaid, 0);
-
-  // Dynamic Beat Sales Analysis (Ranked by revenue generation & orders)
-  const mostSoldBeats = fragments.map(frag => {
-    const fragmentOrders = orders.filter(o => o.fragmentName.toLowerCase() === frag.name.toLowerCase());
-    const salesCount = fragmentOrders.length;
-    const orderRevenue = fragmentOrders.reduce((sum, o) => sum + o.amountPaid, 0);
-    // Combine order sales with play counts to represent engagement
-    const plays = (frag as any).plays || 0;
-    const revenue = Math.max(orderRevenue, (frag as any).revenue || 0);
-    return {
-      id: frag.id,
-      name: frag.name,
-      classification: frag.classification || "ARCHIVAL",
-      plays,
-      salesCount,
-      revenue
-    };
-  }).sort((a, b) => b.revenue - a.revenue || b.plays - a.plays);
-
-  // Top Customers Ledger (Ranked by total spent)
-  const topCustomers = [...customers].sort((a, b) => b.totalSpent - a.totalSpent || b.purchases - a.purchases);
-
-
-  // Alert/Notification Toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  // Interactive Dashboard States
-  const [terminalLogs, setTerminalLogs] = useState<string[]>(() => [
-    "SYSTEM JOURNAL [SYSTEM STABILIZED]",
-    `> authenticated session: ${currentUserEmail}`,
-    "> archive directory: /srv/lomon-archive/fragments",
-    "> active gateways: paypal-active, stripe-offline",
-    "> state: safe, ready for composition registration"
-  ]);
-  const [isDiagnosticRunning, setIsDiagnosticRunning] = useState<boolean>(false);
-  const [logQuery, setLogQuery] = useState<string>("");
-  const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
-
-  const chartData = [
-    { label: "MON", plays: 1200, revenue: 150 },
-    { label: "TUE", plays: 1800, revenue: 300 },
-    { label: "WED", plays: 1400, revenue: 50 },
-    { label: "THU", plays: 2200, revenue: 750 },
-    { label: "FRI", plays: 2800, revenue: 1200 },
-    { label: "SAT", plays: 2100, revenue: 300 },
-    { label: "SUN", plays: 2500, revenue: 950 }
-  ];
-
-  const handleRunDiagnostics = () => {
-    if (isDiagnosticRunning) return;
-    setIsDiagnosticRunning(true);
-    showToast("Initializing Diagnostics...");
-    logActivity("DIAGNOSTICS", "Initiated comprehensive system diagnostic scan.");
-
-    // Clear logs and run step-by-step
-    setTerminalLogs([
-      "SYSTEM JOURNAL [DIAGNOSTICS MODE INITIALIZED]",
-      "> Loading cryptographic signatures...",
-    ]);
-
-    const steps = [
-      { delay: 400, log: "> Mounting secure nodes... OK" },
-      { delay: 800, log: `> Directory verified: /srv/lomon-archive/fragments (${fragments.length} entries)` },
-      { delay: 1200, log: `> Active Gateway Ping: PayPal (ONLINE), Stripe (OFFLINE)` },
-      { delay: 1600, log: `> Financial reconciliation: total accrued $${totalRevenueSum.toLocaleString()} across ${orders.length} orders.` },
-      { delay: 2000, log: "> System health: 100% operational. Integrity verified." },
-      { delay: 2400, log: "SYSTEM JOURNAL [SYSTEM STABILIZED]" }
-    ];
-
-    steps.forEach((step) => {
-      setTimeout(() => {
-        setTerminalLogs((prev) => [...prev, step.log]);
-        if (step.log.startsWith("SYSTEM JOURNAL [SYSTEM STABILIZED]")) {
-          setIsDiagnosticRunning(false);
-          showToast("Diagnostics complete. System secure.");
-          logActivity("DIAGNOSTICS", "Diagnostics complete. System health 100% operational.");
+    const newRecord: ClearanceRequestRecord = {
+      ref: `CLR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      fragmentId: newPetitionForm.fragmentId,
+      fragmentName: newPetitionForm.fragmentName,
+      clientId: `LOC-CLT-${Math.floor(1000 + Math.random() * 9000)}`,
+      clientName: newPetitionForm.clientName,
+      clientEmail: newPetitionForm.clientEmail,
+      requestedLicense: newPetitionForm.requestedLicense,
+      status: (newPetitionForm.status as any) || "NEW",
+      paymentStatus: "PAYMENT PENDING",
+      feeAmount: Number(newPetitionForm.feeAmount) || 1000,
+      date: new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" }),
+      projectDescription: newPetitionForm.projectDescription || "Commercial fragment rights clearance petition.",
+      historyLog: [
+        {
+          date: `${new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })} ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} UTC`,
+          author: "ADMIN",
+          message: "Petition created and registered into archive clearance ledger."
         }
-      }, step.delay);
+      ]
+    };
+
+    setClearanceRequests(prev => [newRecord, ...prev]);
+    setShowCreateClearanceModal(false);
+    setNewPetitionForm({
+      fragmentId: "10:00",
+      fragmentName: "10:00 PM",
+      clientName: "",
+      clientEmail: "",
+      tier: "commercial",
+      requestedLicense: "Commercial Synchronization ($1,000 USD)",
+      feeAmount: 1000,
+      status: "NEW",
+      projectDescription: ""
     });
   };
 
-  // Operations inside Fragment Library
-  const handleDeleteFragment = (id: string) => {
-    if (window.confirm(`[LOMON COMPLIANCE PROTOCOL]
-Permanent deletion is disabled by default to protect historical order records.
-This operation will soft-delete the fragment and transition it to "Archived" status.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lomon_admin_clearance_requests", JSON.stringify(clearanceRequests));
+    }
+  }, [clearanceRequests]);
 
-Proceed with soft deletion?`)) {
-      fetch(`/api/fragments/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Archived" })
-      })
+  // Fetch real data from backend endpoints on mount with safe normalization
+  useEffect(() => {
+    // 1. Fetch Fragments
+    fetch("/api/fragments")
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
-          setFragments(prev => prev.map(f => f.id === id ? { ...f, status: "Archived" } : f));
-          showToast(`Fragment ${id} soft-deleted and archived.`);
-          logActivity("SOFT_DELETE", `Soft-deleted and archived fragment ID: ${id}`);
-        } else {
-          showToast(`Error: ${data.error}`);
+        if (data && data.success && Array.isArray(data.fragments) && data.fragments.length > 0) {
+          setFragments(data.fragments);
         }
       })
-      .catch(err => {
-        console.error(err);
-        setFragments(prev => prev.map(f => f.id === id ? { ...f, status: "Archived" } : f));
-        showToast(`Fragment ${id} soft-deleted locally.`);
-        logActivity("SOFT_DELETE", `Soft-deleted fragment ID: ${id} locally (offline fallback)`);
-      });
+      .catch(() => {});
+
+    // 2. Fetch Clearance Requests
+    fetch("/api/admin/clearance")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.requests) && data.requests.length > 0) {
+          const normalized = data.requests.map((r: any, i: number) => normalizeRawRequest(r, i));
+          // Merge with seeds without duplicates
+          setClearanceRequests(prev => {
+            const existingRefs = new Set(prev.map(p => p.ref));
+            const newOnes = normalized.filter((n: ClearanceRequestRecord) => !existingRefs.has(n.ref));
+            return [...prev, ...newOnes];
+          });
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch Issued Licenses
+    fetch("/api/admin/licenses")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.licenses) && data.licenses.length > 0) {
+          const normalized = data.licenses.map((l: any, i: number) => normalizeRawLicense(l, i));
+          setLicenses(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newOnes = normalized.filter((n: IssuedLicenseRecord) => !existingIds.has(n.id));
+            return [...prev, ...newOnes];
+          });
+        }
+      })
+      .catch(() => {});
+
+    // 4. Fetch Transactions / Payments
+    fetch("/api/admin/transactions")
+      .then(res => res.json())
+      .then(data => {
+        const rawPayments = data?.payments || data?.transactions;
+        if (data && data.success && Array.isArray(rawPayments) && rawPayments.length > 0) {
+          const normalized = rawPayments.map((t: any, i: number) => normalizeRawTransaction(t, i));
+          setTransactions(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newOnes = normalized.filter((n: TransactionRecord) => !existingIds.has(n.id));
+            return [...prev, ...newOnes];
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // System Configuration & Legal Templates
+  const [systemConfig, setSystemConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem("lomon_admin_system_config");
+      if (saved) return JSON.parse(saved);
+    } catch (_e) {}
+    return {
+      storeName: "THE OWL CLOCK / LOMON ARCHIVE",
+      jurisdiction: "Atlanta, Georgia",
+      currency: "USD",
+      paypalMode: "live",
+      paypalActive: true,
+      stripeActive: false,
+      taxRate: 0,
+      adminUsers: [
+        { name: "Master Archivist", email: currentUserEmail || "evianaconcepts1@gmail.com", role: "Super Admin / Master Archivist", status: "Active" },
+        { name: "Rights Compliance Manager", email: "rights@lomon.local", role: "Licensing Specialist", status: "Active" },
+        { name: "Legal Counsel & Rights Registrar", email: "counsel@lomon.local", role: "Legal Reviewer", status: "Active" }
+      ],
+      auditLogs: [
+        { date: "2026-08-19 18:40 UTC", event: "Master repository cryptographic handshake authenticated.", user: "SYSTEM" },
+        { date: "2026-08-19 16:15 UTC", event: "Live PayPal merchant capture verified for clearance pipelines.", user: "ADMIN" },
+        { date: "2026-08-18 10:30 UTC", event: "Automated license certificate sealing protocol active.", user: "SYSTEM" },
+        { date: "2026-08-17 14:22 UTC", event: "Clearance petition logged for active fragment.", user: "CLIENT" }
+      ]
+    };
+  });
+
+  // Modal State for Inspecting Records
+  const [selectedFragmentMaster, setSelectedFragmentMaster] = useState<Fragment | null>(null);
+  const [selectedClearanceRequest, setSelectedClearanceRequest] = useState<ClearanceRequestRecord | null>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
+  const [selectedLicense, setSelectedLicense] = useState<IssuedLicenseRecord | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
+
+  // Sub-tabs for System section
+  const [systemSubTab, setSystemSubTab] = useState<"TEMPLATES" | "CONFIG" | "COMMUNICATIONS" | "ADMINISTRATION">("TEMPLATES");
+
+  // Audio Playback Preview State for Master Records
+  const [playingFragmentId, setPlayingFragmentId] = useState<string | null>(null);
+
+  // License inspection modal tabs & clipboard
+  const [adminLicenseModalTab, setAdminLicenseModalTab] = useState<"overview" | "schedules" | "articles">("overview");
+  const [copiedAdminContract, setCopiedAdminContract] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("lomon_admin_system_config", JSON.stringify(systemConfig));
+  }, [systemConfig]);
+
+  // Derive Deduplicated Client Profiles
+  const clientsList = useMemo<ClientProfile[]>(() => {
+    const map = new Map<string, ClientProfile>();
+
+    licenses.forEach(lic => {
+      const email = (lic.clientEmail || (lic as any).email || "licensee@client.local").toLowerCase().trim();
+      if (!map.has(email)) {
+        map.set(email, {
+          id: lic.clientId || `LOC-CLT-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: lic.clientName || email,
+          email,
+          organization: lic.clientName && lic.clientName !== email ? lic.clientName : "Independent Licensee",
+          registeredDate: lic.purchaseDate || "August 2026",
+          activeFragmentsCount: 0,
+          clearanceRequestsCount: 0,
+          totalSpent: 0,
+          status: "VERIFIED",
+          location: "Atlanta, GA / Remote"
+        });
+      }
+    });
+
+    clearanceRequests.forEach(req => {
+      const email = (req.clientEmail || (req as any).email || "applicant@client.local").toLowerCase().trim();
+      if (!map.has(email)) {
+        map.set(email, {
+          id: req.clientId || `LOC-CLT-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: req.clientName || email,
+          email,
+          organization: req.clientName && req.clientName !== email ? req.clientName : "Media Applicant",
+          registeredDate: req.date || "August 2026",
+          activeFragmentsCount: 0,
+          clearanceRequestsCount: 0,
+          totalSpent: 0,
+          status: "ACTIVE",
+          location: "United States"
+        });
+      }
+    });
+
+    transactions.forEach(tx => {
+      const email = (tx.clientEmail || (tx as any).email || "partner@client.local").toLowerCase().trim();
+      if (!map.has(email)) {
+        map.set(email, {
+          id: tx.clientId || `LOC-CLT-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: tx.clientName || email,
+          email,
+          organization: "Commercial Partner",
+          registeredDate: tx.transactionDate || "August 2026",
+          activeFragmentsCount: 0,
+          clearanceRequestsCount: 0,
+          totalSpent: 0,
+          status: "VERIFIED",
+          location: "Global"
+        });
+      }
+    });
+
+    const clients = Array.from(map.values());
+    clients.forEach(c => {
+      const userLics = licenses.filter(l => ((l.clientEmail || (l as any).email || "").toLowerCase().trim() === c.email));
+      const userReqs = clearanceRequests.filter(r => ((r.clientEmail || (r as any).email || "").toLowerCase().trim() === c.email));
+      const userTxs = transactions.filter(t => ((t.clientEmail || (t as any).email || "").toLowerCase().trim() === c.email));
+
+      c.activeFragmentsCount = userLics.length;
+      c.clearanceRequestsCount = userReqs.length;
+      c.totalSpent = userTxs.reduce((sum, t) => sum + (t.amount || 0), 0);
+    });
+
+    return clients;
+  }, [licenses, clearanceRequests, transactions]);
+
+  // Audio Synth preview toggle using playFragment
+  const handleTogglePlay = (frag: Fragment) => {
+    if (playingFragmentId === frag.id) {
+      stopAudio();
+      setPlayingFragmentId(null);
+    } else {
+      stopAudio();
+      const rawSynth = frag.synthType || "keys";
+      const validSynths = ["keys", "drone", "bell", "noise", "pulse"] as const;
+      const synth: "keys" | "drone" | "bell" | "noise" | "pulse" = validSynths.includes(rawSynth as any)
+        ? (rawSynth as "keys" | "drone" | "bell" | "noise" | "pulse")
+        : "keys";
+      playFragment(frag.id, frag.frequency || 440, synth);
+      setPlayingFragmentId(frag.id);
     }
   };
 
-  const handleArchiveFragment = (id: string) => {
-    const target = fragments.find(f => f.id === id);
-    if (!target) return;
-    const currentStatus = (target as any).status;
-    const nextStatus = currentStatus === "Archived" ? "Draft" : "Archived";
+  // Exclusive Acquisition Handler (Preserves Archive & provenance without deleting or renumbering)
+  const handleAcquireExclusively = async (frag: Fragment, buyerName: string, buyerEmail: string, acquisitionPrice: number) => {
+    const updatedFragment: Fragment = {
+      ...frag,
+      isExclusive: true,
+      timeCapsule: {
+        ...(frag.timeCapsule || {} as any),
+        clearanceStatus: "EXCLUSIVELY ACQUIRED",
+        masterControl: "EXCLUSIVE ASSIGNMENT TO BUYER",
+        publishingControl: "EXCLUSIVE BUYER / LOMON CO-PUB"
+      }
+    };
 
-    fetch(`/api/fragments/${id}`, {
+    const newTxId = `LMN-TX-EX-${Math.floor(100000 + Math.random() * 900000)}`;
+    const newLicId = `TOC-EX-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+    const newCertId = `TOC-CERT-EX-${Math.floor(10000 + Math.random() * 90000)}`;
+    const nowFormatted = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    const newTransaction: TransactionRecord = {
+      id: newTxId,
+      clientId: `LOC-CLT-EX-${Math.floor(1000 + Math.random() * 9000)}`,
+      clientName: buyerName || "Exclusive Assignee",
+      clientEmail: buyerEmail || "assignee@client.local",
+      fragmentId: frag.id,
+      fragmentName: frag.name,
+      licenseType: "Exclusive Master Transfer",
+      amount: acquisitionPrice || 5000,
+      currency: "USD",
+      paymentMethod: "PayPal",
+      paymentStatus: "Completed",
+      transactionDate: nowFormatted,
+      refundStatus: "None",
+      connectedLicenseId: newLicId
+    };
+
+    const newLicense: IssuedLicenseRecord = {
+      id: newLicId,
+      archiveIdentifier: `TOC-${frag.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-EX-001`,
+      fragmentId: frag.id,
+      song: frag.name,
+      clientName: buyerName || "Exclusive Assignee",
+      clientEmail: buyerEmail || "assignee@client.local",
+      clientId: `LOC-CLT-EX-${Math.floor(1000 + Math.random() * 9000)}`,
+      documentId: `LOC-DOC-EX-${Math.floor(1000 + Math.random() * 9000)}`,
+      type: `Exclusive Master Transfer ($${(acquisitionPrice || 5000).toLocaleString()} USD)`,
+      tierId: "exclusive",
+      agreementVersion: "v2.4 - Exclusive Acquisition Covenants",
+      status: "EXCLUSIVELY TRANSFERRED",
+      executionStatus: "Fully Executed & Sealed",
+      effectiveDate: nowFormatted,
+      purchaseDate: nowFormatted,
+      expirationDate: "Perpetual / Exclusive Worldwide",
+      transactionRef: newTxId,
+      certificateId: newCertId,
+      hash: "0x" + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join("").toUpperCase(),
+      signature: "EXCLUSIVE ARCHIVE ACQUISITION CONCLUDED",
+      isrc: `US-LMN-26-${Math.floor(10000 + Math.random() * 90000)}`,
+      iswc: `T-932.408.${Math.floor(100 + Math.random() * 900)}-1`,
+      masterOwnership: "100% Exclusive Assignee",
+      publishingShare: "50% Assignee / 50% LOMON Co-Pub"
+    };
+
+    setFragments(prev => prev.map(f => f.id === frag.id ? updatedFragment : f));
+    setLicenses(prev => [newLicense, ...prev]);
+    setTransactions(prev => [newTransaction, ...prev]);
+
+    fetch(`/api/fragments/${frag.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        setFragments(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f));
-        showToast(`Fragment ${id} archive status updated to ${nextStatus}.`);
-        logActivity("ARCHIVE_STATUS", `Archived status of ${id} set to "${nextStatus}"`);
-      } else {
-        showToast(`Error: ${data.error}`);
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      setFragments(prev => prev.map(f => f.id === id ? { ...f, status: nextStatus } : f));
-      showToast(`Fragment ${id} archive status updated locally.`);
-      logActivity("ARCHIVE_STATUS", `Archived status of ${id} set to "${nextStatus}" locally (offline fallback)`);
-    });
+      body: JSON.stringify(updatedFragment)
+    }).catch(() => {});
+
+    setSelectedFragmentMaster(updatedFragment);
   };
 
-  const handleDuplicateFragment = (frag: Fragment) => {
-    const newId = `${frag.id}-copy-${Math.floor(Math.random() * 100)}`;
-    const newName = `${frag.name} (Copy)`;
-    const duplicated: Fragment = {
-      ...frag,
-      id: newId,
-      name: newName,
-      status: "Draft",
-      plays: 0,
-      revenue: 0
-    } as any;
-
-    fetch("/api/fragments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(duplicated)
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        setFragments(prev => [...prev, duplicated]);
-        showToast(`Duplicated ${frag.name} to DB successfully.`);
-      } else {
-        showToast(`DB Save Error: ${data.error}`);
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      setFragments(prev => [...prev, duplicated]);
-      showToast(`Duplicated ${frag.name} locally.`);
-    });
-  };
-
-  const handleEditFragmentClick = (frag: Fragment) => {
-    setEditingFragmentId(frag.id);
-    setFormInfo({
-      timestamp: frag.timestamp || "12:00 AM",
-      name: frag.name || "",
-      classification: frag.classification || "THRESHOLD COIL",
-      bpm: frag.bpm || 120,
-      key: (frag as any).key || "C Minor",
-      genre: (frag as any).genre || "Ambient",
-      mood: (frag as any).mood || "Mysterious",
-      status: (frag as any).status || "Draft",
-      duration: frag.duration || "4:00"
-    });
-    setFormArtwork((frag as any).artwork || "cover_bandit.jpg");
-    setFormAudioFiles({
-      mp3Preview: (frag as any).mp3Preview || "bandit_preview.mp3",
-      wavMaster: (frag as any).wavMaster || "bandit_master.wav"
-    });
-    let initialLicensing = {
-      access: { enabled: true, price: 100, overrides: {} },
-      release: { enabled: true, price: 250, overrides: {} },
-      commercial: { enabled: true, price: 500, overrides: {} },
-      exclusive: { enabled: true, price: 2500, overrides: {} },
-      sync: { enabled: true, price: 750, overrides: {} },
-      clearance: { enabled: true, price: 150, overrides: {} }
-    };
-
-    if ((frag as any).licenseOverrides) {
-      Object.entries((frag as any).licenseOverrides).forEach(([key, value]: [string, any]) => {
-        if (initialLicensing[key as keyof typeof initialLicensing]) {
-          initialLicensing[key as keyof typeof initialLicensing] = {
-            enabled: value.enabled !== false,
-            price: value.priceOverride !== undefined ? value.priceOverride : (value.price || 0),
-            overrides: value.overrides || {}
-          };
-        }
-      });
-    } else if ((frag as any).licensing) {
-      const legacy = (frag as any).licensing;
-      initialLicensing.access = { enabled: !!legacy.mp3?.enabled, price: legacy.mp3?.price || 100, overrides: {} };
-      initialLicensing.release = { enabled: !!legacy.wav?.enabled, price: legacy.wav?.price || 250, overrides: {} };
-      initialLicensing.commercial = { enabled: !!legacy.trackouts?.enabled, price: legacy.trackouts?.price || 500, overrides: {} };
-      initialLicensing.exclusive = { enabled: !!legacy.exclusive?.enabled, price: legacy.exclusive?.price || 2500, overrides: {} };
-    }
-    setFormLicensing(initialLicensing);
-    setCurrentStep(1);
-    setActiveTab("New Fragment");
-  };
-
-  const handleSaveFragmentForm = (finalStatus?: string) => {
-    const statusToUse = finalStatus || (formInfo.status as any) || "Draft";
-    
-    const targetId = editingFragmentId || formInfo.timestamp.replace(" ", "").toLowerCase();
-    
-    const licenseOverridesObj: Record<string, any> = {};
-    Object.entries(formLicensing).forEach(([key, value]: [string, any]) => {
-      licenseOverridesObj[key] = {
-        enabled: value.enabled,
-        priceOverride: value.price,
-        overrides: value.overrides || {}
-      };
-    });
-
-    const newFragData: Fragment = {
-      id: targetId,
-      name: formInfo.name,
-      timestamp: formInfo.timestamp,
-      classification: formInfo.classification,
-      observation: `Handled via admin portal by ${currentUserEmail}.`,
-      duration: formInfo.duration,
-      description: `Custom ${formInfo.mood} fragment with BPM ${formInfo.bpm} in KEY ${formInfo.key}.`,
-      isExclusive: formLicensing.exclusive?.enabled ?? false,
-      frequency: 220,
-      synthType: "keys",
-      bpm: Number(formInfo.bpm),
-      status: statusToUse,
-      plays: editingFragmentId ? (fragments.find(f => f.id === editingFragmentId) as any)?.plays || 0 : 0,
-      revenue: editingFragmentId ? (fragments.find(f => f.id === editingFragmentId) as any)?.revenue || 0 : 0,
-      artwork: formArtwork || "cover_bandit.jpg",
-      mp3Preview: formAudioFiles.mp3Preview || "bandit_preview.mp3",
-      wavMaster: formAudioFiles.wavMaster || "bandit_master.wav",
-      stems: formStems.list,
-      documents: formDocuments,
-      licensing: {
-        mp3: { enabled: formLicensing.access?.enabled ?? false, price: formLicensing.access?.price ?? 100 },
-        wav: { enabled: formLicensing.release?.enabled ?? false, price: formLicensing.release?.price ?? 250 },
-        trackouts: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
-        unlimited: { enabled: formLicensing.commercial?.enabled ?? false, price: formLicensing.commercial?.price ?? 500 },
-        exclusive: { enabled: formLicensing.exclusive?.enabled ?? false, price: formLicensing.exclusive?.price ?? 2500 }
-      },
-      licenseOverrides: licenseOverridesObj,
-      key: formInfo.key,
-      genre: formInfo.genre,
-      mood: formInfo.mood
-    } as any;
-
-    if (editingFragmentId) {
-      fetch(`/api/fragments/${editingFragmentId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newFragData)
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
-          showToast(`Fragment ${formInfo.name} updated in database.`);
-          logActivity("FRAGMENT_UPDATE", `Updated composition "${newFragData.name}" (ID: ${newFragData.id}, Status: ${statusToUse})`);
-        } else {
-          showToast(`DB Error: ${data.error}`);
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        setFragments(prev => prev.map(f => f.id === editingFragmentId ? newFragData : f));
-        showToast(`Fragment ${formInfo.name} updated locally.`);
-        logActivity("FRAGMENT_UPDATE", `Updated composition "${newFragData.name}" locally (ID: ${newFragData.id}, Status: ${statusToUse})`);
-      });
-    } else {
-      const finalId = fragments.some(f => f.id === targetId)
-         ? `${targetId}-${Math.floor(Math.random() * 100)}`
-         : targetId;
-      newFragData.id = finalId;
-
-      fetch("/api/fragments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newFragData)
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setFragments(prev => [newFragData, ...prev]);
-          showToast(`New Fragment ${formInfo.name} saved to database.`);
-          logActivity("FRAGMENT_CREATE", `Registered new composition "${newFragData.name}" (ID: ${newFragData.id}, Status: ${statusToUse})`);
-        } else {
-          showToast(`DB Error: ${data.error}`);
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        setFragments(prev => [newFragData, ...prev]);
-        showToast(`New Fragment ${formInfo.name} added locally.`);
-        logActivity("FRAGMENT_CREATE", `Registered new composition "${newFragData.name}" locally (ID: ${newFragData.id}, Status: ${statusToUse})`);
-      });
-    }
-
-    // Reset Form and exit
-    setEditingFragmentId(null);
-    setCurrentStep(1);
-    // Clear fields
-    setFormInfo({
-      timestamp: "",
-      name: "",
-      classification: "",
-      bpm: "",
-      key: "",
-      genre: "",
-      mood: "",
-      status: "Draft",
-      duration: ""
-    });
-    setFormArtwork("");
-    setFormAudioFiles({
-      mp3Preview: "",
-      wavMaster: ""
-    });
-    setFormStems({
-      type: "multiple",
-      list: []
-    });
-    setFormDocuments([]);
-    setOwnershipConfirmed(false);
-    setPublicPreviewApproved(false);
-    setPreviewFragmentObj(null);
-    clearWizardStorage(); // Clear the localStorage backup (Rule 1 & 2)
-    setActiveTab("Fragments");
-  };
-
-  // Real Upload function for Cloudinary / Uploadthing
-  const uploadFileToServer = (
-    file: File,
-    endpoint: "cloudinary" | "uploadthing",
-    onSuccess: (url: string) => void
-  ) => {
-    const performTraditionalUpload = () => {
-      setMediaUploadProgress(5);
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const interval = setInterval(() => {
-        setMediaUploadProgress(prev => {
-          if (prev === null) return null;
-          if (prev >= 85) {
-            clearInterval(interval);
-            return 85;
-          }
-          return prev + Math.floor(Math.random() * 10) + 5;
-        });
-      }, 150);
-
-      fetch(`/api/upload/${endpoint}`, {
-        method: "POST",
-        body: formData
-      })
-      .then(async res => {
-        if (res.status === 413) {
-          throw new Error("File too large (413 Payload Too Large). The server environment has a request size limit. Please use the direct URL field below to link this file instead!");
-        }
-        if (!res.ok) {
-          const text = await res.text();
-          let errMsg = "Server error during upload.";
-          try {
-            const parsed = JSON.parse(text);
-            errMsg = parsed.error || errMsg;
-          } catch (e) {}
-          throw new Error(errMsg);
-        }
-        return res.json();
-      })
-      .then(data => {
-        clearInterval(interval);
-        if (data.success) {
-          setMediaUploadProgress(100);
-          setTimeout(() => {
-            setMediaUploadProgress(null);
-            onSuccess(data.url);
-            if (data.fallback) {
-              showToast(`Cached ${file.name} locally (using base64 data url)`);
-            } else {
-              showToast(`Uploaded ${file.name} successfully via ${data.provider}!`);
-            }
-          }, 400);
-        } else {
-          setMediaUploadProgress(null);
-          showToast(`Upload error: ${data.error || "Failed to process upload."}`);
-        }
-      })
-      .catch(err => {
-        clearInterval(interval);
-        setMediaUploadProgress(null);
-        console.error("[UPLOAD CLIENT ERROR]", err);
-        showToast(`Upload failed: ${err.message || String(err)}`);
-      });
-    };
-
-    if (endpoint === "uploadthing") {
-      setMediaUploadProgress(5);
-      import("uploadthing/client")
-        .then(async ({ genUploader }) => {
-          let interval: any = null;
-          try {
-            setMediaUploadProgress(10);
-            interval = setInterval(() => {
-              setMediaUploadProgress(prev => {
-                if (prev === null) return null;
-                if (prev >= 90) {
-                  clearInterval(interval);
-                  return 90;
-                }
-                return prev + 5;
-              });
-            }, 200);
-
-            // In uploadthing v7, genUploader is used to create client-side upload helpers
-            const { uploadFiles } = genUploader({
-              url: "/api/uploadthing",
-            });
-
-            // Attempt direct client-to-S3 upload
-            const response = await uploadFiles("podcastUploader" as any, {
-              files: [file],
-            });
-
-            if (interval) clearInterval(interval);
-            const uploadedFile = response && response[0];
-            if (uploadedFile && uploadedFile.url) {
-              setMediaUploadProgress(100);
-              setTimeout(() => {
-                setMediaUploadProgress(null);
-                onSuccess(uploadedFile.url);
-                showToast(`Directly uploaded ${file.name} successfully via UploadThing (bypassed server limits)!`);
-              }, 400);
-            } else {
-              throw new Error("Direct upload returned invalid response format.");
-            }
-          } catch (err: any) {
-            if (interval) clearInterval(interval);
-            console.warn("[UPLOADTHING DIRECT ATTEMPT FAILED, FALLING BACK]", err);
-            // Fallback to traditional backend upload
-            performTraditionalUpload();
-          }
-        })
-        .catch(err => {
-          console.error("Failed to dynamically import uploadthing/client, falling back:", err);
-          performTraditionalUpload();
-        });
-    } else {
-      performTraditionalUpload();
-    }
-  };
-
-  // Mock Upload Progress bar
-  const triggerMockUpload = (fileName: string, fieldSetter: (name: string) => void) => {
-    setMediaUploadProgress(1);
-    const interval = setInterval(() => {
-      setMediaUploadProgress(prev => {
-        if (prev === null) return null;
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setMediaUploadProgress(null);
-            fieldSetter(fileName);
-            showToast(`Uploaded ${fileName} successfully.`);
-          }, 400);
-          return 100;
-        }
-        return prev + Math.floor(Math.random() * 25) + 10;
-      });
-    }, 150);
-  };
-
-  // Step Indicators for Fragment Wizard
-  const renderStepIndicators = () => {
-    const steps = [
-      "Information", "Artwork", "Audio Files", "Stems", "Documents", "Pricing", "Publish"
-    ];
-    return (
-      <div className="grid grid-cols-7 gap-1 bg-[#090909] p-1 border border-zinc-900 rounded-none mb-6">
-        {steps.map((step, idx) => {
-          const stepNum = idx + 1;
-          const isActive = currentStep === stepNum;
-          const isDone = isStepCompleted(stepNum);
-          return (
-            <button
-              key={step}
-              onClick={() => setCurrentStep(stepNum)}
-              className={`py-2 text-[10px] tracking-[0.1em] font-mono font-bold uppercase transition-colors text-center border ${
-                isActive 
-                  ? "bg-zinc-800 text-white border-zinc-700" 
-                  : isDone 
-                    ? "bg-zinc-900/40 text-emerald-400 border-zinc-950 hover:bg-zinc-900/60" 
-                    : "bg-transparent text-zinc-600 border-transparent hover:text-zinc-400"
-              }`}
-            >
-              <div className="block sm:hidden">
-                {stepNum}{isDone ? "✓" : ""}
-              </div>
-              <div className="hidden sm:block">
-                {stepNum}. {step} {isDone ? "✓" : ""}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
+  const currentTabInfo = ADMIN_NAVIGATION_TABS.find(m => m.id === activeSection) || ADMIN_NAVIGATION_TABS[0];
 
   return (
-    <div className="admin-dashboard dashboard-page w-full min-h-screen bg-[#020202] text-zinc-200 font-sans select-text text-left pb-12 flex flex-col md:flex-row gap-6">
-      {/* Dynamic Toast Message */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-6 right-6 z-50 bg-[#0a0a0a] border border-[#D9D6CA] px-4 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.8)] text-xs text-white flex items-center gap-2 font-bold uppercase"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="admin-dashboard font-poppins w-full min-h-screen bg-[#020202] text-[#D9D6CA] flex flex-col justify-between selection:bg-[#00E676]/20 selection:text-white" data-font="poppins">
+      {/* ========================================================================= */}
+      {/* 1. TOP HEADER BANNER */}
+      {/* ========================================================================= */}
+      <header className="w-full border-b border-zinc-900 bg-[#040404] px-4 sm:px-6 py-2.5 flex items-center justify-between z-30 shrink-0 select-none">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] sm:text-xs font-bold text-white font-mono tracking-widest uppercase flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            THE OWL CLOCK • ARCHIVIST CONSOLE
+          </span>
+          <span className="hidden md:inline-block text-[10px] text-zinc-500 font-mono border-l border-zinc-800 pl-3">
+            01–06 MASTER RECOVERY DB
+          </span>
+        </div>
 
-      {/* LEFT NAVIGATION COLUMN */}
-      <div className="w-full md:w-56 flex-shrink-0 flex flex-col justify-between border-b md:border-b-0 md:border-r border-zinc-900 pb-4 md:pb-0 md:pr-4">
-        <div className="space-y-6">
-          <div className="py-2 border-b border-zinc-900">
-            <h1 className="text-sm font-bold tracking-[0.2em] text-[#D9D6CA] uppercase">LOMON ADMIN</h1>
-            <span className="text-[10px] text-zinc-500 tracking-[0.1em] uppercase font-bold block">Archive Management v3.0</span>
+        <div className="flex items-center gap-2">
+          {onOpenClient && (
+            <button
+              onClick={onOpenClient}
+              className="text-[10px] sm:text-xs text-zinc-300 hover:text-white uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-2.5 sm:px-3 py-1.5 rounded"
+              title="Open Client Dashboard"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00E676]" />
+              <span>CLIENT PORTAL</span>
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-[10px] sm:text-xs text-zinc-400 hover:text-white uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 px-2.5 sm:px-3 py-1.5 rounded"
+            >
+              <span>EXIT</span>
+              <span className="text-zinc-400 font-bold">✕</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* ========================================================================= */}
+      {/* 2. MAIN SPLIT BODY WITH ICON DOCK & SLIDE-OUT DRAWER */}
+      {/* ========================================================================= */}
+      <div className="flex-1 flex w-full overflow-hidden relative">
+        {/* --------------------------------------------------------------------- */}
+        {/* LEFT COLUMN: COMPACT ICON RAIL */}
+        {/* --------------------------------------------------------------------- */}
+        <aside className="w-14 sm:w-16 border-r border-zinc-900 bg-[#050505] py-4 px-2 flex flex-col items-center justify-between shrink-0 z-20 select-none">
+          <div className="flex flex-col items-center gap-3.5 w-full">
+            {/* Drawer Toggle Trigger */}
+            <button
+              onClick={() => setDrawerOpen(!drawerOpen)}
+              title={drawerOpen ? "Close navigation menu" : "Open navigation menu"}
+              className={`w-10 h-10 rounded-md flex items-center justify-center transition-all cursor-pointer border ${
+                drawerOpen
+                  ? "bg-amber-400/15 border-amber-400/50 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]"
+                  : "bg-[#0c0c0c] border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 hover:bg-zinc-900"
+              }`}
+            >
+              <Menu size={18} />
+            </button>
+
+            <div className="w-6 h-[1px] bg-zinc-800/80" />
+
+            {/* Quick Section Icons */}
+            <div className="flex flex-col items-center gap-2.5 w-full">
+              {ADMIN_NAVIGATION_TABS.map((item) => {
+                const isActive = activeSection === item.id;
+                const IconComponent = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (!drawerOpen) {
+                        setDrawerOpen(true);
+                      } else {
+                        setActiveSection(item.id as AdminSection);
+                        setStatusFilter("ALL");
+                        setSearchQuery("");
+                        setDrawerOpen(false);
+                      }
+                    }}
+                    title={item.label}
+                    className={`w-10 h-10 rounded-md flex items-center justify-center transition-all cursor-pointer relative border ${
+                      isActive
+                        ? "bg-[#141414] border-zinc-700 text-amber-400 shadow-sm"
+                        : "border-transparent text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/70"
+                    }`}
+                  >
+                    <IconComponent size={17} />
+                    {isActive && (
+                      <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-4 bg-amber-400 rounded-r" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <nav className="flex flex-col gap-1">
-            {(["Dashboard", "Fragments", "New Fragment", "Orders", "Customers", "Analytics", "Media Library", "Settings"] as AdminTab[]).map(tab => {
-              const isActive = activeTab === tab;
-              
-              const getTabBadge = () => {
-                switch (tab) {
-                  case "Dashboard":
-                    return { text: "LIVE", className: "bg-emerald-950/40 text-emerald-400 border border-emerald-900/40" };
-                  case "Fragments":
-                    return { text: `${fragments.length} SEC`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
-                  case "New Fragment": {
-                    const completedSteps = [1, 2, 3, 4, 5, 6].filter(s => isStepCompleted(s)).length;
-                    const isAll = completedSteps === 6;
-                    return {
-                      text: isAll ? "READY" : `${completedSteps}/7 OK`,
-                      className: isAll 
-                        ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900/40 animate-pulse" 
-                        : "bg-amber-950/20 text-amber-500 border border-amber-900/20"
-                    };
-                  }
-                  case "Orders":
-                    return { text: `${orders.length} OK`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
-                  case "Customers":
-                    return { text: `${customers.length} REG`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
-                  case "Analytics":
-                    return { text: "ACTIVE", className: "bg-emerald-950/20 text-emerald-500 border border-emerald-900/10" };
-                  case "Media Library": {
-                    const totalFilesCount = Object.values(mediaFolders).flat().length;
-                    return { text: `${totalFilesCount} FL`, className: "bg-zinc-950 text-zinc-400 border border-zinc-800" };
-                  }
-                  case "Settings":
-                    return { text: "SECURE", className: "bg-emerald-950/20 text-emerald-500 border border-emerald-900/10" };
-                  default:
-                    return { text: "", className: "" };
-                }
-              };
-              
-              const badge = getTabBadge();
-
-              return (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    setActiveTab(tab);
-                    if (tab === "New Fragment" && !editingFragmentId) {
-                      setFormInfo({
-                        timestamp: "",
-                        name: "",
-                        classification: "",
-                        bpm: "",
-                        key: "",
-                        genre: "",
-                        mood: "",
-                        status: "Draft",
-                        duration: ""
-                      });
-                      setFormArtwork("");
-                      setFormAudioFiles({
-                        mp3Preview: "",
-                        wavMaster: ""
-                      });
-                      setFormStems({
-                        type: "multiple",
-                        list: []
-                      });
-                      setFormDocuments([]);
-                      setCurrentStep(1);
-                    }
-                  }}
-                  className={`w-full text-left px-3 py-2.5 text-xs tracking-wider uppercase transition-colors flex items-center justify-between font-bold cursor-pointer border ${
-                    isActive 
-                      ? "bg-zinc-900/80 border-zinc-800 text-white font-black" 
-                      : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/30"
-                  }`}
-                >
-                  <span>{tab}</span>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {badge.text && (
-                      <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 leading-none ${badge.className}`}>
-                        {badge.text}
-                      </span>
-                    )}
-                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#D9D6CA]" />}
-                  </div>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="pt-8 border-t border-zinc-900 mt-6 md:mt-0 space-y-2">
-          <div className="text-[10px] text-zinc-500 font-bold uppercase">SECURE SHELL</div>
-          <div className="text-xs text-zinc-400 font-bold truncate">{(currentUserEmail || "").toUpperCase()}</div>
-          <button
-            onClick={onClose}
-            className="text-xs text-zinc-500 hover:text-red-400 transition-colors uppercase font-bold cursor-pointer tracking-wider text-left"
+          {/* Bottom Admin Shield Icon */}
+          <button 
+            className="w-10 h-10 rounded-md border border-zinc-900 bg-zinc-950/90 flex items-center justify-center text-zinc-500 hover:text-amber-400 hover:border-zinc-800 transition-all cursor-pointer"
+            title="Archivist Administration"
+            onClick={() => {
+              setActiveSection("06_SYSTEM");
+              setDrawerOpen(false);
+            }}
           >
-            ← EXIT PORTAL
+            <ShieldCheck size={15} className="text-amber-400" />
           </button>
-        </div>
-      </div>
+        </aside>
 
-      {/* MAIN CONTENT DISPLAY AREA */}
-      <div className="flex-grow min-w-0">
-        <AnimatePresence mode="wait">
-          {activeTab === "Dashboard" && (
-            <motion.div
-              key="Dashboard"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-900 pb-4">
-                <div>
-                  <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">DASHBOARD OVERVIEW</h2>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Archive Management System Overview</p>
-                </div>
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D9D6CA]" />
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                    SYSTEM ACTIVE
-                  </span>
-                </div>
-              </div>
+        {/* --------------------------------------------------------------------- */}
+        {/* SLIDE-OUT DRAWER OVERLAY (Closes immediately upon selecting a section) */}
+        {/* --------------------------------------------------------------------- */}
+        <AnimatePresence>
+          {drawerOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setDrawerOpen(false)}
+                className="fixed inset-0 bg-black/70 backdrop-blur-[2px] z-30"
+              />
 
-              {/* GRID STATS - SHOWS ONLY THE 5 REQUIRED METRICS, NOTHING ELSE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {/* Total Fragments */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
-                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL FRAGMENTS</span>
-                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{totalFragmentsCount}</div>
-                  <div className="w-full bg-zinc-950 h-[1px]">
-                    <div className="bg-zinc-700 h-full" style={{ width: "100%" }} />
-                  </div>
-                </div>
-
-                {/* Published Fragments */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
-                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">PUBLISHED FRAGMENTS</span>
-                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{publishedFragmentsCount}</div>
-                  <div className="w-full bg-zinc-950 h-[1px]">
-                    <div className="bg-[#D9D6CA] h-full" style={{ width: `${(publishedFragmentsCount / (totalFragmentsCount || 1)) * 100}%` }} />
-                  </div>
-                </div>
-
-                {/* Draft Fragments */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
-                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">DRAFT FRAGMENTS</span>
-                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{draftFragmentsCount}</div>
-                  <div className="w-full bg-zinc-950 h-[1px]">
-                    <div className="bg-zinc-700 h-full" style={{ width: `${(draftFragmentsCount / (totalFragmentsCount || 1)) * 100}%` }} />
-                  </div>
-                </div>
-
-                {/* Total Orders */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden">
-                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL ORDERS</span>
-                  <div className="text-3xl font-bold font-mono tracking-tight text-white">{totalOrdersCount}</div>
-                  <div className="w-full bg-zinc-950 h-[1px]">
-                    <div className="bg-zinc-700 h-full" style={{ width: "100%" }} />
-                  </div>
-                </div>
-
-                {/* Total Revenue */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-3 relative overflow-hidden col-span-1 sm:col-span-2 lg:col-span-1">
-                  <span className="text-[9px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL REVENUE</span>
-                  <div className="text-3xl font-bold font-mono tracking-tight text-[#D9D6CA]">${totalRevenueSum.toLocaleString()}</div>
-                  <div className="w-full bg-zinc-950 h-[1px]">
-                    <div className="bg-[#D9D6CA] h-full" style={{ width: "100%" }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* SYSTEM DIAGNOSTICS & SYSTEM JOURNAL LOGS */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-6">
-                {/* SYSTEM JOURNAL LOG TERMINAL (8 COLS) */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-4 col-span-1 lg:col-span-8 flex flex-col justify-between">
-                  <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[10px] tracking-widest text-zinc-400 font-bold uppercase">SYSTEM JOURNAL / AUDIT DEED</span>
-                    </div>
-                    <span className="text-[9px] text-zinc-600 font-mono uppercase">SECURE SHELL JOURNAL</span>
+              {/* Drawer Container */}
+              <motion.div
+                initial={{ x: -280, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -280, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                className="absolute left-14 sm:left-16 top-0 bottom-0 w-[260px] sm:w-[280px] bg-[#070707] border-r border-zinc-800/90 shadow-2xl z-40 p-4 flex flex-col justify-between overflow-y-auto"
+              >
+                <div className="space-y-4">
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      ARCHIVIST MENU
+                    </span>
+                    <button
+                      onClick={() => setDrawerOpen(false)}
+                      className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                    >
+                      <X size={15} />
+                    </button>
                   </div>
 
-                  {/* Search and control buttons */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-950/40 p-2.5 border border-zinc-900/60">
-                    <div className="relative flex-grow max-w-sm">
-                      <input
-                        type="text"
-                        placeholder="FILTER SYSTEM JOURNAL LOGS..."
-                        id="log-search-input"
-                        className="bg-neutral-950 border border-zinc-900 text-[10px] text-zinc-300 focus:outline-none focus:border-zinc-700 px-3 py-1.5 font-mono w-full"
-                        onChange={(e) => {
-                          const val = e.target.value.toLowerCase();
-                          setLogQuery(val);
-                        }}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleRunDiagnostics}
-                        disabled={isDiagnosticRunning}
-                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 rounded-none cursor-pointer"
-                      >
-                        {isDiagnosticRunning ? (
-                          <>
-                            <Loader2 className="w-3 h-3 animate-spin" /> RUNNING...
-                          </>
-                        ) : (
-                          <>
-                            <Activity className="w-3 h-3 text-emerald-400" /> RUN DIAGNOSTICS
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm("Are you sure you want to purge local system activity logs? This is irreversible.")) {
-                            setActivityLogs([
-                              { id: "log-reset", timestamp: new Date().toISOString(), action: "LOGS_CLEARED", details: "Administrative activity logs cleared by user." }
-                            ]);
-                            localStorage.setItem("lomon_activity_logs", JSON.stringify([{ id: "log-reset", timestamp: new Date().toISOString(), action: "LOGS_CLEARED", details: "Administrative activity logs cleared by user." }]));
-                            showToast("System Activity Logs cleared.");
-                          }
-                        }}
-                        className="bg-zinc-900/50 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-800 text-zinc-500 hover:text-zinc-400 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-none cursor-pointer"
-                      >
-                        PURGE JOURNAL
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Terminal console window */}
-                  <div className="bg-[#030303] border border-zinc-900 p-4 h-64 overflow-y-auto font-mono text-[10.5px] leading-relaxed relative flex flex-col text-left">
-                    <div className="space-y-1.5">
-                      {activityLogs
-                        .filter(log => {
-                          if (!logQuery) return true;
-                          return (
-                            log.action.toLowerCase().includes(logQuery) ||
-                            log.details.toLowerCase().includes(logQuery) ||
-                            log.timestamp.includes(logQuery)
-                          );
-                        })
-                        .map((log) => {
-                          const timeStr = new Date(log.timestamp).toLocaleTimeString();
-                          return (
-                            <div key={log.id} className="grid grid-cols-12 gap-1 group py-0.5 hover:bg-zinc-900/30">
-                              <span className="col-span-2 text-zinc-600 font-bold select-none">{timeStr}</span>
-                              <span className={`col-span-3 font-bold ${
-                                log.action.includes("ERROR") || log.action.includes("BLOCKED")
-                                  ? "text-red-500" 
-                                  : log.action.includes("CREATE") || log.action.includes("ATTACH") || log.action.includes("AUTH")
-                                    ? "text-emerald-400" 
-                                    : "text-amber-500"
-                              }`}>
-                                [{log.action}]
-                              </span>
-                              <span className="col-span-7 text-zinc-300 break-all">{log.details}</span>
-                            </div>
-                          );
-                        })}
-                    </div>
-                    {/* Retro Scanline effect overlay */}
-                    <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_100%)] opacity-10" />
-                  </div>
-                </div>
-
-                {/* SYSTEM INTEGRITY AND TELEMETRY (4 COLS) */}
-                <div className="border border-zinc-900 bg-[#060606] p-5 space-y-4 col-span-1 lg:col-span-4 text-left">
-                  <span className="text-[10px] tracking-widest text-zinc-400 font-bold uppercase block border-b border-zinc-900 pb-2">
-                    INTEGRITY TELEMETRY
-                  </span>
-                  
-                  <div className="space-y-3.5 pt-1.5 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">DATABASE ENGINES</span>
-                      <span className="text-emerald-400 font-bold">MONGODB SECURE</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">GATEWAY (PAYPAL)</span>
-                      <span className="text-emerald-400 font-bold">ONLINE (LIVE)</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">GATEWAY (STRIPE)</span>
-                      <span className="text-zinc-600 font-bold">OFFLINE (MAINT)</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">WIZARD PERSISTENCE</span>
-                      <span className="text-emerald-400 font-bold">localStorage STABLE</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">ADMIN ENCRYPTION</span>
-                      <span className="text-zinc-400 font-mono">RSA-4096-AES-GCM</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-500 uppercase font-bold">ADMINISTRATIVE ID</span>
-                      <span className="text-zinc-400 font-mono truncate max-w-[120px]">{currentUserEmail}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-neutral-950 p-3.5 border border-zinc-900 text-[10px] text-zinc-500 space-y-1 font-mono uppercase">
-                    <p className="font-bold text-zinc-400">LLC OPERATIONAL PROTOCOL:</p>
-                    <p>ALL AUDIT ENGINES ARE CO-SIGNED AND PERSISTED LOCALLY AND REMOTE-REPLICATED UPON SECURE DEPLOYMENT ACTIONS.</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === "Fragments" && (
-            <motion.div
-              key="Fragments"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">FRAGMENT LIBRARY</h2>
-                <button
-                  onClick={() => {
-                    setEditingFragmentId(null);
-                    setFormInfo({
-                      timestamp: "",
-                      name: "",
-                      classification: "",
-                      bpm: "",
-                      key: "",
-                      genre: "",
-                      mood: "",
-                      status: "Draft",
-                      duration: ""
-                    });
-                    setFormArtwork("");
-                    setFormAudioFiles({
-                      mp3Preview: "",
-                      wavMaster: ""
-                    });
-                    setFormStems({
-                      type: "multiple",
-                      list: []
-                    });
-                    setFormDocuments([]);
-                    setOwnershipConfirmed(false);
-                    setPublicPreviewApproved(false);
-                    setPreviewFragmentObj(null);
-                    setCurrentStep(1);
-                    setActiveTab("New Fragment");
-                  }}
-                  className="bg-[#D9D6CA] text-black hover:bg-white text-xs font-bold tracking-widest px-3 py-1.5 uppercase rounded-none transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" /> REGISTER NEW
-                </button>
-              </div>
-
-              {/* TABLE CONTAINER */}
-              <div className="border border-zinc-900 rounded-none overflow-x-auto bg-neutral-950/20">
-                <table className="w-full border-collapse text-left font-mono text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[10.5px]">
-                      <th className="p-3">Timestamp</th>
-                      <th className="p-3">Name</th>
-                      <th className="p-3">BPM</th>
-                      <th className="p-3">KEY</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 text-right">Plays</th>
-                      <th className="p-3 text-right">Revenue</th>
-                      <th className="p-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fragments.map((frag, idx) => {
-                      const isDraft = (frag as any).status === "Draft";
-                      const isArchived = (frag as any).status === "Archived";
+                  {/* Navigation List */}
+                  <div className="space-y-1.5">
+                    {ADMIN_NAVIGATION_TABS.map((item) => {
+                      const isActive = activeSection === item.id;
+                      const IconComponent = item.icon;
                       return (
-                        <tr 
-                          key={frag.id || idx} 
-                          className="border-b border-zinc-900/60 hover:bg-zinc-900/20 transition-colors"
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveSection(item.id as AdminSection);
+                            setStatusFilter("ALL");
+                            setSearchQuery("");
+                            setDrawerOpen(false); // Auto-closes upon selection
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-all cursor-pointer border ${
+                            isActive
+                              ? "bg-zinc-900 border-zinc-700 text-white font-semibold shadow-inner"
+                              : "border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+                          }`}
                         >
-                          <td className="p-3 font-bold text-white whitespace-nowrap">{frag.timestamp}</td>
-                          <td className="p-3 text-zinc-300 font-bold uppercase whitespace-nowrap">{frag.name}</td>
-                          <td className="p-3 text-zinc-400">{frag.bpm}</td>
-                          <td className="p-3 text-zinc-400">{(frag as any).key || "N/A"}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                              isDraft 
-                                ? "bg-amber-950/30 text-amber-400 border border-amber-900/60" 
-                                : isArchived
-                                  ? "bg-zinc-800/40 text-zinc-500 border border-zinc-900"
-                                  : "bg-emerald-950/30 text-emerald-400 border border-emerald-900/60"
-                            }`}>
-                              {(frag as any).status || "Published"}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right text-zinc-400 font-bold">
-                            {((frag as any).plays || 0).toLocaleString()}
-                          </td>
-                          <td className="p-3 text-right font-bold text-[#D9D6CA]">
-                            ${((frag as any).revenue || 0).toLocaleString()}
-                          </td>
-                          <td className="p-3 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button 
-                                onClick={() => handleEditFragmentClick(frag)}
-                                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer" 
-                                title="Edit Fragment"
-                              >
-                                <Edit2 className="w-3 h-3" />
-                              </button>
-                              <button 
-                                onClick={() => handleDuplicateFragment(frag)}
-                                className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-[#D9D6CA] transition-colors cursor-pointer" 
-                                title="Duplicate Fragment"
-                              >
-                                <Copy className="w-3 h-3" />
-                              </button>
-                              <button 
-                                onClick={() => handleArchiveFragment(frag.id)}
-                                className={`p-1 hover:bg-zinc-800 transition-colors cursor-pointer ${isArchived ? "text-amber-400" : "text-zinc-400 hover:text-amber-400"}`} 
-                                title={isArchived ? "Unarchive" : "Archive"}
-                              >
-                                <Archive className="w-3 h-3" />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteFragment(frag.id)}
-                                className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer" 
-                                title="Delete Fragment"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                          <IconComponent size={16} className={isActive ? "text-amber-400" : "text-zinc-500"} />
+                          <div className="flex flex-col">
+                            <span className="text-xs uppercase tracking-wider">{item.label}</span>
+                            <span className="text-[9.5px] text-zinc-500 font-normal leading-tight line-clamp-1">{item.subtitle}</span>
+                          </div>
+                        </button>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}
+                  </div>
+                </div>
 
-          {activeTab === "New Fragment" && (
-            <motion.div
-              key="New Fragment"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">
-                  {editingFragmentId ? `EDIT FRAGMENT: ${formInfo.name}` : "REGISTER NEW FRAGMENT"}
-                </h2>
+                {/* Drawer Footer */}
+                <div className="pt-4 border-t border-zinc-900 space-y-2 text-[10px] text-zinc-500">
+                  <div className="flex items-center justify-between">
+                    <span>VAULT SECURITY:</span>
+                    <span className="text-[#00E676] font-mono">SEALED</span>
+                  </div>
+                  <div className="text-zinc-600 text-[9px]">
+                    Single source of truth archive database.
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* --------------------------------------------------------------------- */}
+        {/* RIGHT COLUMN: MAIN CONTENT WORKSPACE */}
+        {/* --------------------------------------------------------------------- */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-5 bg-[#030303]">
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-900 pb-4">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-white uppercase tracking-wider">
+                {currentTabInfo.label}
+              </h1>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {currentTabInfo.subtitle}
+              </p>
+            </div>
+
+            {/* Quick Action Badges */}
+            <div className="flex items-center gap-2">
+              {activeSection === "02_CLEARANCE" && (
                 <button
-                  onClick={() => {
-                    setEditingFragmentId(null);
-                    setActiveTab("Fragments");
-                  }}
-                  className="text-zinc-500 hover:text-white text-[11px] font-bold tracking-widest uppercase transition-colors"
+                  onClick={() => setShowCreateClearanceModal(true)}
+                  className="bg-amber-400 hover:bg-amber-300 text-black text-[10.5px] font-bold uppercase tracking-wider px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
                 >
-                  CANCEL
+                  <Plus size={13} />
+                  <span>NEW CLEARANCE PETITION</span>
                 </button>
-              </div>
-
-              {/* STEP WIZARD INDICATORS */}
-              {renderStepIndicators()}
-
-              {/* WIZARD CARD PANEL */}
-              <div className="border border-zinc-900 bg-zinc-950/20 p-6 space-y-6">
-                {/* STEP 1: FRAGMENT INFORMATION */}
-                {currentStep === 1 && (
-                  <div className="space-y-4">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 1 // FRAGMENT INFORMATION</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Fragment Timestamp</label>
-                        <input 
-                          type="text" 
-                          value={formInfo.timestamp}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, timestamp: e.target.value }))}
-                          placeholder="e.g. 11:28 PM"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Fragment Name</label>
-                        <input 
-                          type="text" 
-                          value={formInfo.name}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="e.g. SHADOW SHIFT"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">BPM</label>
-                        <input 
-                          type="number" 
-                          value={formInfo.bpm}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, bpm: e.target.value === "" ? "" : Number(e.target.value) }))}
-                          placeholder="e.g. 120"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">KEY</label>
-                        <input 
-                          type="text" 
-                          value={formInfo.key}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, key: e.target.value }))}
-                          placeholder="e.g. G Minor"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Genre</label>
-                        <input 
-                          type="text" 
-                          value={formInfo.genre}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, genre: e.target.value }))}
-                          placeholder="e.g. Ambient Trap"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Mood</label>
-                        <input 
-                          type="text" 
-                          value={formInfo.mood}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, mood: e.target.value }))}
-                          placeholder="e.g. Restless"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Duration (M:SS)</label>
-                        <input 
-                          type="text" 
-                          value={formInfo.duration}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, duration: e.target.value }))}
-                          placeholder="e.g. 4:32"
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none placeholder-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Status</label>
-                        <select 
-                          value={formInfo.status}
-                          onChange={(e) => setFormInfo(prev => ({ ...prev, status: e.target.value }))}
-                          className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-2 text-xs text-white focus:outline-none font-mono"
-                        >
-                          <option value="Draft">Draft</option>
-                          <option value="Published">Published</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 2: ARTWORK */}
-                {currentStep === 2 && (
-                  <div className="space-y-4">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 2 // COVER IMAGE ARTWORK</span>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-6 items-center">
-                      <div className="w-32 h-32 border border-zinc-900 bg-neutral-950 flex items-center justify-center relative overflow-hidden shrink-0">
-                        {formArtwork ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-[11px] text-zinc-400">
-                            <Image className="w-8 h-8 text-zinc-600 mb-1" />
-                            <span className="truncate w-full font-bold uppercase">{formArtwork}</span>
-                          </div>
-                        ) : (
-                          <Image className="w-8 h-8 text-zinc-800" />
-                        )}
-                      </div>
-
-                      <div className="flex-grow w-full text-left space-y-3">
-                        <label className="text-[10.5px] font-bold text-zinc-500 uppercase tracking-widest block">Upload Cover Art</label>
-                        
-                        <div className="border border-dashed border-zinc-800 p-6 text-center hover:border-zinc-700 transition-colors cursor-pointer bg-neutral-950/40 relative">
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                uploadFileToServer(file, "cloudinary", setFormArtwork);
-                              }
-                            }}
-                          />
-                          <Upload className="w-6 h-6 text-zinc-600 mx-auto mb-2" />
-                          <p className="text-xs text-zinc-400">DRAG AND DROP OR CLICK TO CHOOSE COVER IMAGE</p>
-                          <p className="text-[10px] text-zinc-600 mt-1 uppercase">MAXIMUM FILE SIZE: 10MB (JPG, PNG)</p>
-                        </div>
-
-                        {/* Direct URL Input for Cover Art */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT COVER ART URL:</span>
-                          <input
-                            type="text"
-                            value={formArtwork}
-                            onChange={(e) => setFormArtwork(e.target.value.trim())}
-                            placeholder="https://example.com/artwork.jpg"
-                            className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
-                          />
-                        </div>
-
-                        {/* Preset assets selector */}
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] text-zinc-600 font-bold uppercase block">OR REUSE FROM MEDIA LIBRARY PRESETS:</span>
-                          <div className="flex flex-wrap gap-2">
-                            {["cover_bandit.jpg", "cover_deep_water.jpg", "cover_kryptonite.jpg"].map(art => (
-                              <button
-                                key={art}
-                                onClick={() => setFormArtwork(art)}
-                                className={`px-2 py-1 text-[10.5px] border font-bold uppercase transition-colors ${
-                                  formArtwork === art 
-                                    ? "bg-zinc-800 border-zinc-600 text-white" 
-                                    : "bg-neutral-950 border-zinc-900 text-zinc-500 hover:text-zinc-300"
-                                }`}
-                              >
-                                {art}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: AUDIO FILES */}
-                {currentStep === 3 && (
-                  <div className="space-y-6">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 3 // CORE AUDIO FILES</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                      {/* MP3 PREVIEW */}
-                      <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10.5px] font-bold text-zinc-400 uppercase tracking-widest block">1. MP3 PREVIEW (STREAMABLE)</span>
-                          {formAudioFiles.mp3Preview && (
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                              <Check className="w-3 h-3" /> ATTACHED
-                            </span>
-                          )}
-                        </div>
-                        <div className="border border-dashed border-zinc-800 p-4 text-center hover:border-zinc-700 transition-colors cursor-pointer bg-neutral-950 relative">
-                          <input 
-                            type="file" 
-                            accept="audio/mp3,audio/mpeg" 
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                uploadFileToServer(file, "uploadthing", (url) => setFormAudioFiles(prev => ({ ...prev, mp3Preview: url })));
-                              }
-                            }}
-                          />
-                          <Music className="w-5 h-5 text-zinc-600 mx-auto mb-1.5" />
-                          <p className="text-[11px] text-zinc-400 uppercase">UPLOAD MP3 PREVIEW</p>
-                          {formAudioFiles.mp3Preview && (
-                            <p className="text-[10px] text-[#D9D6CA] font-bold mt-1 uppercase truncate max-w-full">
-                              FILE: {formAudioFiles.mp3Preview}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Direct URL Input for MP3 */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT MP3 URL:</span>
-                          <input
-                            type="text"
-                            value={formAudioFiles.mp3Preview}
-                            onChange={(e) => setFormAudioFiles(prev => ({ ...prev, mp3Preview: e.target.value.trim() }))}
-                            placeholder="https://example.com/track_preview.mp3"
-                            className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      {/* WAV MASTER */}
-                      <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10.5px] font-bold text-zinc-400 uppercase tracking-widest block">2. WAV MASTER (HIGH-FIDELITY)</span>
-                          {formAudioFiles.wavMaster && (
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                              <Check className="w-3 h-3" /> ATTACHED
-                            </span>
-                          )}
-                        </div>
-                        <div className="border border-dashed border-zinc-800 p-4 text-center hover:border-zinc-700 transition-colors cursor-pointer bg-neutral-950 relative">
-                          <input 
-                            type="file" 
-                            accept="audio/wav,audio/x-wav" 
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                uploadFileToServer(file, "uploadthing", (url) => setFormAudioFiles(prev => ({ ...prev, wavMaster: url })));
-                              }
-                            }}
-                          />
-                          <Music className="w-5 h-5 text-zinc-600 mx-auto mb-1.5" />
-                          <p className="text-[11px] text-zinc-400 uppercase">UPLOAD WAV MASTER</p>
-                          {formAudioFiles.wavMaster && (
-                            <p className="text-[10px] text-[#D9D6CA] font-bold mt-1 uppercase truncate max-w-full">
-                              FILE: {formAudioFiles.wavMaster}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Direct URL Input for WAV */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT WAV URL (UP TO 50MB):</span>
-                          <input
-                            type="text"
-                            value={formAudioFiles.wavMaster}
-                            onChange={(e) => setFormAudioFiles(prev => ({ ...prev, wavMaster: e.target.value.trim() }))}
-                            placeholder="https://example.com/track_master.wav"
-                            className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 4: STEM FILES */}
-                {currentStep === 4 && (
-                  <div className="space-y-4 text-left">
-                    <div className="border-b border-zinc-900 pb-2">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 4 // STEMS / TRACKOUT ASSETS</span>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex gap-4 border-b border-zinc-900 pb-3">
-                        <button
-                          onClick={() => setFormStems(prev => ({ ...prev, type: "multiple" }))}
-                          className={`px-3 py-1.5 text-xs font-bold uppercase border ${
-                            formStems.type === "multiple" 
-                              ? "bg-zinc-800 border-zinc-600 text-white" 
-                              : "bg-transparent border-zinc-900 text-zinc-500"
-                          }`}
-                        >
-                          MULTIPLE STEM FIELDS
-                        </button>
-                        <button
-                          onClick={() => setFormStems(prev => ({ ...prev, type: "file" }))}
-                          className={`px-3 py-1.5 text-xs font-bold uppercase border ${
-                            formStems.type === "file" 
-                              ? "bg-zinc-800 border-zinc-600 text-white" 
-                              : "bg-transparent border-zinc-900 text-zinc-500"
-                          }`}
-                        >
-                          SINGLE ZIP FILE
-                        </button>
-                      </div>
-
-                      {formStems.type === "multiple" ? (
-                        <div className="space-y-3">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">CONFIGURE MANDATORY TRACKOUT STEMS:</span>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {["Drums", "808", "Melody", "Bass", "FX", "Vocals", "Full Stems"].map(stem => {
-                              const isChecked = formStems.list.includes(stem);
-                              return (
-                                <button
-                                  key={stem}
-                                  onClick={() => {
-                                    setFormStems(prev => {
-                                      const isExist = prev.list.includes(stem);
-                                      const updatedList = isExist 
-                                        ? prev.list.filter(x => x !== stem) 
-                                        : [...prev.list, stem];
-                                      return { ...prev, list: updatedList };
-                                    });
-                                  }}
-                                  className={`p-2 text-xs font-bold border transition-colors flex items-center justify-between uppercase ${
-                                    isChecked 
-                                      ? "bg-zinc-900 border-zinc-700 text-white" 
-                                      : "bg-neutral-950 border-zinc-900/60 text-zinc-600 hover:text-zinc-400"
-                                  }`}
-                                >
-                                  <span>{stem}</span>
-                                  {isChecked && <Check className="w-3 h-3 text-emerald-400" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          
-                          <div className="flex gap-2 pt-2">
-                            <input 
-                              type="text" 
-                              placeholder="ADD CUSTOM STEM (E.G. SYNTH REVERB)" 
-                              id="custom-stem-input"
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  const val = (e.target as HTMLInputElement).value.trim();
-                                  if (val) {
-                                    setFormStems(prev => ({ ...prev, list: [...prev.list, val] }));
-                                    (e.target as HTMLInputElement).value = "";
-                                  }
-                                }
-                              }}
-                              className="bg-neutral-950 border border-zinc-900 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono w-full max-w-sm"
-                            />
-                            <button
-                              onClick={() => {
-                                const el = document.getElementById("custom-stem-input") as HTMLInputElement;
-                                if (el && el.value.trim()) {
-                                  setFormStems(prev => ({ ...prev, list: [...prev.list, el.value.trim()] }));
-                                  el.value = "";
-                                }
-                              }}
-                              className="bg-zinc-800 hover:bg-zinc-700 px-3 text-xs font-bold uppercase transition-colors rounded-none cursor-pointer"
-                            >
-                              ADD
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <span className="text-[10px] text-zinc-500 font-bold uppercase block">UPLOAD COMPACT ZIP ARCHIVE:</span>
-                          <div className="border border-dashed border-zinc-800 p-6 text-center hover:border-zinc-700 transition-colors bg-neutral-950 relative">
-                            <input 
-                              type="file" 
-                              accept=".zip,.rar,.tar" 
-                              className="absolute inset-0 opacity-0 cursor-pointer"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  uploadFileToServer(file, "uploadthing", (url) => setFormStems(prev => ({ ...prev, list: [url] })));
-                                }
-                              }}
-                            />
-                            <Folder className="w-6 h-6 text-zinc-600 mx-auto mb-2" />
-                            <p className="text-xs text-zinc-400">UPLOAD TRACKOUTS_ALL.ZIP</p>
-                            {formStems.list.length === 1 && (
-                              <p className="text-[10px] text-emerald-400 font-bold mt-1 uppercase truncate max-w-full">
-                                MOUNTED: {formStems.list[0]}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Direct URL Input for Stems ZIP */}
-                          <div className="space-y-1">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase block">OR PASTE DIRECT ZIP ARCHIVE URL:</span>
-                            <input
-                              type="text"
-                              value={(formStems.list.length === 1 && formStems.list[0].startsWith("http")) ? formStems.list[0] : ""}
-                              onChange={(e) => setFormStems(prev => ({ ...prev, list: e.target.value.trim() ? [e.target.value.trim()] : [] }))}
-                              placeholder="https://example.com/stems_master.zip"
-                              className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}                {/* STEP 5: DOCUMENTS */}
-                {currentStep === 5 && (() => {
-                  const handleAddDocument = (name: string, ver: string) => {
-                    const trimmedName = name.trim();
-                    if (!trimmedName) return;
-                    const fullDocString = `${trimmedName} (v${ver})`;
-                    if (formDocuments.includes(fullDocString)) {
-                      showToast("Document with this name and version already attached.");
-                      return;
-                    }
-                    setFormDocuments(prev => [...prev, fullDocString]);
-                    logActivity("DOCUMENT_ATTACHED", `Attached document "${trimmedName}" version ${ver}`);
-                    setNewDocName("");
-                    setNewDocVersion("1.0");
-                  };
-
-                  const handleBumpVersion = (index: number, docString: string) => {
-                    let name = docString;
-                    let ver = "1.0";
-                    const match = docString.match(/^(.*?)\s*\(v([\d\.]+)\)$/);
-                    if (match) {
-                      name = match[1];
-                      ver = match[2];
-                    }
-
-                    const parts = ver.split(".");
-                    let nextVer = "1.1";
-                    if (parts.length === 2) {
-                      const major = parseInt(parts[0], 10);
-                      const minor = parseInt(parts[1], 10);
-                      const option = window.prompt(`Select version bump option for "${name}":
-1. Increment Minor (v${major}.${minor + 1})
-2. Increment Major (v${major + 1}.0)
-Or type a custom version:`, `${major}.${minor + 1}`);
-                      
-                      if (!option) return;
-                      if (option === "1") {
-                        nextVer = `${major}.${minor + 1}`;
-                      } else if (option === "2") {
-                        nextVer = `${major + 1}.0`;
-                      } else {
-                        nextVer = option.trim().replace(/^v/, "");
-                      }
-                    } else {
-                      const custom = window.prompt(`Type new version for "${name}" (current: v${ver}):`, "1.1");
-                      if (!custom) return;
-                      nextVer = custom.trim().replace(/^v/, "");
-                    }
-
-                    const updatedString = `${name} (v${nextVer})`;
-                    setFormDocuments(prev => prev.map((d, i) => i === index ? updatedString : d));
-                    logActivity("DOCUMENT_VERSION_BUMP", `Bumped version of "${name}" from v${ver} to v${nextVer}`);
-                    showToast(`Document "${name}" version updated to v${nextVer}`);
-                  };
-
-                  return (
-                    <div className="space-y-4 text-left">
-                      <div className="border-b border-zinc-900 pb-2 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 5 // COMPOSITION DOCUMENTS</span>
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono">Rule 8: Legal Versioning</span>
-                      </div>
-
-                      <div className="space-y-4">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase block">UNLIMITED LEGAL & METADATA ATTACHMENTS (VERSIONED):</span>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {formDocuments.map((doc, index) => {
-                            let name = doc;
-                            let ver = "1.0";
-                            const match = doc.match(/^(.*?)\s*\(v([\d\.]+)\)$/);
-                            if (match) {
-                              name = match[1];
-                              ver = match[2];
-                            }
-
-                            return (
-                              <div 
-                                key={index}
-                                className="border border-zinc-900 bg-neutral-950 p-3 text-xs flex flex-col justify-between space-y-2.5"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="space-y-1">
-                                    <span className="text-zinc-300 font-bold uppercase flex items-center gap-1.5 leading-snug">
-                                      <FileText className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-                                      {name}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[9px] bg-zinc-900 border border-zinc-800 text-emerald-400 font-mono px-1.5 py-0.5 rounded-none uppercase">
-                                        ACTIVE: v{ver}
-                                      </span>
-                                      <span className="text-[8px] text-zinc-500 uppercase tracking-tight">
-                                        LOMON SECURE RECORD
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    onClick={() => {
-                                      if (window.confirm(`Are you sure you want to remove document "${name}"?`)) {
-                                        setFormDocuments(prev => prev.filter((_, i) => i !== index));
-                                        logActivity("DOCUMENT_REMOVED", `Removed document "${name}"`);
-                                      }
-                                    }}
-                                    className="text-zinc-600 hover:text-red-400 transition-colors p-1"
-                                    title="Remove Document"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-
-                                <div className="pt-2 border-t border-zinc-900/60 flex items-center justify-between">
-                                  <button
-                                    onClick={() => handleBumpVersion(index, doc)}
-                                    className="text-[9px] bg-neutral-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white px-2 py-0.5 font-bold uppercase transition-all tracking-wider"
-                                  >
-                                    BUMP VERSION
-                                  </button>
-                                  <span className="text-[8px] text-zinc-600 font-mono uppercase">
-                                    VERIFIED AGREEMENT
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {formDocuments.length === 0 && (
-                          <div className="p-6 border border-dashed border-zinc-900 text-center text-zinc-600 text-xs">
-                            NO VERSIONED DOCUMENTS ATTACHED. REQUIRED FOR LEGAL COMPLIANCE BEFORE PUBLISHING.
-                          </div>
-                        )}
-
-                        <div className="bg-neutral-950 p-4 border border-zinc-900 space-y-3">
-                          <span className="text-[9px] text-zinc-500 font-bold tracking-wider block uppercase">ATTACH NEW LEGAL AGREEMENT / RECORD</span>
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                            <div className="sm:col-span-8 space-y-1">
-                              <label className="text-[8px] text-zinc-600 uppercase font-mono font-bold tracking-wider block">Document Name</label>
-                              <input 
-                                type="text" 
-                                placeholder="E.G. EXCLUSIVE LICENSE AGREEMENT" 
-                                value={newDocName}
-                                onChange={(e) => setNewDocName(e.target.value)}
-                                className="bg-neutral-950 border border-zinc-800 focus:border-zinc-500 px-3 py-1.5 text-xs text-white focus:outline-none font-mono w-full"
-                              />
-                            </div>
-                            <div className="sm:col-span-2 space-y-1">
-                              <label className="text-[8px] text-zinc-600 uppercase font-mono font-bold tracking-wider block">Initial Version</label>
-                              <select
-                                value={newDocVersion}
-                                onChange={(e) => setNewDocVersion(e.target.value)}
-                                className="bg-neutral-950 border border-zinc-800 focus:border-zinc-500 px-2 py-1.5 text-xs text-zinc-300 focus:outline-none font-mono w-full"
-                              >
-                                <option value="1.0">1.0 (Initial)</option>
-                                <option value="1.1">1.1 (Draft Patch)</option>
-                                <option value="2.0">2.0 (Revision)</option>
-                                <option value="0.1">0.1 (Internal)</option>
-                              </select>
-                            </div>
-                            <div className="sm:col-span-2 flex items-end">
-                              <button
-                                onClick={() => handleAddDocument(newDocName, newDocVersion)}
-                                className="bg-zinc-800 hover:bg-zinc-700 text-white w-full py-1.5 text-xs font-bold uppercase transition-colors rounded-none cursor-pointer flex-shrink-0"
-                              >
-                                ATTACH
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border border-zinc-900 bg-neutral-950/10 p-3 text-[10.5px] text-zinc-500 space-y-1">
-                          <p className="font-bold text-zinc-400 uppercase tracking-wide">Rule 8: Document Integrity Guidelines:</p>
-                          <p>• Agreements like exclusive contracts and split sheets must carry semantic version identifiers (e.g. v1.0, v2.0).</p>
-                          <p>• Whenever split allocations or administrative overrides change, the document MUST be updated using the "Bump Version" protocol.</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* STEP 6: LICENSING & PRICING */}
-                {currentStep === 6 && (
-                  <div className="space-y-4 text-left">
-                    <div className="border-b border-zinc-900 pb-2 flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">STEP 6 // LICENSING RIGS & TEMPLATES</span>
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono">TEMPLATE-DRIVEN</span>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <p className="text-[10px] text-zinc-400 font-bold uppercase">CONFIGURE TEMPLATES & OVERRIDES FOR THIS FRAGMENT:</p>
-                        <span className="text-[9px] text-zinc-500 font-mono italic">Edits made below will only affect this specific fragment</span>
-                      </div>
-
-                      <div className="space-y-4">
-                        {(["access", "release", "commercial", "exclusive", "sync", "clearance"] as const).map(key => {
-                          const license = formLicensing[key] || { enabled: false, price: 0, overrides: {} };
-                          const defaultTemplate = DEFAULT_LICENSE_TEMPLATES.find(t => t.id === key);
-
-                          const labelMap: Record<string, string> = {
-                            access: "ACCESS LICENSE (MP3)",
-                            release: "RELEASE LICENSE (WAV)",
-                            commercial: "COMMERCIAL LICENSE (STEMS)",
-                            exclusive: "EXCLUSIVE ACQUISITION",
-                            sync: "SYNC LICENSE (FILM/TV)",
-                            clearance: "CUSTOM CLEARANCE"
-                          };
-
-                          const codeMap: Record<string, string> = {
-                            access: "MTR-MP3-LEASE",
-                            release: "MTR-WAV-LEASE",
-                            commercial: "MTR-STEMS-LEASE",
-                            exclusive: "MTR-EXCLUSIVE-BUY",
-                            sync: "MTR-SYNC-BROADCAST",
-                            clearance: "MTR-CUSTOM-JV"
-                          };
-
-                          const fieldsToOverride = [
-                            { id: "fileDelivery", label: "File Delivery" },
-                            { id: "distributionLimit", label: "Distribution Limit" },
-                            { id: "streamingLimit", label: "Streaming Limit" },
-                            { id: "videoUse", label: "Video Use" },
-                            { id: "monetization", label: "Monetization" },
-                            { id: "performanceRights", label: "Performance Rights" },
-                            { id: "term", label: "Term" },
-                            { id: "territory", label: "Territory" },
-                            { id: "publishingSplit", label: "Publishing Split" },
-                            { id: "masterOwnership", label: "Master Ownership" },
-                            { id: "exclusivity", label: "Exclusivity" },
-                            { id: "contractVersion", label: "Contract Version" }
-                          ] as const;
-
-                          const isExpanded = !!expandedOverrides[key];
-
-                          return (
-                            <div 
-                              key={key} 
-                              className={`border transition-colors ${
-                                license.enabled 
-                                  ? "bg-neutral-950/40 border-zinc-900" 
-                                  : "bg-neutral-950/10 border-zinc-900/40 opacity-60"
-                              }`}
-                            >
-                              {/* HEADER BAR */}
-                              <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    onClick={() => setFormLicensing(prev => ({
-                                      ...prev,
-                                      [key]: { ...prev[key], enabled: !prev[key].enabled }
-                                    }))}
-                                    className={`w-4 h-4 border flex items-center justify-center transition-colors cursor-pointer ${
-                                      license.enabled 
-                                        ? "bg-[#D9D6CA] border-[#D9D6CA] text-black" 
-                                        : "bg-transparent border-zinc-800 text-transparent hover:border-zinc-700"
-                                    }`}
-                                  >
-                                    <Check className="w-3 h-3" />
-                                  </button>
-                                  <div>
-                                    <span className="text-xs font-bold uppercase text-white block">
-                                      {labelMap[key]}
-                                    </span>
-                                    <span className="text-[10px] text-zinc-500 font-bold block uppercase font-mono">
-                                      {codeMap[key]}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-3">
-                                  {license.enabled && (
-                                    <>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-zinc-500 font-bold uppercase">PRICE:</span>
-                                        <div className="relative">
-                                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-bold">$</span>
-                                          <input 
-                                            type="number"
-                                            value={license.price}
-                                            onChange={(e) => setFormLicensing(prev => ({
-                                              ...prev,
-                                              [key]: { ...prev[key], price: Number(e.target.value) }
-                                            }))}
-                                            className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-xs text-white w-24 font-bold font-mono"
-                                          />
-                                        </div>
-                                      </div>
-
-                                      <button
-                                        onClick={() => setExpandedOverrides(prev => ({
-                                          ...prev,
-                                          [key]: !prev[key]
-                                        }))}
-                                        className="text-[10px] font-bold uppercase tracking-wider text-[#D9D6CA] hover:text-white border border-[#D9D6CA]/20 hover:border-[#D9D6CA] px-2 py-1 transition-all cursor-pointer"
-                                      >
-                                        {isExpanded ? "COLLAPSE OVERRIDES" : "EDIT OVERRIDES"}
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* OVERRIDES SUBFORM PANEL */}
-                              <AnimatePresence>
-                                {license.enabled && isExpanded && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "auto", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="overflow-hidden border-t border-zinc-900/60 bg-zinc-950/80 p-4"
-                                  >
-                                    <div className="mb-3">
-                                      <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
-                                        OVERRIDE DEFAULT PARAMS // {labelMap[key]}
-                                      </span>
-                                      <span className="text-[9px] text-zinc-600 uppercase font-mono block">
-                                        LEAVE EMPTY TO MERGE SYSTEM TEMPLATE DEFAULTS
-                                      </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                                      {fieldsToOverride.map((field) => {
-                                        const defaultValue = defaultTemplate ? defaultTemplate[field.id] : "";
-                                        const currentValue = (license.overrides as any)?.[field.id] || "";
-
-                                        return (
-                                          <div key={field.id} className="space-y-1">
-                                            <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider block">
-                                              {field.label}
-                                            </label>
-                                            <input
-                                              type="text"
-                                              value={currentValue}
-                                              placeholder={String(defaultValue)}
-                                              onChange={(e) => {
-                                                const val = e.target.value;
-                                                setFormLicensing(prev => {
-                                                  const currLicense = prev[key] || { enabled: true, price: 0, overrides: {} };
-                                                  const currOverrides = currLicense.overrides || {};
-                                                  return {
-                                                    ...prev,
-                                                    [key]: {
-                                                      ...currLicense,
-                                                      overrides: {
-                                                        ...currOverrides,
-                                                        [field.id]: val
-                                                      }
-                                                    }
-                                                  };
-                                                });
-                                              }}
-                                              className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none px-2.5 py-1 text-[11px] text-white w-full font-mono placeholder:text-zinc-700"
-                                            />
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 7: PUBLISH */}
-                {currentStep === 7 && (() => {
-                  const checklistItems = [
-                    {
-                      id: "timestamp",
-                      label: "Timestamp assigned",
-                      isVerified: !!formInfo.timestamp,
-                      value: formInfo.timestamp || "Missing",
-                      step: 1,
-                      description: "Configured in Step 1 // Fragment Info",
-                    },
-                    {
-                      id: "composition",
-                      label: "Composition linked",
-                      isVerified: !!formInfo.name,
-                      value: formInfo.name || "Missing",
-                      step: 1,
-                      description: "Configured in Step 1 // Fragment Info",
-                    },
-                    {
-                      id: "artwork",
-                      label: "Artwork uploaded",
-                      isVerified: !!formArtwork,
-                      value: formArtwork ? "Artwork verified" : "Missing",
-                      step: 2,
-                      description: "Uploaded in Step 2 // Artwork",
-                    },
-                    {
-                      id: "preview",
-                      label: "Preview uploaded",
-                      isVerified: !!formAudioFiles.mp3Preview,
-                      value: formAudioFiles.mp3Preview || "Missing",
-                      step: 3,
-                      description: "Configured in Step 3 // Preview Audio",
-                    },
-                    {
-                      id: "master",
-                      label: "Master uploaded",
-                      isVerified: !!formAudioFiles.wavMaster,
-                      value: formAudioFiles.wavMaster || "Missing",
-                      step: 3,
-                      description: "Configured in Step 3 // Master Audio",
-                    },
-                    {
-                      id: "stems",
-                      label: "Stem package verified",
-                      isVerified: !!(formStems.list && formStems.list.length > 0),
-                      value: formStems.list && formStems.list.length > 0 ? `${formStems.list.length} Files` : "Missing",
-                      step: 4,
-                      description: "Verified in Step 4 // Stems Archive",
-                    },
-                    {
-                      id: "ownership",
-                      label: "Ownership confirmed",
-                      isVerified: ownershipConfirmed,
-                      value: ownershipConfirmed ? "Confirmed by Admin" : "Needs Verification",
-                      isInteractive: true,
-                      onToggle: () => setOwnershipConfirmed(!ownershipConfirmed),
-                      description: "Requires administrator verification click",
-                    },
-                    {
-                      id: "documents",
-                      label: "Documents attached",
-                      isVerified: !!(formDocuments && formDocuments.length > 0),
-                      value: formDocuments && formDocuments.length > 0 ? `${formDocuments.length} Deed(s)` : "No Documents",
-                      step: 5,
-                      description: "Configured in Step 5 // Legal Deeds",
-                    },
-                    {
-                      id: "licenses",
-                      label: "Licenses selected",
-                      isVerified: Object.values(formLicensing).some((l: any) => l.enabled),
-                      value: Object.values(formLicensing).filter((l: any) => l.enabled).length + " Tier(s) enabled",
-                      step: 6,
-                      description: "Configured in Step 6 // Licensing Grid",
-                    },
-                    {
-                      id: "prices",
-                      label: "Prices entered",
-                      isVerified: Object.values(formLicensing).filter((l: any) => l.enabled).length > 0 && 
-                                  Object.values(formLicensing).filter((l: any) => l.enabled).every((l: any) => Number(l.price) > 0),
-                      value: "Prices set & verified",
-                      step: 6,
-                      description: "Configured in Step 6 // Licensing Grid",
-                    },
-                    {
-                      id: "metadata",
-                      label: "Metadata complete",
-                      isVerified: !!(formInfo.bpm && formInfo.key && formInfo.genre && formInfo.mood),
-                      value: formInfo.bpm && formInfo.key ? `${formInfo.bpm} BPM // ${formInfo.key}` : "Incomplete",
-                      step: 1,
-                      description: "BPM, Key, Genre, Mood set in Step 1",
-                    },
-                    {
-                      id: "preview_approved",
-                      label: "Public page preview approved",
-                      isVerified: publicPreviewApproved,
-                      value: publicPreviewApproved ? "Approved by Admin" : "Needs Approval",
-                      isInteractive: true,
-                      onToggle: () => setPublicPreviewApproved(!publicPreviewApproved),
-                      description: "Requires administrator review click",
-                    }
-                  ];
-
-                  const handleDeploymentAction = (actionType: string) => {
-                    if (actionType === "preview") {
-                      const targetId = editingFragmentId || formInfo.timestamp.replace(" ", "").toLowerCase() || "temp_preview";
-                      const previewObj: Fragment = {
-                        id: targetId,
-                        name: formInfo.name || "UNNAMED COMPOSITION",
-                        timestamp: formInfo.timestamp || "12:00 AM",
-                        classification: formInfo.classification || "THRESHOLD COIL",
-                        observation: `Previewing administrative draft.`,
-                        duration: formInfo.duration || "04:00",
-                        description: `Custom ${formInfo.mood || "archival"} fragment with BPM ${formInfo.bpm || "120"} in KEY ${formInfo.key || "C minor"}.`,
-                        isExclusive: formLicensing.exclusive.enabled,
-                        frequency: 220,
-                        synthType: "keys",
-                        bpm: Number(formInfo.bpm) || 120,
-                        status: "Draft",
-                        plays: 0,
-                        revenue: 0,
-                        artwork: formArtwork || "cover_bandit.jpg",
-                        mp3Preview: formAudioFiles.mp3Preview || "bandit_preview.mp3",
-                        wavMaster: formAudioFiles.wavMaster || "bandit_master.wav",
-                        stems: formStems.list,
-                        documents: formDocuments,
-                        licensing: formLicensing,
-                        key: formInfo.key || "C minor",
-                        genre: formInfo.genre || "Archival",
-                        mood: formInfo.mood || "Calm"
-                      } as any;
-                      setPreviewFragmentObj(previewObj);
-                      showToast("Opening live client-side page preview...");
-                      return;
-                    }
-
-                    if (actionType === "draft") {
-                      handleSaveFragmentForm("Draft");
-                      showToast(`Fragment saved as Draft.`);
-                      return;
-                    }
-
-                    // Rule 4: Prevent publishing when required assets are missing (Publish, Schedule, Restricted)
-                    if (actionType === "publish" || actionType === "schedule" || actionType === "restricted") {
-                      const missingAssets = [];
-                      if (!formArtwork) missingAssets.push("Artwork (Cover Image)");
-                      if (!formAudioFiles.mp3Preview) missingAssets.push("MP3 Preview File");
-                      if (!formAudioFiles.wavMaster) missingAssets.push("WAV Master File");
-
-                      if (missingAssets.length > 0) {
-                        alert(`[LOMON PUBLISHING BLOCKED]
-Critical assets are missing. Publishing is strictly prohibited until all required assets are uploaded:
-${missingAssets.map(asset => `• ${asset}`).join("\n")}
-
-Please upload these assets in the respective wizard steps before proceeding.`);
-                        logActivity("PUBLISH_BLOCKED", `Publish action blocked for "${formInfo.name || "Unnamed"}" due to missing assets: ${missingAssets.join(", ")}`);
-                        return;
-                      }
-                    }
-
-                    if (actionType === "publish") {
-                      const unverified = checklistItems.filter(item => !item.isInteractive && !item.isVerified);
-                      if (unverified.length > 0) {
-                        showToast(`Warning: Auto-verifications incomplete (${unverified.map(u => u.label).join(", ")}).`);
-                      }
-                      if (!ownershipConfirmed || !publicPreviewApproved) {
-                        const confirmSave = window.confirm("Admin Checklists (Ownership / Preview Approval) are currently incomplete. Force publish anyway?");
-                        if (!confirmSave) return;
-                      }
-                      handleSaveFragmentForm("Published");
-                      showToast(`Fragment published now.`);
-                      return;
-                    }
-
-                    if (actionType === "schedule") {
-                      const schedTime = window.prompt("Enter schedule date/time (e.g., 2026-07-15 12:00 AM):", "2026-07-15 12:00 AM");
-                      if (schedTime) {
-                        handleSaveFragmentForm("Scheduled");
-                        showToast(`Fragment successfully scheduled for deployment on ${schedTime}`);
-                        logActivity("PUBLISH_SCHEDULED", `Scheduled publication for "${formInfo.name}" at ${schedTime}`);
-                      }
-                      return;
-                    }
-
-                    if (actionType === "restricted") {
-                      handleSaveFragmentForm("Restricted");
-                      showToast(`Fragment published with Restricted clearance.`);
-                      logActivity("PUBLISH_RESTRICTED", `Published "${formInfo.name}" with restricted clearance status`);
-                      return;
-                    }
-
-                    if (actionType === "archive") {
-                      handleSaveFragmentForm("Archived");
-                      showToast(`Fragment archived.`);
-                      logActivity("PUBLISH_ARCHIVED", `Archived composition "${formInfo.name}"`);
-                      return;
-                    }
-                  };
-
-                  return (
-                    <div className="space-y-6 text-left">
-                      <div className="border-b border-zinc-900 pb-2 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-zinc-400 tracking-[0.2em] block uppercase">STEP 7 // VALIDATION CHECKLIST & DEPLOYMENT</span>
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase font-mono">12 ARCHIVAL PROTOCOLS</span>
-                      </div>
-
-                      {/* 12-ITEM VALIDATION CHECKLIST GRID */}
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">FINAL INTEGRITY CHECKS:</span>
-                          <span className="text-[9px] text-zinc-500 uppercase font-mono italic">Click auto-checks to return to that step</span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {checklistItems.map((item) => {
-                            const IconComponent = item.isVerified ? Check : Activity;
-                            return (
-                              <button
-                                key={item.id}
-                                onClick={() => {
-                                  if (item.isInteractive && item.onToggle) {
-                                    item.onToggle();
-                                  } else if (item.step) {
-                                    setCurrentStep(item.step);
-                                    showToast(`Jumping back to Step ${item.step}`);
-                                  }
-                                }}
-                                className={`text-left p-3 border transition-all rounded-none flex flex-col justify-between h-24 select-none relative group ${
-                                  item.isVerified 
-                                    ? "bg-emerald-950/10 border-emerald-950/50 hover:bg-emerald-950/20 text-white" 
-                                    : "bg-neutral-950 border-zinc-900 hover:border-zinc-800 text-zinc-400"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between w-full">
-                                  <span className={`text-xs font-bold tracking-wider ${item.isVerified ? "text-emerald-400" : "text-zinc-300"}`}>
-                                    {item.label}
-                                  </span>
-                                  <div className={`p-1 ${item.isVerified ? "bg-emerald-950/40 text-emerald-400" : "bg-zinc-950 text-amber-500 animate-pulse"}`}>
-                                    <IconComponent className="w-3.5 h-3.5" />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <span className="text-[10px] font-mono block truncate opacity-80 uppercase">
-                                    {item.value}
-                                  </span>
-                                  <span className="text-[8px] text-zinc-500 block uppercase tracking-tight group-hover:text-zinc-400 transition-colors">
-                                    {item.description}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* COMPOSITION BRIEF SUMMARY */}
-                      <div className="bg-neutral-950/60 p-4 border border-zinc-900 text-xs rounded-none">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2 tracking-wider">COMPOSITION METADATA SUMMARY</span>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div>
-                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">NAME</span>
-                            <span className="font-bold text-white uppercase">{formInfo.name || "UNNAMED"}</span>
-                          </div>
-                          <div>
-                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">TIMESTAMP</span>
-                            <span className="font-bold text-white">{formInfo.timestamp || "None"}</span>
-                          </div>
-                          <div>
-                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">BPM / KEY</span>
-                            <span className="font-bold text-zinc-300">{formInfo.bpm ? `${formInfo.bpm} BPM` : "Missing"} / {formInfo.key || "C Minor"}</span>
-                          </div>
-                          <div>
-                            <span className="text-zinc-500 block uppercase text-[10px] font-bold">GENRE / MOOD</span>
-                            <span className="font-bold text-zinc-300 uppercase">{formInfo.genre || "Ambient"} • {formInfo.mood || "Mysterious"}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* DEPLOYMENT CONTROLS */}
-                      <div className="space-y-3 pt-2">
-                        <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">DEPLOYMENT CLEARANCE CONTROLS:</span>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {[
-                            { id: "draft", label: "Save as Draft", desc: "Commit wizard state as offline draft", icon: Folder, style: "border-zinc-800 text-zinc-400 hover:border-zinc-500 hover:text-white hover:bg-neutral-900/30" },
-                            { id: "preview", label: "Preview Fragment", desc: "Interactive public client-side layout review", icon: ExternalLink, style: "border-[#D9D6CA]/30 text-[#D9D6CA] hover:border-[#D9D6CA] hover:text-white hover:bg-[#D9D6CA]/5" },
-                            { id: "publish", label: "Publish Now", desc: "Deploy composition directly to active archive", icon: Check, style: "bg-[#D9D6CA] text-black hover:bg-white border-[#D9D6CA] font-extrabold" },
-                            { id: "schedule", label: "Schedule Publication", desc: "Establish timed release timestamp", icon: Activity, style: "border-zinc-800 text-zinc-400 hover:border-zinc-500 hover:text-white hover:bg-neutral-900/30 border-dashed" },
-                            { id: "restricted", label: "Mark Restricted", desc: "Lock visibility to high cryptographic clearance", icon: Database, style: "border-red-950/40 text-red-400 hover:border-red-900 hover:bg-red-950/10" },
-                            { id: "archive", label: "Archive", desc: "Vault composition as cold secondary record", icon: Archive, style: "border-zinc-900 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300 hover:bg-neutral-950/40" }
-                          ].map((opt) => {
-                            const OptIcon = opt.icon;
-                            return (
-                              <button
-                                key={opt.id}
-                                onClick={() => handleDeploymentAction(opt.id)}
-                                className={`p-3.5 border transition-all text-left flex items-start gap-3 select-none cursor-pointer ${opt.style}`}
-                              >
-                                <div className="mt-0.5">
-                                  <OptIcon className="w-4 h-4" />
-                                </div>
-                                <div className="space-y-0.5">
-                                  <span className="text-xs font-bold uppercase tracking-wide block">{opt.label}</span>
-                                  <span className="text-[9px] opacity-75 block leading-tight">{opt.desc}</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* BACK / NEXT BUTTON RIGS FOR WIZARD */}
-                {mediaUploadProgress !== null && (
-                  <div className="h-1.5 w-full bg-zinc-900 overflow-hidden relative mt-4">
-                    <motion.div 
-                      className="h-full bg-[#D9D6CA]" 
-                      style={{ width: `${mediaUploadProgress}%` }}
-                    />
-                  </div>
-                )}
-
-                <div className="pt-6 border-t border-zinc-900 flex justify-between items-center">
+              )}
+              <span className="border border-zinc-800 bg-[#0c0c0c] text-zinc-400 text-[10px] font-mono px-2.5 py-1 rounded">
+                SEC: <strong className="text-white">{activeSection.replace("_", " ")}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#080808] p-3 rounded-lg border border-zinc-800/80">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder={`Filter ${currentTabInfo.label.toLowerCase()} by name, id, or client...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-400/50"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter for Clearance */}
+            {activeSection === "02_CLEARANCE" && (
+              <div className="flex flex-wrap items-center gap-1">
+                {(["ALL", "NEW", "UNDER REVIEW", "ACTION REQUIRED", "APPROVED", "PAYMENT PENDING", "COMPLETED", "DECLINED"] as const).map(st => (
                   <button
-                    disabled={currentStep === 1}
-                    onClick={() => setCurrentStep(prev => prev - 1)}
-                    className="px-3 py-1 text-xs font-bold tracking-widest uppercase border border-zinc-900 bg-neutral-950 text-zinc-500 hover:text-white hover:border-zinc-700 disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    key={st}
+                    onClick={() => setStatusFilter(st)}
+                    className={`px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider rounded transition-all cursor-pointer border ${
+                      statusFilter === st 
+                        ? "bg-amber-400/15 border-amber-400 text-amber-400" 
+                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
+                    }`}
                   >
-                    ← PREVIOUS
+                    {st}
                   </button>
-
-                  <div className="text-xs text-zinc-600 font-bold uppercase">
-                    STEP {currentStep} OF 7
-                  </div>
-
-                  {currentStep < 7 ? (
-                    <button
-                      onClick={() => setCurrentStep(prev => prev + 1)}
-                      className="px-4 py-1 text-xs font-bold tracking-widest uppercase border border-[#D9D6CA] bg-[#D9D6CA] text-black hover:bg-white hover:border-white transition-colors"
-                    >
-                      NEXT →
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (!ownershipConfirmed || !publicPreviewApproved) {
-                          const force = window.confirm("Admin checklists (Ownership / Preview Approval) are currently incomplete. Force publish anyway?");
-                          if (!force) return;
-                        }
-                        handleSaveFragmentForm("Published");
-                      }}
-                      className="px-4 py-1 text-xs font-bold tracking-widest uppercase border border-emerald-400 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-400 hover:text-black transition-colors cursor-pointer"
-                    >
-                      PUBLISH FRAGMENT
-                    </button>
-                  )}
-                </div>
+                ))}
               </div>
-            </motion.div>
-          )}
+            )}
+          </div>
 
-          {activeTab === "Orders" && (
-            <motion.div
-              key="Orders"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">ORDERS RECORD</h2>
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">DATABASE CAP: 500 RECORDS</span>
-              </div>
-
-              {/* TABLE */}
-              <div className="border border-zinc-900 rounded-none overflow-x-auto bg-[#040404]">
-                <table className="w-full border-collapse text-left font-mono text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[10.5px]">
-                      <th className="p-3">ID / Date</th>
-                      <th className="p-3">Customer</th>
-                      <th className="p-3">Fragment Purchased</th>
-                      <th className="p-3">License</th>
-                      <th className="p-3 text-right">Paid</th>
-                      <th className="p-3 text-right">Payloads</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((o: any, idx) => (
-                      <tr key={o.id || idx} className="border-b border-zinc-900/60 hover:bg-zinc-900/10 transition-colors">
-                        <td className="p-3 font-bold text-white whitespace-nowrap">
-                          <div>{o.id}</div>
-                          <div className="text-[10px] text-zinc-600 mt-0.5">{o.date}</div>
-                        </td>
-                        <td className="p-3">
-                          <div className="font-bold text-zinc-300">{o.customerName}</div>
-                          <div className="text-[10.5px] text-zinc-500">{o.customerEmail}</div>
-                        </td>
-                        <td className="p-3 font-bold text-zinc-300 uppercase">{o.fragmentName}</td>
-                        <td className="p-3 text-zinc-400">{o.licenseType}</td>
-                        <td className="p-3 text-right font-bold text-[#D9D6CA]">${o.amountPaid}</td>
-                        <td className="p-3 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => showToast(`Initiating downloads for: ${o.files.join(", ")}`)}
-                              className="px-2 py-0.5 border border-zinc-900 bg-neutral-950 text-zinc-400 hover:text-white hover:border-zinc-700 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Download className="w-3 h-3" /> FILES
-                            </button>
-                            <button
-                              onClick={() => {
-                                window.alert(`[INVOICE ${o.id}]\n\nLOMON LLC\nAtlanta, GA\n\nClient: ${o.customerName} (${o.customerEmail})\nFragment: ${o.fragmentName}\nLicense: ${o.licenseType}\nTotal Paid: $${o.amountPaid}\n\nStatus: Paid & Executed`);
-                              }}
-                              className="px-2 py-0.5 border border-zinc-900 bg-neutral-950 text-zinc-400 hover:text-white hover:border-zinc-700 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <FileText className="w-3 h-3" /> INVOICE
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === "Customers" && (
-            <motion.div
-              key="Customers"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">CUSTOMERS RECORD</h2>
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">SECURE CUSTOMER LEDGER</span>
-              </div>
-
-              {/* TABLE */}
-              <div className="border border-zinc-900 rounded-none overflow-x-auto bg-[#040404]">
-                <table className="w-full border-collapse text-left font-mono text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-900 text-zinc-500 uppercase tracking-wider text-[10.5px]">
-                      <th className="p-3">Name</th>
-                      <th className="p-3">Email Address</th>
-                      <th className="p-3 text-center">Purchases</th>
-                      <th className="p-3 text-right">Total Spent</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customers.map((c: any, idx) => (
-                      <tr key={idx} className="border-b border-zinc-900/60 hover:bg-zinc-900/10 transition-colors">
-                        <td className="p-3 font-bold text-white">{c.name}</td>
-                        <td className="p-3 text-zinc-300 font-bold select-text">{c.email}</td>
-                        <td className="p-3 text-center text-zinc-400 font-bold">{c.purchases}</td>
-                        <td className="p-3 text-right font-bold text-[#D9D6CA]">${c.totalSpent.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === "Analytics" && (
-            <motion.div
-              key="Analytics"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">ANALYTICS LEDGER</h2>
-                <span className="text-[10px] text-[#D9D6CA] font-bold uppercase tracking-wider">LIVE TELEMETRY FEED</span>
-              </div>
-
-              {/* STATS ROW (Plays, Downloads, Sales, Revenue) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL PLAYS</span>
-                  <div className="text-xl font-bold font-mono tracking-tight text-white">12,450</div>
-                </div>
-                <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL DOWNLOADS</span>
-                  <div className="text-xl font-bold font-mono tracking-tight text-white">3,842</div>
-                </div>
-                <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">SALES COUNT</span>
-                  <div className="text-xl font-bold font-mono tracking-tight text-white">{orders.length}</div>
-                </div>
-                <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-1">
-                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase">TOTAL REVENUE</span>
-                  <div className="text-xl font-bold font-mono tracking-tight text-[#D9D6CA]">${totalRevenueSum.toLocaleString()}</div>
-                </div>
-              </div>
-
-              {/* TOP FRAGMENTS LIST */}
-              <div className="border border-zinc-900 p-5 space-y-4 text-left">
-                <div className="border-b border-zinc-900 pb-2">
-                  <span className="text-[11px] font-bold text-zinc-400 tracking-widest block uppercase">TOP COMPOSITIONS / FRAGMENTS</span>
-                </div>
-                
-                <div className="space-y-2">
-                  {fragments.slice(0, 4).map((frag, idx) => {
-                    const progressVal = (idx === 0) ? "w-full" : (idx === 1) ? "w-4/5" : (idx === 2) ? "w-2/3" : "w-1/2";
+          {/* ======================================================================= */}
+          {/* SECTION 01: ARCHIVE (Master Database - Single Source of Truth) */}
+          {/* ======================================================================= */}
+          {activeSection === "01_ARCHIVE" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                {fragments
+                  .filter(f => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase();
                     return (
-                      <div key={frag.id} className="space-y-1">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-zinc-300 font-bold uppercase">{frag.timestamp} — {frag.name}</span>
-                          <span className="text-zinc-500 font-bold uppercase">{((frag as any).plays || 1200).toLocaleString()} Plays</span>
+                      (f.name || "").toLowerCase().includes(q) ||
+                      (f.id || "").toLowerCase().includes(q) ||
+                      (f.tonalSignature || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .map(frag => {
+                    const isPlaying = playingFragmentId === frag.id;
+                    const isExcl = frag.isExclusive || frag.timeCapsule?.clearanceStatus === "EXCLUSIVELY ACQUIRED";
+                    const bpm = frag.bpm || (frag.timeCapsule?.tempoPulse ? parseInt(frag.timeCapsule.tempoPulse) : 103);
+                    const tonal = frag.tonalSignature || frag.timeCapsule?.tonalAxis || "B Major";
+                    const duration = frag.duration || "03:06";
+                    const recoveryState = frag.recoveryState || "FULLY RECOVERED";
+
+                    return (
+                      <div
+                        key={frag.id}
+                        className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg hover:border-zinc-700/80 transition-all group"
+                      >
+                        {/* Primary Fragment Info */}
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2.5">
+                            <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+                              {getFragmentTimeName(frag.name || frag.id)}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              (TOC-{(frag.id || "001").replace(/[^a-zA-Z0-9]/g, "")})
+                            </span>
+                          </div>
+
+                          {/* Metadata Line */}
+                          <div className="text-xs text-zinc-400 flex flex-wrap items-center gap-1.5 font-medium">
+                            <span className="text-zinc-200">{tonal}</span>
+                            <span className="text-zinc-600">·</span>
+                            <span className="text-zinc-200">{bpm} BPM</span>
+                            <span className="text-zinc-600">·</span>
+                            <span className="text-zinc-200">{duration}</span>
+                          </div>
+
+                          {/* State & Clearance Tags */}
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                            <span className="bg-zinc-900/90 text-zinc-300 px-2 py-0.5 border border-zinc-800 rounded font-semibold uppercase tracking-wider">
+                              {recoveryState}
+                            </span>
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider rounded border ${
+                              isExcl
+                                ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isExcl ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
+                              {isExcl ? "Clearance: EXCLUSIVELY ACQUIRED" : "Clearance: AVAILABLE"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="h-1 bg-zinc-950 border border-zinc-900/40 relative">
-                          <div className={`h-full bg-zinc-800 ${progressVal}`} />
+
+                        {/* Actions (Horizontal Audio Preview Pill & Open Master Record Button) */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-900">
+                          {/* Audio Preview Button */}
+                          <button
+                            onClick={() => handleTogglePlay(frag)}
+                            className={`inline-flex items-center justify-center gap-2 px-3 py-2 border rounded-md text-[10.5px] uppercase font-bold tracking-wider cursor-pointer transition-all ${
+                              isPlaying 
+                                ? "border-[#00E676] bg-[#00E676]/20 text-[#00E676] shadow-[0_0_12px_rgba(0,230,118,0.25)]" 
+                                : "border-zinc-800 bg-[#0c0c0c] text-zinc-300 hover:text-white hover:border-zinc-700 hover:bg-zinc-900"
+                            }`}
+                            title="Play audio preview"
+                          >
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${isPlaying ? "bg-[#00E676] text-black" : "bg-zinc-800 text-zinc-300"}`}>
+                              {isPlaying ? <Pause size={9} /> : <Play size={9} className="ml-0.5" />}
+                            </span>
+                            <span>{isPlaying ? "STOP AUDIO" : "PREVIEW AUDIO"}</span>
+                            {isPlaying && (
+                              <span className="flex items-center gap-0.5 h-2.5 ml-1">
+                                <span className="w-0.5 h-2.5 bg-[#00E676] animate-pulse" />
+                                <span className="w-0.5 h-1.5 bg-[#00E676] animate-pulse delay-75" />
+                                <span className="w-0.5 h-3 bg-[#00E676] animate-pulse delay-150" />
+                              </span>
+                            )}
+                          </button>
+
+                          {/* Open Master Record Button */}
+                          <button
+                            onClick={() => setSelectedFragmentMaster(frag)}
+                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <span>OPEN MASTER RECORD</span>
+                            <ArrowRight size={13} className="text-amber-400" />
+                          </button>
                         </div>
                       </div>
                     );
                   })}
-                </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
-          {activeTab === "Media Library" && (
-            <motion.div
-              key="Media Library"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">MEDIA ENGINE LIBRARY</h2>
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">PERSISTENT STORAGE: 100% SECURE</span>
-              </div>
+          {/* ======================================================================= */}
+          {/* SECTION 02: CLEARANCE — ADMIN (Central Clearance Pipeline) */}
+          {/* ======================================================================= */}
+          {activeSection === "02_CLEARANCE" && (
+            <div className="space-y-3">
+              {(() => {
+                const filtered = clearanceRequests.filter(req => {
+                  if (statusFilter !== "ALL" && req.status !== statusFilter) return false;
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    (req.fragmentName || "").toLowerCase().includes(q) ||
+                    (req.clientName || "").toLowerCase().includes(q) ||
+                    (req.clientEmail || "").toLowerCase().includes(q) ||
+                    (req.ref || "").toLowerCase().includes(q)
+                  );
+                });
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* FOLDERS VIEW BAR */}
-                <div className="md:col-span-1 space-y-2">
-                  <span className="text-[10px] tracking-widest text-zinc-500 font-bold block uppercase border-b border-zinc-900 pb-1.5 text-left">FOLDERS</span>
-                  <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-                    {(Object.keys(mediaFolders) as Array<keyof typeof mediaFolders>).map(folder => {
-                      const isActive = activeMediaFolder === folder;
-                      const fileCount = mediaFolders[folder].length;
-                      return (
-                        <button
-                          key={folder}
-                          onClick={() => setActiveMediaFolder(folder)}
-                          className={`w-full text-left px-3 py-2 text-xs uppercase font-bold tracking-wider transition-colors flex items-center justify-between border cursor-pointer shrink-0 ${
-                            isActive 
-                              ? "bg-zinc-900 border-zinc-800 text-white" 
-                              : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/20"
-                          }`}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            {folder === "Images" ? <Image className="w-3.5 h-3.5" /> : folder === "Documents" ? <FileText className="w-3.5 h-3.5" /> : <Music className="w-3.5 h-3.5" />}
-                            {folder}
-                          </span>
-                          <span className="text-[10px] text-zinc-600 font-bold">({fileCount})</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* FILES GRID LIST */}
-                <div className="md:col-span-3 space-y-4">
-                  <div className="flex justify-between items-center border-b border-zinc-900 pb-1.5">
-                    <span className="text-xs tracking-widest text-zinc-400 font-bold uppercase">{activeMediaFolder} LISTING</span>
-                    
-                    <div className="relative">
-                      <input 
-                        type="file" 
-                        className="absolute inset-0 opacity-0 cursor-pointer w-24 h-6"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            triggerMockUpload(file.name, (name) => {
-                              setMediaFolders(prev => ({
-                                ...prev,
-                                [activeMediaFolder]: [...prev[activeMediaFolder], name]
-                              }));
-                            });
-                          }
-                        }}
-                      />
-                      <button className="bg-zinc-900 text-[#D9D6CA] border border-zinc-800 hover:border-zinc-700 text-xs font-bold px-2 py-0.5 uppercase cursor-pointer flex items-center gap-1">
-                        <Upload className="w-3 h-3" /> UPLOAD TO {(activeMediaFolder || "").toUpperCase()}
-                      </button>
-                    </div>
-                  </div>
-
-                  {mediaUploadProgress !== null && (
-                    <div className="border border-zinc-900 p-4 bg-zinc-950/20 flex items-center justify-between gap-4 text-xs text-zinc-400 font-bold">
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-emerald-400 animate-spin" />
-                        STORING ASSET IN SECURE CLOUD STORAGE GATEWAY...
-                      </span>
-                      <span className="text-emerald-400">{mediaUploadProgress}%</span>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {mediaFolders[activeMediaFolder].map((file, idx) => (
-                      <div 
-                        key={idx} 
-                        className="p-3 border border-zinc-900/60 bg-neutral-950/40 hover:border-zinc-800 transition-colors flex items-center justify-between text-xs"
-                      >
-                        <span className="text-zinc-300 font-bold truncate pr-3 flex items-center gap-2">
-                          <File className="w-3.5 h-3.5 text-zinc-700 flex-shrink-0" />
-                          {file}
-                        </span>
-                        
-                        <div className="flex items-center gap-1.5 shrink-0">
+                if (filtered.length === 0) {
+                  if (clearanceRequests.length === 0) {
+                    return (
+                      <div className="p-8 sm:p-12 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-4 my-2">
+                        <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-amber-400">
+                          <Shield size={22} />
+                        </div>
+                        <div className="space-y-1.5 max-w-md mx-auto">
+                          <h3 className="text-sm sm:text-base font-bold text-white uppercase tracking-wider">
+                            NO ACTIVE CLEARANCE PETITIONS IN QUEUE
+                          </h3>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
+                            The clearance registry is online and operating. Submissions from the public <strong className="text-zinc-200">"Request Clearance"</strong> transmission portal and custom archivist agreements will automatically populate this ledger.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                           <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(file);
-                              showToast(`Copied filename to clipboard: ${file}`);
-                            }}
-                            className="p-1 hover:bg-zinc-900 text-zinc-500 hover:text-white transition-colors cursor-pointer"
-                            title="Copy File Link"
+                            onClick={() => setShowCreateClearanceModal(true)}
+                            className="bg-amber-400 hover:bg-amber-300 text-black text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-md cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                           >
-                            <Copy className="w-3 h-3" />
+                            <Plus size={14} />
+                            <span>CREATE CLEARANCE PETITION</span>
                           </button>
                           <button
-                            onClick={() => {
-                              if (window.confirm("Delete file?")) {
-                                setMediaFolders(prev => ({
-                                  ...prev,
-                                  [activeMediaFolder]: prev[activeMediaFolder].filter(f => f !== file)
-                                }));
-                                showToast(`Deleted asset: ${file}`);
-                              }
-                            }}
-                            className="p-1 hover:bg-zinc-900 text-zinc-600 hover:text-red-400 transition-colors cursor-pointer"
-                            title="Delete File"
+                            onClick={() => setClearanceRequests(DEMO_CLEARANCE_SAMPLE)}
+                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-md cursor-pointer transition-all flex items-center gap-1.5"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <span>LOAD TEST SAMPLE</span>
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
+                    );
+                  }
 
-          {activeTab === "Settings" && (
-            <motion.div
-              key="Settings"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                <h2 className="text-sm font-bold tracking-[0.3em] uppercase text-zinc-400">SETTINGS HUB</h2>
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">CONFIG FILE FOR ALL GATEWAYS</span>
-              </div>
+                  return (
+                    <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-3">
+                      <p className="text-xs text-zinc-400">
+                        No clearance petitions match status "<span className="text-amber-400 font-bold">{statusFilter}</span>"{searchQuery ? ` or search "${searchQuery}"` : ""}.
+                      </p>
+                      <button
+                        onClick={() => { setStatusFilter("ALL"); setSearchQuery(""); }}
+                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10.5px] font-bold uppercase px-3 py-1.5 rounded cursor-pointer"
+                      >
+                        RESET FILTERS
+                      </button>
+                    </div>
+                  );
+                }
 
-              <div className="border border-zinc-900 bg-zinc-950/10 p-6 space-y-6 text-left">
-                {/* PAYMENT METHODS */}
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">1. PAYMENT METHODS CONFIG</span>
-                  
-                  <div className="space-y-2">
-                    {Object.entries(settings.paymentMethods).map(([method, isEnabled]) => (
-                      <div key={method} className="flex items-center justify-between p-2 border border-zinc-900/60 bg-neutral-950/20 text-xs">
-                        <span className="font-bold uppercase text-zinc-300">{method} GATEWAY</span>
-                        <button
-                          onClick={() => setSettings(prev => ({
-                            ...prev,
-                            paymentMethods: {
-                              ...prev.paymentMethods,
-                              [method]: !(prev.paymentMethods as any)[method]
-                            }
-                          }))}
-                          className={`px-2.5 py-0.5 text-[10px] font-bold uppercase transition-colors rounded-none border ${
-                            isEnabled 
-                              ? "bg-emerald-950/30 text-emerald-400 border-emerald-900/60" 
-                              : "bg-transparent border-zinc-800 text-zinc-500"
-                          }`}
+                return (
+                  <div className="grid grid-cols-1 gap-3">
+                    {filtered.map(req => {
+                      return (
+                        <div
+                          key={req.ref}
+                          className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg hover:border-zinc-700/80 transition-all group"
                         >
-                          {isEnabled ? "ACTIVE" : "INACTIVE"}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                          {/* Primary Request Info: Fragment -> Client -> Requested License -> Status -> Payment */}
+                          <div className="space-y-1.5 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+                                {getFragmentTimeName(req.fragmentName || req.ref)}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 font-mono">
+                                ({req.ref})
+                              </span>
+                            </div>
 
-                {/* STORE INFORMATION */}
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">2. STORE INFORMATION</span>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">Store Brand Name</label>
-                      <input 
-                        type="text" 
-                        value={settings.storeName}
-                        onChange={(e) => setSettings(prev => ({ ...prev, storeName: e.target.value }))}
-                        className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">Location (Atlanta, GA)</label>
-                      <input 
-                        type="text" 
-                        value={settings.address}
-                        onChange={(e) => setSettings(prev => ({ ...prev, address: e.target.value }))}
-                        className="w-full bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] px-3 py-1.5 text-xs text-white focus:outline-none font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* BRANDING PRESETS */}
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">3. BRANDING PRESETS</span>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {["Classic Monochromatic Slate", "Industrial Amber Core", "Cold Space Emerald"].map(theme => (
-                      <button
-                        key={theme}
-                        onClick={() => {
-                          setSettings(prev => ({ ...prev, branding: theme }));
-                          showToast(`Branding updated: ${theme}`);
-                        }}
-                        className={`p-2.5 text-[11px] font-bold uppercase text-left border transition-colors ${
-                          settings.branding === theme 
-                            ? "bg-zinc-800 border-zinc-600 text-white" 
-                            : "bg-neutral-950 border-zinc-900 text-zinc-500 hover:text-zinc-300"
-                        }`}
-                      >
-                        {theme}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* TAXES & NOTIFICATIONS */}
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">4. TAXES & EMAIL SYSTEMS</span>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between p-2 border border-zinc-900 bg-neutral-950/20 text-xs">
-                      <div>
-                        <span className="font-bold text-zinc-300 block">TAX RATE (VAT 15%)</span>
-                        <span className="text-[10px] text-zinc-500 uppercase block font-bold">INVOICE ACCRUAL</span>
-                      </div>
-                      <button
-                        onClick={() => setSettings(prev => ({ ...prev, taxRate: prev.taxRate === 0 ? 15 : 0 }))}
-                        className={`px-3 py-0.5 text-[10px] font-bold border ${
-                          settings.taxRate > 0 
-                            ? "bg-emerald-950/30 text-emerald-400 border-emerald-900/60" 
-                            : "bg-transparent border-zinc-800 text-zinc-500"
-                        }`}
-                      >
-                        {settings.taxRate > 0 ? "ENABLED (15%)" : "DISABLED (0%)"}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2 border border-zinc-900 bg-neutral-950/20 text-xs">
-                      <div>
-                        <span className="font-bold text-zinc-300 block">EMAIL NOTIFICATIONS</span>
-                        <span className="text-[10px] text-zinc-500 uppercase block font-bold">TRANSACTIONAL NOTIFY</span>
-                      </div>
-                      <button
-                        onClick={() => setSettings(prev => ({ ...prev, emailNotifications: !prev.emailNotifications }))}
-                        className={`px-3 py-0.5 text-[10px] font-bold border ${
-                          settings.emailNotifications 
-                            ? "bg-[#D9D6CA] border-[#D9D6CA] text-black" 
-                            : "bg-transparent border-zinc-800 text-zinc-500"
-                        }`}
-                      >
-                        {settings.emailNotifications ? "ENABLED" : "DISABLED"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* GLOBAL LICENSE TEMPLATE DEFAULTS */}
-                <div className="space-y-3">
-                  <span className="text-[11px] font-bold text-[#D9D6CA] tracking-widest block uppercase border-b border-zinc-900 pb-1.5">5. GLOBAL LICENSE TEMPLATE DEFAULTS</span>
-                  
-                  <div className="border border-zinc-900 bg-neutral-950/20 p-4 space-y-4">
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold font-mono">
-                      Modify global default prices & values applied automatically to all fragments.
-                    </p>
-
-                    <div className="space-y-4">
-                      {globalTemplates.map((tpl, tplIdx) => {
-                        return (
-                          <div key={tpl.id} className="border border-zinc-900 bg-neutral-950 p-4 space-y-3">
-                            <div className="flex items-center justify-between border-b border-zinc-900/40 pb-2">
+                            <div className="text-xs text-zinc-300 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                               <div>
-                                <span className="text-xs font-bold text-white block uppercase">{tpl.title}</span>
-                                <span className="text-[10px] text-zinc-500 font-mono block uppercase">{tpl.subtitle}</span>
+                                <span className="text-zinc-500 uppercase text-[10px]">Client:</span>{" "}
+                                <strong className="text-zinc-100">{req.clientName || "Licensee"}</strong>{" "}
+                                <span className="text-zinc-500 text-[10px]">({req.clientEmail})</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-zinc-500 font-bold uppercase">DEFAULT PRICE:</span>
-                                <div className="relative">
-                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-500 font-bold font-mono">$</span>
-                                  <input 
-                                    type="number"
-                                    value={tpl.price}
-                                    onChange={(e) => {
-                                      const val = Number(e.target.value);
-                                      setGlobalTemplates(prev => {
-                                        const updated = [...prev];
-                                        updated[tplIdx] = { ...updated[tplIdx], price: val };
-                                        return updated;
-                                      });
-                                    }}
-                                    className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none pl-5 pr-2.5 py-1 text-xs text-white w-24 font-bold font-mono"
-                                  />
-                                </div>
+                              <span className="hidden sm:inline text-zinc-700">•</span>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[10px]">Request:</span>{" "}
+                                <span className="text-zinc-200 font-medium">{req.requestedLicense}</span>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                              {[
-                                { id: "fileDelivery", label: "File Delivery" },
-                                { id: "distributionLimit", label: "Distribution Limit" },
-                                { id: "streamingLimit", label: "Streaming Limit" },
-                                { id: "videoUse", label: "Video Use" },
-                                { id: "monetization", label: "Monetization" },
-                                { id: "performanceRights", label: "Performance Rights" },
-                                { id: "term", label: "Term" },
-                                { id: "territory", label: "Territory" },
-                                { id: "publishingSplit", label: "Publishing Split" },
-                                { id: "masterOwnership", label: "Master Ownership" },
-                                { id: "exclusivity", label: "Exclusivity" },
-                                { id: "contractVersion", label: "Contract Version" }
-                              ].map((field) => (
-                                <div key={field.id} className="space-y-1">
-                                  <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider block">
-                                    {field.label}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={(tpl as any)[field.id] || ""}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setGlobalTemplates(prev => {
-                                        const updated = [...prev];
-                                        updated[tplIdx] = { ...updated[tplIdx], [field.id]: val };
-                                        return updated;
-                                      });
-                                    }}
-                                    className="bg-neutral-950 border border-zinc-900 focus:border-[#D9D6CA] focus:outline-none px-2.5 py-1 text-[11px] text-white w-full font-mono"
-                                  />
-                                </div>
-                              ))}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider rounded border ${
+                                req.status === "APPROVED" || req.status === "COMPLETED"
+                                  ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                                  : req.status === "DECLINED"
+                                  ? "border-red-500/30 text-red-400 bg-red-500/10"
+                                  : req.status === "PAYMENT PENDING"
+                                  ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                  : "border-blue-500/30 text-blue-400 bg-blue-500/10"
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                  req.status === "APPROVED" || req.status === "COMPLETED"
+                                    ? "bg-emerald-400 animate-pulse"
+                                    : req.status === "PAYMENT PENDING"
+                                    ? "bg-amber-400 animate-pulse"
+                                    : req.status === "DECLINED"
+                                    ? "bg-red-400"
+                                    : "bg-blue-400"
+                                }`} />
+                                STATUS: {req.status}
+                              </span>
+
+                              <span className="bg-zinc-950 text-[#00E676] px-2 py-0.5 border border-zinc-800 rounded font-bold uppercase tracking-wider">
+                                FEE: ${(req.feeAmount || 0).toLocaleString()} USD
+                              </span>
+
+                              <span className="text-zinc-500 text-[10px]">
+                                PETITION DATE: {req.date}
+                              </span>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          {/* Open Request Action */}
+                          <div className="shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-900 flex items-center justify-end">
+                            <button
+                              onClick={() => setSelectedClearanceRequest(req)}
+                              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
+                            >
+                              <span>OPEN REQUEST</span>
+                              <ArrowRight size={13} className="text-amber-400" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* ======================================================================= */}
+          {/* SECTION 03: CLIENTS — ADMIN (Account Directory & Dossiers) */}
+          {/* ======================================================================= */}
+          {activeSection === "03_CLIENTS" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                {clientsList
+                  .filter(client => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase();
+                    return (
+                      (client.name || "").toLowerCase().includes(q) ||
+                      (client.email || "").toLowerCase().includes(q) ||
+                      (client.id || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .map(client => {
+                    return (
+                      <div
+                        key={client.id}
+                        className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg hover:border-zinc-700/80 transition-all group"
+                      >
+                        {/* Primary Client List Format: CLIENT NAME, Email, Active Fragments, Clearance Requests */}
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+                              {client.name || client.email}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              ({client.id})
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-zinc-400">
+                            <span className="text-[#00E676] select-all font-medium">{client.email}</span>
+                            {client.organization && client.organization !== client.name && (
+                              <span className="text-zinc-500 ml-2">· {client.organization}</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px]">
+                            <div className="bg-zinc-950 px-2 py-0.5 border border-zinc-800 rounded text-zinc-300">
+                              Active Fragments: <strong className="text-white ml-1">{client.activeFragmentsCount || 0}</strong>
+                            </div>
+                            <div className="bg-zinc-950 px-2 py-0.5 border border-zinc-800 rounded text-zinc-300">
+                              Clearance Requests: <strong className="text-white ml-1">{client.clearanceRequestsCount || 0}</strong>
+                            </div>
+                            <div className="bg-zinc-950 px-2 py-0.5 border border-zinc-800 rounded text-zinc-300">
+                              Total Spend: <strong className="text-[#00E676] ml-1">${(client.totalSpent || 0).toLocaleString()} USD</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Open Client Action */}
+                        <div className="shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-900 flex items-center justify-end">
+                          <button
+                            onClick={() => setSelectedClient(client)}
+                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
+                          >
+                            <span>OPEN CLIENT</span>
+                            <ArrowRight size={13} className="text-amber-400" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================================= */}
+          {/* SECTION 04: LICENSES — ADMIN (Issued Digital Covenants & Agreements) */}
+          {/* ======================================================================= */}
+          {activeSection === "04_LICENSES" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                {licenses
+                  .filter(lic => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase();
+                    return (
+                      (lic.song || "").toLowerCase().includes(q) ||
+                      (lic.clientName || "").toLowerCase().includes(q) ||
+                      (lic.clientEmail || "").toLowerCase().includes(q) ||
+                      (lic.id || "").toLowerCase().includes(q) ||
+                      (lic.type || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .map(lic => {
+                    const cleanType = ((lic.type || "Commercial License").split("(")[0] || lic.type || "Commercial License").trim();
+                    return (
+                      <div
+                        key={lic.id}
+                        className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg hover:border-zinc-700/80 transition-all group"
+                      >
+                        {/* Primary View: Fragment -> Client -> License Type -> Status */}
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+                              {getFragmentTimeName(lic.song || lic.archiveIdentifier || lic.id)} — {cleanType}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              ({lic.id})
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-zinc-300 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                            <div>
+                              <span className="text-zinc-500 uppercase text-[10px]">Client:</span>{" "}
+                              <strong className="text-zinc-100">{lic.clientName || "Licensee"}</strong>{" "}
+                              <span className="text-zinc-500 text-[10px]">({lic.clientEmail})</span>
+                            </div>
+                            <span className="hidden sm:inline text-zinc-700">•</span>
+                            <div className="text-zinc-400 text-[10.5px]">
+                              Issued: <strong className="text-zinc-200">{lic.effectiveDate || lic.purchaseDate || "August 2026"}</strong>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider rounded border border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              {lic.status || "ACTIVE"}
+                            </span>
+                            <span className="bg-zinc-950 text-zinc-400 px-2 py-0.5 border border-zinc-800 rounded font-mono text-[9.5px]">
+                              CERT: {lic.certificateId || "TOC-CERT"}
+                            </span>
+                            <span className="bg-zinc-950 text-zinc-400 px-2 py-0.5 border border-zinc-800 rounded font-mono text-[9.5px]">
+                              TX: {lic.transactionRef || "LMN-TX"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions (Download PDF & Open License Record) */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-900">
+                          <button
+                            onClick={() => {
+                              openOrDownloadLicenseAgreement({
+                                licenseId: lic.id,
+                                transactionRef: lic.transactionRef,
+                                purchaseDate: lic.purchaseDate,
+                                licenseeLegalName: lic.clientName,
+                                licenseeEmail: lic.clientEmail,
+                                fragmentTitle: lic.song,
+                                archiveIdentifier: lic.archiveIdentifier,
+                                licenseTierId: lic.tierId || "commercial",
+                                licenseTierTitle: lic.type
+                              });
+                            }}
+                            className="bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white font-bold text-[10.5px] px-3 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                            title="Download Executed Agreement PDF"
+                          >
+                            <Download size={13} />
+                            <span>PDF AGREEMENT</span>
+                          </button>
+
+                          <button
+                            onClick={() => setSelectedLicense(lic)}
+                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <span>OPEN LICENSE</span>
+                            <ArrowRight size={13} className="text-amber-400" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================================= */}
+          {/* SECTION 05: TRANSACTIONS (Financial Ledger & PayPal Records) */}
+          {/* ======================================================================= */}
+          {activeSection === "05_TRANSACTIONS" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3">
+                {transactions
+                  .filter(tx => {
+                    if (!searchQuery.trim()) return true;
+                    const q = searchQuery.toLowerCase();
+                    return (
+                      (tx.fragmentName || "").toLowerCase().includes(q) ||
+                      (tx.clientName || "").toLowerCase().includes(q) ||
+                      (tx.clientEmail || "").toLowerCase().includes(q) ||
+                      (tx.id || "").toLowerCase().includes(q)
+                    );
+                  })
+                  .map(tx => {
+                    return (
+                      <div
+                        key={tx.id}
+                        className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg hover:border-zinc-700/80 transition-all group"
+                      >
+                        {/* Connected Chain: Payment -> Client -> Fragment -> Clearance Request -> License */}
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+                              {getFragmentTimeName(tx.fragmentName || tx.id)}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              ({tx.id})
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-zinc-300 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                            <div>
+                              <span className="text-zinc-500 uppercase text-[10px]">Client:</span>{" "}
+                              <strong className="text-zinc-100">{tx.clientName || "Client"}</strong>{" "}
+                              <span className="text-zinc-500 text-[10px]">({tx.clientEmail})</span>
+                            </div>
+                            <span className="hidden sm:inline text-zinc-700">•</span>
+                            <div>
+                              <span className="text-zinc-500 uppercase text-[10px]">Tier:</span>{" "}
+                              <span className="text-zinc-200">{tx.licenseType || "Commercial Synchronization"}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                            <span className="font-bold text-[#00E676] text-xs bg-zinc-950 px-2 py-0.5 border border-zinc-800 rounded">
+                              ${(tx.amount || 0).toLocaleString()} {tx.currency || "USD"}
+                            </span>
+
+                            <span className="bg-zinc-950 text-zinc-300 px-2 py-0.5 border border-zinc-800 rounded font-semibold uppercase tracking-wider">
+                              METHOD: {tx.paymentMethod || "PayPal"}
+                            </span>
+
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-bold uppercase rounded border border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                              STATUS: {tx.paymentStatus || "Completed"}
+                            </span>
+
+                            <span className="text-zinc-500 text-[10px]">
+                              DATE: {tx.transactionDate || "August 2026"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Open Transaction Receipt Action */}
+                        <div className="shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-900 flex items-center justify-end">
+                          <button
+                            onClick={() => setSelectedTransaction(tx)}
+                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
+                          >
+                            <span>VIEW RECEIPT</span>
+                            <ArrowRight size={13} className="text-amber-400" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================================= */}
+          {/* SECTION 06: SYSTEM (Administrative Infrastructure & Legal Configuration) */}
+          {/* ======================================================================= */}
+          {activeSection === "06_SYSTEM" && (
+            <div className="space-y-5">
+              {/* System Subtabs */}
+              <div className="flex flex-wrap border-b border-zinc-800 bg-[#060606] p-1 gap-1 rounded-t-lg">
+                {(["TEMPLATES", "CONFIG", "COMMUNICATIONS", "ADMINISTRATION"] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setSystemSubTab(tab)}
+                    className={`px-4 py-2 text-[10.5px] uppercase font-bold tracking-wider cursor-pointer border rounded-t ${
+                      systemSubTab === tab 
+                        ? "bg-zinc-900 border-zinc-700 text-white shadow-sm" 
+                        : "border-transparent text-zinc-500 hover:text-zinc-300"
+                    }`}
+                  >
+                    {tab === "TEMPLATES" ? "DOCUMENT TEMPLATES" : tab === "CONFIG" ? "LICENSING CONFIGURATION" : tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* TAB 1: DOCUMENT TEMPLATES */}
+              {systemSubTab === "TEMPLATES" && (
+                <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-5 space-y-4 shadow-xl">
+                  <div className="text-white text-xs font-bold uppercase tracking-wider border-b border-zinc-800 pb-2.5 flex items-center justify-between">
+                    <span>MASTER LEGAL INSTRUMENTS &amp; CONTRACT COVENANTS</span>
+                    <span className="text-[10px] text-[#00E676] font-mono">STANDARDIZED SCHEDULES ACTIVE</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px]">
+                    <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded space-y-2">
+                      <div className="text-white font-bold text-xs flex items-center justify-between">
+                        <span>01. COMMERCIAL SYNCHRONIZATION &amp; MASTER LICENSE</span>
+                        <span className="text-[9.5px] text-amber-400 font-mono">SCHEDULE A</span>
+                      </div>
+                      <p className="text-zinc-400 text-[10.5px] leading-relaxed">
+                        Worldwide non-exclusive synchronization and master exploitation rights grant. Governs television, broadcast, OTT/streaming, podcast, advertising, and video game synchronization with complete stem warranties.
+                      </p>
+                      <div className="pt-2 flex items-center justify-between border-t border-zinc-900 text-[10px] text-zinc-500 font-mono">
+                        <span>VERSION: v2.4 (2026 REVISION)</span>
+                        <span className="text-zinc-400">JURISDICTION: GEORGIA, USA</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded space-y-2">
+                      <div className="text-white font-bold text-xs flex items-center justify-between">
+                        <span>02. EXCLUSIVE MASTER ACQUISITION &amp; ASSIGNMENT</span>
+                        <span className="text-[9.5px] text-amber-400 font-mono">SCHEDULE EX</span>
+                      </div>
+                      <p className="text-zinc-400 text-[10.5px] leading-relaxed">
+                        Full permanent assignment of sound recording copyright, uncompressed master multi-track stems, and co-publishing registration while permanently preserving historical archive chain of custody.
+                      </p>
+                      <div className="pt-2 flex items-center justify-between border-t border-zinc-900 text-[10px] text-zinc-500 font-mono">
+                        <span>VERSION: v2.4 (EXCLUSIVE ACQUISITION)</span>
+                        <span className="text-zinc-400">PERPETUAL WORLDWIDE</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded space-y-2">
+                      <div className="text-white font-bold text-xs flex items-center justify-between">
+                        <span>03. COLLABORATION &amp; SPLIT-SHEET COVENANT</span>
+                        <span className="text-[9.5px] text-zinc-400 font-mono">SCHEDULE C</span>
+                      </div>
+                      <p className="text-zinc-400 text-[10.5px] leading-relaxed">
+                        Co-writer, co-producer, and sampling derivation covenants determining BMI/ASCAP share splits, publishing administration, and mechanical reproduction clearances.
+                      </p>
+                    </div>
+
+                    <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded space-y-2">
+                      <div className="text-white font-bold text-xs flex items-center justify-between">
+                        <span>04. CERTIFICATE OF PROVENANCE &amp; AUTHENTICITY</span>
+                        <span className="text-[9.5px] text-zinc-400 font-mono">SCHEDULE CERT</span>
+                      </div>
+                      <p className="text-zinc-400 text-[10.5px] leading-relaxed">
+                        Cryptographically sealed authenticity certificate bearing SHA-256 integrity hash, ISRC code, catalog serial, and archivist timestamp signature.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: LICENSING CONFIGURATION */}
+              {systemSubTab === "CONFIG" && (
+                <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-5 space-y-4 shadow-xl">
+                  <div className="text-white text-xs font-bold uppercase tracking-wider border-b border-zinc-800 pb-2.5 flex items-center justify-between">
+                    <span>LICENSING SCHEDULE, TIERS &amp; DELIVERABLES</span>
+                    <span className="text-[10px] text-zinc-400 font-mono">FIRST EDITION CONTRACT ENGINE</span>
+                  </div>
+
+                  <div className="space-y-3 text-[11px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded space-y-1">
+                        <span className="text-[9px] text-zinc-500 uppercase font-bold block">TIER 1: ARCHIVE ACCESS</span>
+                        <div className="text-[#00E676] font-bold text-sm">$150.00 USD</div>
+                        <p className="text-zinc-400 text-[10px]">Reference MP3 + Watermarked WAV + Non-commercial evaluation &amp; demo development rights.</p>
+                      </div>
+
+                      <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded space-y-1">
+                        <span className="text-[9px] text-zinc-500 uppercase font-bold block">TIER 2: COMMERCIAL RELEASE</span>
+                        <div className="text-[#00E676] font-bold text-sm">$500.00 USD</div>
+                        <p className="text-zinc-400 text-[10px]">Lossless Master WAV + Major DSP Distribution (Spotify/Apple Music) + 50/50 publishing split.</p>
+                      </div>
+
+                      <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded space-y-1">
+                        <span className="text-[9px] text-zinc-500 uppercase font-bold block">TIER 3: COMMERCIAL EXPLOITATION</span>
+                        <div className="text-[#00E676] font-bold text-sm">$1,000.00 USD</div>
+                        <p className="text-zinc-400 text-[10px]">Multi-track Production Stems + Unlimited streaming + Commercial video &amp; broadcast monetization.</p>
+                      </div>
+
+                      <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded space-y-1">
+                        <span className="text-[9px] text-amber-400 uppercase font-bold block">TIER 4: EXCLUSIVE ACQUISITION</span>
+                        <div className="text-amber-400 font-bold text-sm">$5,000.00 USD</div>
+                        <p className="text-zinc-400 text-[10px]">Complete Master assignment + DAW Project files + Permanent public archive removal.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: COMMUNICATIONS */}
+              {systemSubTab === "COMMUNICATIONS" && (
+                <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-5 space-y-4 shadow-xl">
+                  <div className="text-white text-xs font-bold uppercase tracking-wider border-b border-zinc-800 pb-2.5">
+                    TRANSMISSION &amp; EMAIL TEMPLATES
+                  </div>
+                  <div className="space-y-2.5 text-[11px]">
+                    <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="text-white font-bold text-xs">CLEARANCE PETITION CONFIRMATION</div>
+                        <div className="text-zinc-400 text-[10px]">Triggered immediately when licensee submits clearance request.</div>
+                      </div>
+                      <span className="text-emerald-400 text-[10px] font-mono border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded">
+                        AUTOMATED (ACTIVE)
+                      </span>
+                    </div>
+
+                    <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="text-white font-bold text-xs">PAYPAL PAYMENT INVOICE &amp; CLEARANCE APPROVAL</div>
+                        <div className="text-zinc-400 text-[10px]">Dispatches approved fee invoice with instant PayPal capture links.</div>
+                      </div>
+                      <span className="text-emerald-400 text-[10px] font-mono border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded">
+                        AUTOMATED (ACTIVE)
+                      </span>
+                    </div>
+
+                    <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="text-white font-bold text-xs">VAULT ACCESS &amp; EXECUTED AGREEMENT DELIVERY</div>
+                        <div className="text-zinc-400 text-[10px]">Sends signed PDF license, authenticity certificate, and lossless stems download links.</div>
+                      </div>
+                      <span className="text-emerald-400 text-[10px] font-mono border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded">
+                        AUTOMATED (ACTIVE)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: ADMINISTRATION */}
+              {systemSubTab === "ADMINISTRATION" && (
+                <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-5 space-y-4 shadow-xl">
+                  <div className="text-white text-xs font-bold uppercase tracking-wider border-b border-zinc-800 pb-2.5">
+                    ARCHIVIST ACCESS ROLES &amp; AUDIT LOG
+                  </div>
+
+                  <div className="space-y-4 text-[11px]">
+                    <div className="space-y-2">
+                      <span className="text-zinc-400 font-bold uppercase text-[10px] block">ADMIN USERS:</span>
+                      {systemConfig.adminUsers.map((user: any, idx: number) => (
+                        <div key={idx} className="bg-zinc-950 p-3 border border-zinc-800/80 rounded flex items-center justify-between">
+                          <div>
+                            <div className="text-white font-bold">{user.name} ({user.email})</div>
+                            <div className="text-zinc-500 text-[10px]">{user.role}</div>
+                          </div>
+                          <span className="border border-[#00E676]/40 bg-[#00E676]/10 text-[#00E676] px-2 py-0.5 text-[9.5px] font-bold rounded">
+                            {user.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-zinc-900">
+                      <span className="text-zinc-400 font-bold uppercase text-[10px] block">REAL-TIME AUDIT LOG:</span>
+                      <div className="space-y-1.5 font-mono text-[10px]">
+                        {systemConfig.auditLogs.map((log: any, idx: number) => (
+                          <div key={idx} className="bg-zinc-950 p-2.5 border border-zinc-900 rounded flex items-center justify-between text-zinc-400">
+                            <span>{log.event}</span>
+                            <span className="text-zinc-500 text-[9px] shrink-0 ml-2">{log.date}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. BOTTOM FOOTER */}
+      {/* ========================================================================= */}
+      <footer className="w-full border-t border-zinc-900 bg-[#040404] px-4 sm:px-8 py-3 flex flex-col sm:flex-row items-center justify-between text-zinc-500 z-30 shrink-0 gap-2 font-mono text-[10px]">
+        <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2.5 text-center sm:text-left">
+          <span className="text-[#D9D6CA] font-bold tracking-wider uppercase text-[10.5px]">THE OWL CLOCK</span>
+          <span className="hidden sm:inline text-zinc-700">•</span>
+          <span className="text-zinc-400 text-[9.5px]">Publishing • Rights Management • Licensing</span>
+          <span className="hidden sm:inline text-zinc-700">•</span>
+          <span className="text-zinc-400 text-[9.5px]">Atlanta, Georgia</span>
+        </div>
+        <div className="text-zinc-500 tracking-wider text-[9.5px]">
+          © 2026 LOMON LLC
+        </div>
+      </footer>
+
+      {/* ========================================================================= */}
+      {/* 4. MODALS & DEEP RECORD INSPECTORS */}
+      {/* ========================================================================= */}
+
+      {/* MODAL 1: MASTER FRAGMENT RECORD (SECTION 01: ARCHIVE) */}
+      <AnimatePresence>
+        {selectedFragmentMaster && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="w-full max-w-4xl bg-[#080808] border border-zinc-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-5 text-left max-h-[90vh] overflow-y-auto rounded-lg"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+                <div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                    MASTER FRAGMENT RECORD
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-bold text-white uppercase mt-0.5">
+                    {getFragmentTimeName(selectedFragmentMaster.name || selectedFragmentMaster.id)}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setSelectedFragmentMaster(null)}
+                  className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body Sub-Sections */}
+              <div className="space-y-4 text-xs text-zinc-300">
+                {/* 1. ARCHIVE DATA */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="text-white font-bold text-xs uppercase tracking-wider flex items-center justify-between border-b border-zinc-900 pb-1.5">
+                    <span>ARCHIVE DATA</span>
+                    <span className="text-[#00E676] font-mono text-[10px]">TOC-{selectedFragmentMaster.id.replace(/[^a-zA-Z0-9]/g, "")}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Archive Identifier / Timestamp</span>
+                      <strong className="text-white">TOC-{selectedFragmentMaster.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Tonal Signature</span>
+                      <strong className="text-white">{selectedFragmentMaster.tonalSignature || "B Major"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Pulse / BPM</span>
+                      <strong className="text-white">{selectedFragmentMaster.bpm || 103} BPM</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Duration</span>
+                      <strong className="text-white">{selectedFragmentMaster.duration || "03:06"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Recovery State</span>
+                      <strong className="text-emerald-400">{selectedFragmentMaster.recoveryState || "FULLY RECOVERED"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Archivist</span>
+                      <strong className="text-white">{selectedFragmentMaster.archivist || "LOMON / Lead Archivist"}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* SAVE BUTTON */}
-                <div className="pt-4 border-t border-zinc-900 flex justify-end">
+                {/* 2. RECOVERY DATA */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-900 pb-1.5">
+                    RECOVERY DATA
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Discovery Date</span>
+                      <strong className="text-white">{selectedFragmentMaster.timeCapsule?.recoveryStamp || "May 19, 2026"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Full Recovery Date</span>
+                      <strong className="text-white">{selectedFragmentMaster.fullRecoveryDate || selectedFragmentMaster.timeCapsule?.completionStamp || "August 08, 2026"}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. RIGHTS DATA */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-900 pb-1.5">
+                    RIGHTS DATA
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Master Control %</span>
+                      <strong className="text-white">{selectedFragmentMaster.isExclusive ? "Exclusive Assignee" : "100% LOMON LLC"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Composition Control %</span>
+                      <strong className="text-white">100% LOMON Publishing (BMI)</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Original Composition</span>
+                      <strong className="text-emerald-400">Yes (100% Original)</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Third-Party Material</span>
+                      <strong className="text-zinc-300">No (Zero Encumbrances)</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Samples / Interpolations</span>
+                      <strong className="text-zinc-300">No (None Registered)</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. AVAILABLE ASSETS */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-900 pb-1.5">
+                    AVAILABLE ASSETS
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[10.5px]">
+                    <div className="p-2.5 bg-[#0a0a0a] border border-zinc-900 rounded text-center">
+                      <span className="text-zinc-500 block text-[9px]">AUDIO</span>
+                      <strong className="text-white block mt-0.5">MP3 (320kbps)</strong>
+                      <span className="text-emerald-400 text-[9px] block">READY</span>
+                    </div>
+                    <div className="p-2.5 bg-[#0a0a0a] border border-zinc-900 rounded text-center">
+                      <span className="text-zinc-500 block text-[9px]">BROADCAST</span>
+                      <strong className="text-white block mt-0.5">24-bit WAV</strong>
+                      <span className="text-emerald-400 text-[9px] block">READY</span>
+                    </div>
+                    <div className="p-2.5 bg-[#0a0a0a] border border-zinc-900 rounded text-center">
+                      <span className="text-zinc-500 block text-[9px]">INSTRUMENTAL</span>
+                      <strong className="text-white block mt-0.5">Master Track</strong>
+                      <span className="text-emerald-400 text-[9px] block">READY</span>
+                    </div>
+                    <div className="p-2.5 bg-[#0a0a0a] border border-zinc-900 rounded text-center">
+                      <span className="text-zinc-500 block text-[9px]">MULTI-TRACK</span>
+                      <strong className="text-white block mt-0.5">Stems / Trackouts</strong>
+                      <span className="text-emerald-400 text-[9px] block">READY</span>
+                    </div>
+                    <div className="p-2.5 bg-[#0a0a0a] border border-zinc-900 rounded text-center">
+                      <span className="text-zinc-500 block text-[9px]">ARTWORK</span>
+                      <strong className="text-white block mt-0.5">Cover Canvas</strong>
+                      <span className="text-emerald-400 text-[9px] block">READY</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. CLEARANCE DATA */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-900 pb-1.5 flex items-center justify-between">
+                    <span>CLEARANCE DATA &amp; AVAILABILITY</span>
+                    <span className={selectedFragmentMaster.isExclusive ? "text-amber-400" : "text-emerald-400"}>
+                      {selectedFragmentMaster.isExclusive ? "EXCLUSIVELY ACQUIRED" : "AVAILABLE FOR LICENSING"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <div className="text-[11px] text-zinc-400">
+                      Standard commercial, sync, and exclusive master transfer workflows are configured under Georgia jurisdiction.
+                    </div>
+                    {!selectedFragmentMaster.isExclusive && (
+                      <button
+                        onClick={() => {
+                          const buyer = prompt("Enter Exclusive Buyer Legal Entity Name:", "Apex Global Media LLC");
+                          const email = prompt("Enter Exclusive Buyer Email:", "licensing@apexmedia.io");
+                          if (buyer && email) {
+                            handleAcquireExclusively(selectedFragmentMaster, buyer, email, 5000);
+                          }
+                        }}
+                        className="bg-amber-400 hover:bg-amber-300 text-black font-bold text-[10px] px-3.5 py-2 rounded uppercase tracking-wider cursor-pointer shrink-0"
+                      >
+                        EXECUTE EXCLUSIVE ACQUISITION ($5,000 USD)
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 6. CONNECTED RECORDS (Single Source of Truth) */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-900 pb-1.5 flex items-center justify-between">
+                    <span>CONNECTED RECORDS (RELATIONAL GRAPH)</span>
+                    <span className="text-zinc-500 font-mono text-[10px]">SINGLE SOURCE OF TRUTH</span>
+                  </div>
+
+                  {/* Connected Clearance Requests */}
+                  <div className="space-y-1.5">
+                    <span className="text-zinc-400 font-semibold text-[10.5px]">Connected Clearance Requests:</span>
+                    {clearanceRequests.filter(r => r.fragmentId === selectedFragmentMaster.id || r.fragmentName === selectedFragmentMaster.name).length === 0 ? (
+                      <div className="text-zinc-600 text-[10px]">No active clearance petitions for this fragment.</div>
+                    ) : (
+                      clearanceRequests
+                        .filter(r => r.fragmentId === selectedFragmentMaster.id || r.fragmentName === selectedFragmentMaster.name)
+                        .map(cr => (
+                          <div key={cr.ref} className="bg-[#0c0c0c] p-2 rounded border border-zinc-900 flex items-center justify-between text-[10.5px]">
+                            <div>
+                              <strong className="text-white">{cr.ref}</strong> — <span className="text-zinc-300">{cr.clientName}</span> ({cr.requestedLicense})
+                            </div>
+                            <span className="text-amber-400 font-bold text-[10px]">{cr.status}</span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+
+                  {/* Connected Licenses */}
+                  <div className="space-y-1.5 pt-2">
+                    <span className="text-zinc-400 font-semibold text-[10.5px]">Connected Issued Licenses:</span>
+                    {licenses.filter(l => l.fragmentId === selectedFragmentMaster.id || l.song === selectedFragmentMaster.name).length === 0 ? (
+                      <div className="text-zinc-600 text-[10px]">No licenses issued yet for this fragment.</div>
+                    ) : (
+                      licenses
+                        .filter(l => l.fragmentId === selectedFragmentMaster.id || l.song === selectedFragmentMaster.name)
+                        .map(lic => (
+                          <div key={lic.id} className="bg-[#0c0c0c] p-2 rounded border border-zinc-900 flex items-center justify-between text-[10.5px]">
+                            <div>
+                              <strong className="text-white">{lic.id}</strong> — <span className="text-zinc-300">{lic.clientName}</span> ({lic.type})
+                            </div>
+                            <span className="text-emerald-400 font-bold text-[10px]">{lic.status}</span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+
+                  {/* Connected Transactions */}
+                  <div className="space-y-1.5 pt-2">
+                    <span className="text-zinc-400 font-semibold text-[10.5px]">Connected Financial Transactions:</span>
+                    {transactions.filter(t => t.fragmentId === selectedFragmentMaster.id || t.fragmentName === selectedFragmentMaster.name).length === 0 ? (
+                      <div className="text-zinc-600 text-[10px]">No commercial payments recorded for this fragment.</div>
+                    ) : (
+                      transactions
+                        .filter(t => t.fragmentId === selectedFragmentMaster.id || t.fragmentName === selectedFragmentMaster.name)
+                        .map(tx => (
+                          <div key={tx.id} className="bg-[#0c0c0c] p-2 rounded border border-zinc-900 flex items-center justify-between text-[10.5px]">
+                            <div>
+                              <strong className="text-white">{tx.id}</strong> — <span className="text-zinc-300">{tx.clientName}</span> (${tx.amount} {tx.currency})
+                            </div>
+                            <span className="text-[#00E676] font-bold text-[10px]">{tx.paymentStatus}</span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-end pt-3 border-t border-zinc-800">
+                <button
+                  onClick={() => setSelectedFragmentMaster(null)}
+                  className="bg-[#D9D6CA] hover:bg-white text-black font-bold text-xs px-5 py-2 rounded uppercase tracking-wider cursor-pointer"
+                >
+                  CLOSE MASTER RECORD
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 2: CLEARANCE PETITION REVIEW (SECTION 02: CLEARANCE) */}
+      <AnimatePresence>
+        {selectedClearanceRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="w-full max-w-2xl bg-[#080808] border border-zinc-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto rounded-lg"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+                <div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                    CLEARANCE PETITION REVIEW
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
+                    {selectedClearanceRequest.ref} — {getFragmentTimeName(selectedClearanceRequest.fragmentName)}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setSelectedClearanceRequest(null)}
+                  className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 text-xs text-zinc-300">
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2">
+                  <div className="grid grid-cols-2 gap-3 text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Applicant Client</span>
+                      <strong className="text-white">{selectedClearanceRequest.clientName}</strong>
+                      <div className="text-zinc-400 text-[10px] select-all">{selectedClearanceRequest.clientEmail}</div>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Requested License Tier</span>
+                      <strong className="text-white">{selectedClearanceRequest.requestedLicense}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Clearance Fee</span>
+                      <strong className="text-[#00E676]">${(selectedClearanceRequest.feeAmount || 0).toLocaleString()} USD</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9.5px] block">Current Status</span>
+                      <strong className="text-amber-400">{selectedClearanceRequest.status}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-1.5">
+                  <span className="text-zinc-500 uppercase text-[9.5px] font-bold block">PROJECT USE CASE &amp; DESCRIPTION</span>
+                  <p className="text-zinc-200 text-[11px] leading-relaxed">
+                    {selectedClearanceRequest.projectDescription || "Commercial sync campaign clearance for global multi-platform broadcasting."}
+                  </p>
+                </div>
+
+                {/* History Log */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2">
+                  <span className="text-zinc-500 uppercase text-[9.5px] font-bold block">CLEARANCE AUDIT &amp; DECISION TIMELINE</span>
+                  <div className="space-y-1.5 text-[10px]">
+                    {(selectedClearanceRequest.historyLog || []).map((h, i) => (
+                      <div key={i} className="bg-[#0c0c0c] p-2 rounded border border-zinc-900 flex items-center justify-between text-zinc-400">
+                        <span><strong className="text-zinc-200">{h.author}:</strong> {h.message}</span>
+                        <span className="text-zinc-500 text-[9px] shrink-0 ml-2">{h.date}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Workflow */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-800">
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Permanently remove clearance petition ${selectedClearanceRequest.ref}?`)) {
+                      setClearanceRequests(prev => prev.filter(r => r.ref !== selectedClearanceRequest.ref));
+                      setSelectedClearanceRequest(null);
+                    }
+                  }}
+                  className="border border-zinc-800 hover:border-red-800/60 text-zinc-500 hover:text-red-400 px-3 py-2 rounded text-[10.5px] uppercase font-bold cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <Trash2 size={13} />
+                  <span>DELETE PETITION</span>
+                </button>
+
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
-                      localStorage.setItem("lomon_admin_settings", JSON.stringify(settings));
-                      localStorage.setItem("lomon_license_templates", JSON.stringify(globalTemplates));
-                      showToast("All Administrative settings and global templates saved to node.");
+                      const updated: ClearanceRequestRecord = {
+                        ...selectedClearanceRequest,
+                        status: "DECLINED",
+                        historyLog: [
+                          ...(selectedClearanceRequest.historyLog || []),
+                          {
+                            date: `${new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })} ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} UTC`,
+                            author: "ADMIN",
+                            message: "Clearance petition declined by Rights Registrar."
+                          }
+                        ]
+                      };
+                      setClearanceRequests(prev => prev.map(r => r.ref === selectedClearanceRequest.ref ? updated : r));
+                      setSelectedClearanceRequest(updated);
                     }}
-                    className="bg-[#D9D6CA] hover:bg-white text-black text-xs font-bold tracking-widest px-6 py-2 uppercase transition-colors cursor-pointer"
+                    className="border border-red-900/80 hover:bg-red-950/30 text-red-400 px-3.5 py-2 rounded text-[10.5px] uppercase font-bold cursor-pointer transition-all"
                   >
-                    SAVE CONFIGURATION
+                    DECLINE PETITION
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const updated: ClearanceRequestRecord = {
+                        ...selectedClearanceRequest,
+                        status: "ACTION REQUIRED",
+                        historyLog: [
+                          ...(selectedClearanceRequest.historyLog || []),
+                          {
+                            date: `${new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })} ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} UTC`,
+                            author: "ADMIN",
+                            message: "Requested supplemental client production details and sync distribution scope."
+                          }
+                        ]
+                      };
+                      setClearanceRequests(prev => prev.map(r => r.ref === selectedClearanceRequest.ref ? updated : r));
+                      setSelectedClearanceRequest(updated);
+                    }}
+                    className="border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 px-3.5 py-2 rounded text-[10.5px] uppercase font-bold cursor-pointer transition-all"
+                  >
+                    REQUEST ACTION
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const updated: ClearanceRequestRecord = {
+                        ...selectedClearanceRequest,
+                        status: "APPROVED",
+                        paymentStatus: "PAYMENT PENDING",
+                        historyLog: [
+                          ...(selectedClearanceRequest.historyLog || []),
+                          {
+                            date: `${new Date().toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })} ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} UTC`,
+                            author: "ADMIN",
+                            message: "Clearance approved. Rights clearance invoice and license agreement dispatched."
+                          }
+                        ]
+                      };
+                      setClearanceRequests(prev => prev.map(r => r.ref === selectedClearanceRequest.ref ? updated : r));
+                      setSelectedClearanceRequest(updated);
+                    }}
+                    className="bg-[#00E676] hover:bg-[#00c864] text-black font-bold px-4 py-2 rounded text-[10.5px] uppercase tracking-wider cursor-pointer transition-all shadow-sm"
+                  >
+                    APPROVE &amp; ISSUE INVOICE
                   </button>
                 </div>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
+      </AnimatePresence>
 
-        {/* Full screen client preview portal */}
-        <AnimatePresence>
-          {previewFragmentObj && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 overflow-y-auto bg-black flex flex-col"
+      {/* MODAL: CREATE NEW CLEARANCE PETITION */}
+      <AnimatePresence>
+        {showCreateClearanceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="w-full max-w-xl bg-[#080808] border border-zinc-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto rounded-lg"
             >
-              <div className="bg-zinc-950/95 border-b border-zinc-900 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-                <div className="flex items-center gap-3">
-                  <span className="inline-block w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></span>
-                  <span className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase">
-                    ADMIN PREVIEW GATEWAY // PREVIEWING {previewFragmentObj.name}
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+                <div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                    MANUAL CLEARANCE LOG
                   </span>
+                  <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
+                    CREATE CLEARANCE PETITION
+                  </h2>
                 </div>
                 <button
-                  onClick={() => setPreviewFragmentObj(null)}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-xs text-[#D9D6CA] border border-zinc-800 hover:border-zinc-700 transition-colors uppercase font-mono cursor-pointer"
+                  onClick={() => setShowCreateClearanceModal(false)}
+                  className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" /> CLOSE PREVIEW
+                  <X size={18} />
                 </button>
               </div>
-              <div className="flex-1 bg-black">
-                <FragmentDetailPage
-                  fragment={previewFragmentObj}
-                  onBack={() => setPreviewFragmentObj(null)}
-                />
+
+              <form onSubmit={handleCreatePetition} className="space-y-4 text-xs">
+                {/* Fragment selection */}
+                <div>
+                  <label className="text-zinc-400 uppercase text-[10px] font-bold block mb-1">
+                    TARGET RECOVERED FRAGMENT
+                  </label>
+                  <select
+                    value={newPetitionForm.fragmentId}
+                    onChange={(e) => {
+                      const selFrag = fragments.find(f => f.id === e.target.value);
+                      setNewPetitionForm(prev => ({
+                        ...prev,
+                        fragmentId: e.target.value,
+                        fragmentName: selFrag ? selFrag.name : `${e.target.value} PM`
+                      }));
+                    }}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400"
+                  >
+                    {fragments.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {getFragmentTimeName(f.name || f.id)} — (TOC-{(f.id || "001").replace(/[^a-zA-Z0-9]/g, "")})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Client Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-zinc-400 uppercase text-[10px] font-bold block mb-1">
+                      APPLICANT / PRODUCTION CO.
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Warner Bros / Sound Dept"
+                      value={newPetitionForm.clientName}
+                      onChange={(e) => setNewPetitionForm(prev => ({ ...prev, clientName: e.target.value }))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400 placeholder-zinc-700"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 uppercase text-[10px] font-bold block mb-1">
+                      CLIENT CONTACT EMAIL
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. licensing@studio.com"
+                      value={newPetitionForm.clientEmail}
+                      onChange={(e) => setNewPetitionForm(prev => ({ ...prev, clientEmail: e.target.value }))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400 placeholder-zinc-700"
+                    />
+                  </div>
+                </div>
+
+                {/* License Tier & Fee */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-zinc-400 uppercase text-[10px] font-bold block mb-1">
+                      REQUESTED LICENSE TIER
+                    </label>
+                    <select
+                      value={newPetitionForm.tier}
+                      onChange={(e) => {
+                        const tier = e.target.value;
+                        let fee = 1000;
+                        let label = "Commercial Synchronization ($1,000 USD)";
+                        if (tier === "archive") {
+                          fee = 150;
+                          label = "Archive Access License ($150 USD)";
+                        } else if (tier === "commercial_release") {
+                          fee = 500;
+                          label = "Commercial Release License ($500 USD)";
+                        } else if (tier === "exclusive") {
+                          fee = 5000;
+                          label = "Exclusive Archive Acquisition ($5,000 USD)";
+                        }
+                        setNewPetitionForm(prev => ({
+                          ...prev,
+                          tier,
+                          requestedLicense: label,
+                          feeAmount: fee
+                        }));
+                      }}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="archive">Archive Access ($150 USD)</option>
+                      <option value="commercial_release">Commercial Release ($500 USD)</option>
+                      <option value="commercial">Commercial Synchronization ($1,000 USD)</option>
+                      <option value="exclusive">Exclusive Acquisition ($5,000 USD)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 uppercase text-[10px] font-bold block mb-1">
+                      CLEARANCE FEE (USD)
+                    </label>
+                    <input
+                      type="number"
+                      value={newPetitionForm.feeAmount}
+                      onChange={(e) => setNewPetitionForm(prev => ({ ...prev, feeAmount: Number(e.target.value) }))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Project Description */}
+                <div>
+                  <label className="text-zinc-400 uppercase text-[10px] font-bold block mb-1">
+                    PROJECT USE CASE &amp; SYNC SPECIFICATIONS
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe the media production, distribution channels, and stem asset requirements..."
+                    value={newPetitionForm.projectDescription}
+                    onChange={(e) => setNewPetitionForm(prev => ({ ...prev, projectDescription: e.target.value }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400 placeholder-zinc-700 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateClearanceModal(false)}
+                    className="border border-zinc-800 hover:bg-zinc-900 text-zinc-400 px-4 py-2 rounded uppercase font-bold text-[10.5px] cursor-pointer"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-amber-400 hover:bg-amber-300 text-black font-bold px-5 py-2 rounded uppercase tracking-wider text-[10.5px] cursor-pointer transition-all shadow-md"
+                  >
+                    LOG &amp; QUEUE PETITION
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: CLIENT RECORD (SECTION 03: CLIENTS) */}
+      <AnimatePresence>
+        {selectedClient && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="w-full max-w-3xl bg-[#080808] border border-zinc-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto rounded-lg"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+                <div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                    CLIENT DOSSIER &amp; ACCOUNT RECORD
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
+                    {selectedClient.name}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setSelectedClient(null)}
+                  className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-xs text-zinc-300">
+                {/* 1. PROFILE */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2">
+                  <span className="text-zinc-500 uppercase text-[9.5px] font-bold block">PROFILE &amp; IDENTITY</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Client ID</span>
+                      <strong className="text-white">{selectedClient.id}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Email</span>
+                      <strong className="text-[#00E676] select-all">{selectedClient.email}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Status</span>
+                      <strong className="text-emerald-400">{selectedClient.status}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Registered Date</span>
+                      <strong className="text-white">{selectedClient.registeredDate}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Total Spend</span>
+                      <strong className="text-[#00E676]">${(selectedClient.totalSpent || 0).toLocaleString()} USD</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. FRAGMENTS ASSOCIATED */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2">
+                  <span className="text-zinc-500 uppercase text-[9.5px] font-bold block">ASSOCIATED FRAGMENTS</span>
+                  <div className="space-y-1.5 text-[11px]">
+                    {licenses.filter(l => l.clientEmail.toLowerCase() === selectedClient.email.toLowerCase()).length === 0 ? (
+                      <div className="text-zinc-600 text-[10.5px]">No active licensed fragments associated with this account.</div>
+                    ) : (
+                      licenses
+                        .filter(l => l.clientEmail.toLowerCase() === selectedClient.email.toLowerCase())
+                        .map(lic => (
+                          <div key={lic.id} className="bg-[#0c0c0c] p-2.5 rounded border border-zinc-900 flex items-center justify-between">
+                            <div>
+                              <strong className="text-white">{lic.song}</strong> — <span className="text-zinc-400">{lic.type}</span>
+                            </div>
+                            <span className="text-emerald-400 font-mono text-[10px]">{lic.status}</span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. CLEARANCE HISTORY */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2">
+                  <span className="text-zinc-500 uppercase text-[9.5px] font-bold block">CLEARANCE HISTORY</span>
+                  <div className="space-y-1.5 text-[11px]">
+                    {clearanceRequests.filter(r => r.clientEmail.toLowerCase() === selectedClient.email.toLowerCase()).length === 0 ? (
+                      <div className="text-zinc-600 text-[10.5px]">No clearance requests submitted by this client.</div>
+                    ) : (
+                      clearanceRequests
+                        .filter(r => r.clientEmail.toLowerCase() === selectedClient.email.toLowerCase())
+                        .map(req => (
+                          <div key={req.ref} className="bg-[#0c0c0c] p-2.5 rounded border border-zinc-900 flex items-center justify-between">
+                            <div>
+                              <strong className="text-white">{req.ref}</strong> — <span className="text-zinc-300">{req.fragmentName}</span> ({req.requestedLicense})
+                            </div>
+                            <span className="text-amber-400 font-bold text-[10px]">{req.status}</span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. TRANSACTIONS */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2">
+                  <span className="text-zinc-500 uppercase text-[9.5px] font-bold block">TRANSACTIONS &amp; PAYMENTS</span>
+                  <div className="space-y-1.5 text-[11px]">
+                    {transactions.filter(t => t.clientEmail.toLowerCase() === selectedClient.email.toLowerCase()).length === 0 ? (
+                      <div className="text-zinc-600 text-[10.5px]">No payment records for this account.</div>
+                    ) : (
+                      transactions
+                        .filter(t => t.clientEmail.toLowerCase() === selectedClient.email.toLowerCase())
+                        .map(tx => (
+                          <div key={tx.id} className="bg-[#0c0c0c] p-2.5 rounded border border-zinc-900 flex items-center justify-between">
+                            <div>
+                              <strong className="text-white">{tx.id}</strong> — <span className="text-zinc-300">{tx.fragmentName}</span> (${tx.amount} {tx.currency})
+                            </div>
+                            <span className="text-[#00E676] font-bold text-[10px]">{tx.paymentStatus}</span>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-3 border-t border-zinc-800">
+                <button
+                  onClick={() => setSelectedClient(null)}
+                  className="bg-[#D9D6CA] hover:bg-white text-black font-bold text-xs px-5 py-2 rounded uppercase tracking-wider cursor-pointer"
+                >
+                  CLOSE DOSSIER
+                </button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 4: LICENSE RECORD (SECTION 04: LICENSES) */}
+      <AnimatePresence>
+        {selectedLicense && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="w-full max-w-3xl bg-[#080808] border border-zinc-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto rounded-lg"
+            >
+              {(() => {
+                const normalizedTier = normalizeTierId(selectedLicense.tierId || selectedLicense.type);
+                const licenseData: LicenseAgreementData = {
+                  licenseId: selectedLicense.id,
+                  transactionRef: selectedLicense.transactionRef || "LMN-TX-VAULT",
+                  purchaseDate: selectedLicense.purchaseDate || selectedLicense.effectiveDate || "August 2026",
+                  licenseeLegalName: selectedLicense.clientName || "Authorized Licensee",
+                  licenseeEmail: selectedLicense.clientEmail || "licensee@lomon.local",
+                  fragmentTitle: selectedLicense.song,
+                  archiveIdentifier: selectedLicense.archiveIdentifier,
+                  licenseTierId: selectedLicense.tierId || normalizedTier,
+                  licenseTierTitle: selectedLicense.type,
+                  price: selectedLicense.type.includes("5,000") ? 5000 : selectedLicense.type.includes("1,000") ? 1000 : selectedLicense.type.includes("500") ? 500 : 150
+                };
+
+                const schedA = getScheduleAData(licenseData);
+                const schedB = getScheduleBData(licenseData);
+                const legalTier = getLegalArticlesForTier(normalizedTier);
+
+                const handleCopyContract = () => {
+                  const fullText = generateFullAgreementText(licenseData);
+                  navigator.clipboard.writeText(fullText);
+                  setCopiedAdminContract(true);
+                  setTimeout(() => setCopiedAdminContract(false), 2500);
+                };
+
+                const handleDownloadPdf = () => {
+                  openOrDownloadLicenseAgreement(licenseData);
+                };
+
+                return (
+                  <>
+                    {/* Header */}
+                    <div className="flex items-start justify-between border-b border-zinc-800 pb-3.5">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-[10px] font-mono font-bold tracking-widest text-[#00E676] uppercase bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-[2px]">
+                            {schedA.licenseFee}
+                          </span>
+                          <span className="text-[10px] text-amber-400 font-mono font-bold tracking-widest uppercase">
+                            {selectedLicense.status || "ACTIVE"}
+                          </span>
+                        </div>
+                        <h2 className="text-base sm:text-lg font-bold text-white uppercase font-sans">
+                          {getFragmentTimeName(selectedLicense.song || selectedLicense.id)} — {selectedLicense.id}
+                        </h2>
+                        <p className="text-zinc-400 text-xs font-mono mt-0.5">
+                          Grantee: <strong className="text-white">{selectedLicense.clientName}</strong> ({selectedLicense.clientEmail})
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedLicense(null);
+                          setAdminLicenseModalTab("overview");
+                        }}
+                        className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div className="flex border-b border-zinc-800 text-[11px] font-mono uppercase tracking-wider gap-1">
+                      <button
+                        onClick={() => setAdminLicenseModalTab("overview")}
+                        className={`pb-2.5 px-3 font-semibold transition-colors cursor-pointer border-b-2 ${
+                          adminLicenseModalTab === "overview"
+                            ? "border-[#D9D6CA] text-white"
+                            : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        Vault Registry
+                      </button>
+                      <button
+                        onClick={() => setAdminLicenseModalTab("schedules")}
+                        className={`pb-2.5 px-3 font-semibold transition-colors cursor-pointer border-b-2 ${
+                          adminLicenseModalTab === "schedules"
+                            ? "border-[#D9D6CA] text-white"
+                            : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        Schedules A &amp; B
+                      </button>
+                      <button
+                        onClick={() => setAdminLicenseModalTab("articles")}
+                        className={`pb-2.5 px-3 font-semibold transition-colors cursor-pointer border-b-2 ${
+                          adminLicenseModalTab === "articles"
+                            ? "border-[#D9D6CA] text-white"
+                            : "border-transparent text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        Legal Articles (1–7)
+                      </button>
+                    </div>
+
+                    {/* Modal Tab Content */}
+                    <div className="space-y-3.5 text-xs text-zinc-300 max-h-[50vh] overflow-y-auto pr-1">
+                      {adminLicenseModalTab === "overview" && (
+                        <div className="space-y-3">
+                          <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[11px]">
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">License ID</span>
+                                <strong className="text-white">{selectedLicense.id}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Archive Identifier</span>
+                                <strong className="text-white">{selectedLicense.archiveIdentifier}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Client / Grantee</span>
+                                <strong className="text-white">{selectedLicense.clientName}</strong>
+                                <div className="text-zinc-400 text-[10px]">{selectedLicense.clientEmail}</div>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Client ID &amp; Document ID</span>
+                                <strong className="text-zinc-300">{selectedLicense.clientId} • {selectedLicense.documentId}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">License Type</span>
+                                <strong className="text-emerald-400">{selectedLicense.type}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Agreement Version</span>
+                                <strong className="text-white">{selectedLicense.agreementVersion || schedB.contractVersion}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Execution Status</span>
+                                <strong className="text-emerald-400">{selectedLicense.executionStatus || "Fully Executed & Sealed"}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Effective Date</span>
+                                <strong className="text-white">{selectedLicense.effectiveDate || selectedLicense.purchaseDate}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Transaction ID</span>
+                                <strong className="text-[#00E676]">{selectedLicense.transactionRef}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Certificate ID</span>
+                                <strong className="text-white">{selectedLicense.certificateId || "TOC-CERT-VAULT"}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">ISRC &amp; ISWC</span>
+                                <strong className="text-zinc-300">{selectedLicense.isrc || "US-LMN-26-XXXXX"} • {selectedLicense.iswc || "T-932.408.XXX-X"}</strong>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500 uppercase text-[9px] block">Expiration / Term</span>
+                                <strong className="text-zinc-300">{selectedLicense.expirationDate || "Perpetual / Worldwide"}</strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-1.5">
+                            <span className="text-zinc-500 uppercase text-[9px] font-bold block">CRYPTOGRAPHIC INTEGRITY HASH (SHA-256)</span>
+                            <div className="text-[#00E676] text-[10px] break-all select-all font-mono">
+                              {selectedLicense.hash || "0xE5A3F1C9D7B5E3A1F9D7B5E3A1F9D7B5"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {adminLicenseModalTab === "schedules" && (
+                        <div className="space-y-4">
+                          {/* Schedule A Table */}
+                          <div className="border border-zinc-800 rounded-[4px] overflow-hidden bg-zinc-950/60">
+                            <div className="bg-zinc-900/80 px-3 py-2 border-b border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 tracking-wider uppercase">
+                              SCHEDULE A: TRANSACTION &amp; LICENSED ASSET
+                            </div>
+                            <div className="divide-y divide-zinc-900 text-[11px]">
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedA.licensor}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">License Tier:</span>
+                                <span className="col-span-2 text-[#00E676] font-bold">{schedA.licenseTier}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Delivery Package:</span>
+                                <span className="col-span-2 text-zinc-200">{schedA.deliveryPackage}</span>
+                              </div>
+                              {schedA.catalogStatus && (
+                                <div className="grid grid-cols-3 p-2.5">
+                                  <span className="text-zinc-500 font-mono">Catalog Status:</span>
+                                  <span className="col-span-2 text-zinc-300 font-mono">{schedA.catalogStatus}</span>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Permitted Scope:</span>
+                                <div className="col-span-2 space-y-1 text-zinc-300">
+                                  {schedA.permittedScope.map((scopeItem, i) => (
+                                    <div key={i} className="flex items-start gap-1.5">
+                                      <span className="text-[#00E676] font-bold">•</span>
+                                      <span>{scopeItem}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Schedule B Table */}
+                          <div className="border border-zinc-800 rounded-[4px] overflow-hidden bg-zinc-950/60">
+                            <div className="bg-zinc-900/80 px-3 py-2 border-b border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 tracking-wider uppercase">
+                              SCHEDULE B: OWNERSHIP &amp; PUBLISHING SPLITS
+                            </div>
+                            <div className="divide-y divide-zinc-900 text-[11px]">
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Master Ownership:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.masterOwnership}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Publishing Split:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.publishingShare}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Writer Split:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.writerShare}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Exclusivity:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.exclusivity}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {adminLicenseModalTab === "articles" && (
+                        <div className="space-y-3.5 font-mono text-[11px] text-zinc-300">
+                          {legalTier.articles.map((article, aIdx) => (
+                            <div key={aIdx} className="border border-zinc-900 p-3 bg-zinc-950/70 rounded space-y-2">
+                              <h4 className="text-white font-bold font-sans tracking-wide text-xs uppercase border-b border-zinc-900 pb-1.5">
+                                {article.title}
+                              </h4>
+                              {article.sections.map((section, sIdx) => (
+                                <div key={sIdx} className="space-y-1 pt-1">
+                                  <p className="text-[#D9D6CA] font-bold text-[10.5px]">{section.heading}</p>
+                                  <p className="text-zinc-400 font-sans text-[11px] leading-relaxed whitespace-pre-line">
+                                    {section.text}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-zinc-800">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleCopyContract}
+                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 hover:text-white font-bold text-xs px-3.5 py-2 rounded uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+                        >
+                          {copiedAdminContract ? <CheckCircle2 size={13} className="text-[#00E676]" /> : <Copy size={13} />}
+                          <span>{copiedAdminContract ? "COPIED CONTRACT" : "COPY FULL TEXT"}</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleDownloadPdf}
+                          className="bg-[#D9D6CA] hover:bg-white text-black font-bold text-xs px-5 py-2 rounded uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Download size={13} />
+                          <span>PRINT / PDF AGREEMENT</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 5: TRANSACTION RECEIPT RECORD (SECTION 05: TRANSACTIONS) */}
+      <AnimatePresence>
+        {selectedTransaction && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md font-mono">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              className="w-full max-w-xl bg-[#080808] border border-zinc-800 p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto rounded-lg"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+                <div>
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                    COMMERCIAL TRANSACTION RECEIPT
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
+                    {selectedTransaction.id}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  className="text-zinc-500 hover:text-white p-1 rounded hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 text-xs text-zinc-300">
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
+                  <div className="grid grid-cols-2 gap-3 text-[11px]">
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Composition Fragment</span>
+                      <strong className="text-white">{getFragmentTimeName(selectedTransaction.fragmentName)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">License Tier</span>
+                      <strong className="text-white">{selectedTransaction.licenseType}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Amount Paid</span>
+                      <strong className="text-[#00E676] text-sm">${(selectedTransaction.amount || 0).toLocaleString()} {selectedTransaction.currency || "USD"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Payment Gateway / Method</span>
+                      <strong className="text-white">{selectedTransaction.paymentMethod} (Live Capture)</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Payer Client</span>
+                      <strong className="text-white">{selectedTransaction.clientName}</strong>
+                      <div className="text-zinc-400 text-[10px] select-all">{selectedTransaction.clientEmail}</div>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Transaction Date</span>
+                      <strong className="text-white">{selectedTransaction.transactionDate}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Payment Status</span>
+                      <strong className="text-emerald-400">{selectedTransaction.paymentStatus}</strong>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 uppercase text-[9px] block">Refund Status</span>
+                      <strong className="text-zinc-300">{selectedTransaction.refundStatus}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Connected Chain */}
+                <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-1.5">
+                  <span className="text-zinc-500 uppercase text-[9px] font-bold block">RELATIONAL CHAIN REFERENCES</span>
+                  <div className="text-[10.5px] space-y-1 text-zinc-300">
+                    <div>Connected License ID: <strong className="text-white font-mono">{selectedTransaction.connectedLicenseId || "TOC-LIC-2026-00481"}</strong></div>
+                    <div>Connected Clearance Ref: <strong className="text-white font-mono">{selectedTransaction.connectedClearanceRef || "CLR-2026-0941"}</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-3 border-t border-zinc-800">
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  className="bg-[#D9D6CA] hover:bg-white text-black font-bold text-xs px-5 py-2 rounded uppercase tracking-wider cursor-pointer"
+                >
+                  DONE
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -601,7 +601,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
               These measures may include access controls, secure hosting, restricted permissions, authentication procedures, encryption where appropriate, monitoring, backups, and vendor-management practices. No system, transmission method, or storage service can be guaranteed to be completely secure.
             </p>
             <p className="text-[12.5px] text-zinc-200">
-              You are responsible for protecting your account credentials, devices, files, and communications. Report suspected unauthorized account activity to <a href="mailto:licensing@theowlclock.com" className="text-white underline">licensing@theowlclock.com</a>.
+              You are responsible for protecting your account credentials, devices, files, and communications. Report suspected unauthorized account activity to <a href="mailto:support@theowlclock.com" className="text-white underline">support@theowlclock.com</a>.
             </p>
           </section>
 
@@ -656,8 +656,8 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
             <p>To submit a privacy request, contact:</p>
             <div className="p-3.5 bg-zinc-950 border border-zinc-900 rounded-sm font-mono text-[12px] space-y-1">
               <p className="text-white font-bold">LOMON LLC PRIVACY DEPARTMENT</p>
-              <a href="mailto:licensing@theowlclock.com" className="text-zinc-200 hover:text-white underline block">
-                licensing@theowlclock.com
+              <a href="mailto:legal@theowlclock.com" className="text-zinc-200 hover:text-white underline block">
+                legal@theowlclock.com
               </a>
             </div>
             <p className="text-[12.5px] text-zinc-400 pt-1">Your request should include:</p>
@@ -682,7 +682,7 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
               We do not knowingly request or collect personal information directly from children under thirteen. A person under the legal age of majority may purchase a License or enter into an agreement only with the involvement and authorization of a parent or legal guardian.
             </p>
             <p className="text-[12.5px] text-zinc-400">
-              If we learn that personal information was collected directly from a child under thirteen without appropriate authorization, we will take reasonable steps to delete it. A parent or legal guardian who believes a child has submitted personal information may contact <a href="mailto:licensing@theowlclock.com" className="text-white underline">licensing@theowlclock.com</a>.
+              If we learn that personal information was collected directly from a child under thirteen without appropriate authorization, we will take reasonable steps to delete it. A parent or legal guardian who believes a child has submitted personal information may contact <a href="mailto:legal@theowlclock.com" className="text-white underline">legal@theowlclock.com</a>.
             </p>
             <p className="text-[12.5px] text-zinc-400 italic">
               United States federal children’s privacy requirements apply to child-directed online services and to general-audience services that knowingly collect personal information from children under thirteen.
@@ -792,13 +792,20 @@ export default function PrivacyPolicyPage({ onBack, onOpenCookies }: PrivacyPoli
                 <p className="text-zinc-400">Privacy Department</p>
               </div>
 
-              <div className="pt-2 border-t border-zinc-900 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="pt-2 border-t border-zinc-900 flex flex-wrap items-center gap-4">
                 <a
-                  href="mailto:licensing@theowlclock.com"
+                  href="mailto:legal@theowlclock.com"
                   className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
                 >
                   <Mail size={13} className="text-zinc-400" />
-                  <span>licensing@theowlclock.com</span>
+                  <span>legal@theowlclock.com</span>
+                </a>
+                <a
+                  href="mailto:contact@theowlclock.com"
+                  className="inline-flex items-center gap-2 text-zinc-200 hover:text-white transition-colors cursor-pointer font-mono font-bold"
+                >
+                  <Mail size={13} className="text-zinc-400" />
+                  <span>contact@theowlclock.com</span>
                 </a>
                 <a
                   href="https://theowlclock.com"
