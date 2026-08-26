@@ -888,15 +888,8 @@ export default function OwlClock({
     }
   };
 
-  const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("[data-drum]")) {
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const isLeft = clickX < rect.width / 2;
-    handleDirectionalShuffle(isLeft ? "backward" : "forward");
+  const handleStageClick = () => {
+    // Stage background click does not trigger global shuffle; interaction is focused directly around the Owl
   };
 
   return (
@@ -987,83 +980,87 @@ export default function OwlClock({
           </div>
         </div>
 
-        {/* LOWER INTERACTIVE AREA: WITH DYNAMIC DIRECTIONAL ARROW INDICATORS */}
+        {/* LOWER AREA: SENTINEL OWL WITH TIGHTLY CONFINED INTERACTIVE SENSITIVE ZONE */}
         <div 
-          className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 select-none overflow-hidden"
+          className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 select-none"
         >
-          {/* FULL INTERACTIVE ZONE: LEFT HALF SHUFFLES BACKWARD, RIGHT HALF SHUFFLES FORWARD */}
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Shuffle timestamp backward"
-            onClick={() => handleDirectionalShuffle("backward")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleDirectionalShuffle("backward");
-              }
-            }}
-            className="absolute inset-y-0 left-0 w-1/2 z-20 cursor-pointer focus:outline-none"
-          />
+          {/* Centered Sentinel Owl Visual + Focused Sensitive Interaction Box */}
+          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative px-4">
+            
+            {/* OWL SENSITIVE CLICK ZONE: LEFT HALF (BACKWARD) & RIGHT HALF (FORWARD) */}
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Shuffle timestamp backward"
+              onClick={() => handleDirectionalShuffle("backward")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleDirectionalShuffle("backward");
+                }
+              }}
+              className="absolute inset-y-0 left-4 w-[calc(50%-16px)] z-20 cursor-pointer focus:outline-none rounded-l-xl"
+              title="Previous Fragment"
+            />
 
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Shuffle timestamp forward"
-            onClick={() => handleDirectionalShuffle("forward")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleDirectionalShuffle("forward");
-              }
-            }}
-            className="absolute inset-y-0 right-0 w-1/2 z-20 cursor-pointer focus:outline-none"
-          />
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Shuffle timestamp forward"
+              onClick={() => handleDirectionalShuffle("forward")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleDirectionalShuffle("forward");
+                }
+              }}
+              className="absolute inset-y-0 right-4 w-[calc(50%-16px)] z-20 cursor-pointer focus:outline-none rounded-r-xl"
+              title="Next Fragment"
+            />
 
-          {/* DYNAMIC LEFT ARROW: Fixed position in UI, hidden by default, appears dynamically on backward/left click, then disappears */}
-          <div className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
-            <AnimatePresence>
-              {activeArrow === "backward" && (
-                <motion.div
-                  key="dynamic-left-arrow"
-                  initial={{ opacity: 0, x: 8, scale: 0.85 }}
-                  animate={{ opacity: 1, x: [4, -6, 0], scale: 1 }}
-                  exit={{ opacity: 0, x: -8, scale: 0.85, transition: { duration: 0.25 } }}
-                  transition={{ duration: 0.35, ease: "easeOut" }}
-                  className="flex items-center justify-center"
-                >
-                  <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
-                    ←
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            {/* DYNAMIC LEFT ARROW: Appears right beside the Owl on backward shuffle */}
+            <div className="absolute -left-2 sm:-left-4 md:-left-6 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+              <AnimatePresence>
+                {activeArrow === "backward" && (
+                  <motion.div
+                    key="dynamic-left-arrow"
+                    initial={{ opacity: 0, x: 8, scale: 0.85 }}
+                    animate={{ opacity: 1, x: [4, -6, 0], scale: 1 }}
+                    exit={{ opacity: 0, x: -8, scale: 0.85, transition: { duration: 0.25 } }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="flex items-center justify-center"
+                  >
+                    <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
+                      ←
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-          {/* DYNAMIC RIGHT ARROW: Fixed position in UI, hidden by default, appears dynamically on forward/right click, then disappears */}
-          <div className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
-            <AnimatePresence>
-              {activeArrow === "forward" && (
-                <motion.div
-                  key="dynamic-right-arrow"
-                  initial={{ opacity: 0, x: -8, scale: 0.85 }}
-                  animate={{ opacity: 1, x: [-4, 6, 0], scale: 1 }}
-                  exit={{ opacity: 0, x: 8, scale: 0.85, transition: { duration: 0.25 } }}
-                  transition={{ duration: 0.35, ease: "easeOut" }}
-                  className="flex items-center justify-center"
-                >
-                  <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
-                    →
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            {/* DYNAMIC RIGHT ARROW: Appears right beside the Owl on forward shuffle */}
+            <div className="absolute -right-2 sm:-right-4 md:-right-6 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+              <AnimatePresence>
+                {activeArrow === "forward" && (
+                  <motion.div
+                    key="dynamic-right-arrow"
+                    initial={{ opacity: 0, x: -8, scale: 0.85 }}
+                    animate={{ opacity: 1, x: [-4, 6, 0], scale: 1 }}
+                    exit={{ opacity: 0, x: 8, scale: 0.85, transition: { duration: 0.25 } }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="flex items-center justify-center"
+                  >
+                    <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
+                      →
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-          {/* Centered Sentinel Owl Visual */}
-          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative pointer-events-none px-4">
+            {/* Owl Image Canvas */}
             <motion.div 
-              className="w-full aspect-[16/10] relative overflow-hidden bg-black group flex items-center justify-center"
+              className="w-full aspect-[16/10] relative overflow-hidden bg-black group flex items-center justify-center pointer-events-none"
               style={{
                 rotateX,
                 rotateY,
