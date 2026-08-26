@@ -16,11 +16,17 @@ export default function AudioControllerWidget() {
     setAmbientEnabled(isAmbientOn());
     
     // Register for updates when songs/fragments start/stop
-    registerAudioCallback((playing, id, loading) => {
+    const unsubscribe = registerAudioCallback((playing, id, loading) => {
       setIsPlaying(playing);
       setIsLoading(!!loading);
       setActiveFragmentId(id);
     });
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

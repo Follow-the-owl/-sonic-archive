@@ -86,7 +86,7 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
 
   // Sync state if audio stops or starts
   useEffect(() => {
-    registerAudioCallback((playing, id) => {
+    const unsubscribe = registerAudioCallback((playing, id) => {
       if (id === "sentinel_entrance_beat") {
         setIsPlaying(playing);
       } else {
@@ -94,7 +94,9 @@ export default function WelcomeScreen({ onEnter }: WelcomeScreenProps) {
       }
     });
     return () => {
-      registerAudioCallback(() => {});
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
     };
   }, []);
 

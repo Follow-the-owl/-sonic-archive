@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
-import { stopAudio, getActiveId, registerAudioCallback, playTickSound } from "../audio";
+import { stopAudio, getActiveId, registerAudioCallback, playTickSound, playSlotSpinTick, playSlotReelLock, ensureToneStarted } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
@@ -142,11 +142,12 @@ interface WheelDrumProps {
   value: any;
   options: any[];
   onChange: (val: any) => void;
+  onMovingChange?: (isMoving: boolean) => void;
   format?: (val: any) => string;
   loop?: boolean;
 }
 
-function WheelDrum({ value, options, onChange, format = (v) => String(v), loop = true }: WheelDrumProps) {
+function WheelDrum({ value, options, onChange, onMovingChange, format = (v) => String(v), loop = true }: WheelDrumProps) {
   const selectedIndex = options.indexOf(value);
   const currentIdx = selectedIndex === -1 ? 0 : selectedIndex;
   const itemHeight = 36;
@@ -158,16 +159,26 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
   const currentIdxRef = useRef(currentIdx);
   currentIdxRef.current = currentIdx;
   const lastTickIndexRef = useRef<number | null>(null);
+  const wheelTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setLocalOffset(0);
     lastTickIndexRef.current = null;
   }, [value]);
 
+  useEffect(() => {
+    return () => {
+      if (wheelTimerRef.current) {
+        clearTimeout(wheelTimerRef.current);
+      }
+    };
+  }, []);
+
   const startDrag = (clientY: number) => {
     isDragging.current = true;
     dragStartY.current = clientY;
     lastTickIndexRef.current = currentIdx;
+    onMovingChange?.(true);
   };
 
   const moveDrag = (clientY: number) => {
@@ -195,11 +206,21 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
 
     setLocalOffset(0);
     onChange(options[targetIdx]);
+    onMovingChange?.(false);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    onMovingChange?.(true);
+    if (wheelTimerRef.current) {
+      clearTimeout(wheelTimerRef.current);
+    }
+    wheelTimerRef.current = setTimeout(() => {
+      onMovingChange?.(false);
+      wheelTimerRef.current = null;
+    }, 280);
+
     const direction = e.deltaY > 0 ? 1 : -1;
     let targetIdx = (currentIdx + direction) % options.length;
     if (targetIdx < 0) targetIdx += options.length;
@@ -216,6 +237,7 @@ function WheelDrum({ value, options, onChange, format = (v) => String(v), loop =
 
   return (
     <div 
+      data-drum="true"
       onWheel={handleWheel}
       onTouchStart={(e) => startDrag(e.touches[0].clientY)}
       onTouchMove={(e) => moveDrag(e.touches[0].clientY)}
@@ -314,17 +336,20 @@ export default function OwlClock({
   }, []);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
+  const [isDrumMoving, setIsDrumMoving] = useState<boolean>(false);
   const [showMutePrompt, setShowMutePrompt] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
+  const isMovementActive = isHooting || isDrumMoving;
+
   // Directional timer ref
-  const shuffleIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const shuffleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
-      if (shuffleIntervalRef.current) {
-        clearInterval(shuffleIntervalRef.current);
-        shuffleIntervalRef.current = null;
+      if (shuffleTimeoutRef.current) {
+        clearTimeout(shuffleTimeoutRef.current);
+        shuffleTimeoutRef.current = null;
       }
     };
   }, []);
@@ -441,6 +466,30 @@ export default function OwlClock({
   const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(() => initialTime ? initialTime.ampm : "PM");
   const [isManual, setIsManual] = useState<boolean>(() => !!initialTime);
   const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("available");
+
+  // Dynamic directional arrow indicator state (hidden by default, appears on click/interaction, then disappears)
+  const [activeArrow, setActiveArrow] = useState<"backward" | "forward" | null>(null);
+  const arrowTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerDynamicArrow = (direction: "backward" | "forward") => {
+    if (arrowTimeoutRef.current) {
+      clearTimeout(arrowTimeoutRef.current);
+      arrowTimeoutRef.current = null;
+    }
+    setActiveArrow(direction);
+    arrowTimeoutRef.current = setTimeout(() => {
+      setActiveArrow(null);
+      arrowTimeoutRef.current = null;
+    }, 750);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (arrowTimeoutRef.current) {
+        clearTimeout(arrowTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleAcquireLicense = (e: React.FormEvent) => {
     e.preventDefault();
@@ -569,11 +618,14 @@ export default function OwlClock({
   const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
   const fmt = (num: number) => String(num).padStart(2, "0");
 
-  // Directional timestamp adjustments (Backward / Forward) with smooth, deliberate mechanical cadence
+  // Directional timestamp adjustments (Backward / Forward) with classic slot machine spin animation & audio
   const handleDirectionalShuffle = (direction: "backward" | "forward") => {
-    if (shuffleIntervalRef.current) {
-      clearInterval(shuffleIntervalRef.current);
-      shuffleIntervalRef.current = null;
+    // Dynamically flash the directional arrow indicator in fixed position
+    triggerDynamicArrow(direction);
+
+    if (shuffleTimeoutRef.current) {
+      clearTimeout(shuffleTimeoutRef.current);
+      shuffleTimeoutRef.current = null;
     }
 
     setIsHooting(true);
@@ -620,32 +672,81 @@ export default function OwlClock({
     }
 
     const targetFrag = DIRECTIONAL_CHRONO_FRAGMENTS[targetIndex];
-    let step = 0;
-    const totalSteps = 3;
-    const startIdx = exactIndex !== -1 ? exactIndex : (direction === "backward" ? (targetIndex + 1) % DIRECTIONAL_CHRONO_FRAGMENTS.length : (targetIndex - 1 + DIRECTIONAL_CHRONO_FRAGMENTS.length) % DIRECTIONAL_CHRONO_FRAGMENTS.length);
+    const dir = direction === "forward" ? 1 : -1;
+    const targetH24 = (targetFrag.ampm === "PM" ? (targetFrag.hour % 12) + 12 : (targetFrag.hour % 12));
+    const targetTotalMin = targetH24 * 60 + targetFrag.minute;
 
-    shuffleIntervalRef.current = setInterval(() => {
-      step++;
-      if (step < totalSteps) {
-        const intermediateIdx = (startIdx + (direction === "backward" ? -step : step) + DIRECTIONAL_CHRONO_FRAGMENTS.length * 10) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
-        const interim = DIRECTIONAL_CHRONO_FRAGMENTS[intermediateIdx];
-        setPickedHour(interim.hour);
-        setPickedMinute(interim.minute);
-        setPickedAMPM(interim.ampm);
-        playTickSound(step % 2 === 0 ? "low" : "high");
+    // Full multi-spin wheel configuration (consistent multi-revolution spin regardless of distance)
+    const totalSteps = 22;
+    const landingOffsets = [180, 95, 48, 22, 9, 3, 1, 0];
+    const fastStepsCount = totalSteps - landingOffsets.length; // 14 high-velocity blur steps
+
+    // Build the reel trajectory frames
+    const stepFrames: { hour: number; minute: number; ampm: "AM" | "PM" }[] = [];
+    for (let step = 0; step < totalSteps; step++) {
+      if (step < fastStepsCount) {
+        // Fast multi-revolution spin phase: rapidly cycle across all wheels
+        const spinAdvance = Math.round(step * 149 + Math.sin(step * 1.7) * 43 + 31);
+        const virtualMinutes = targetTotalMin - dir * (landingOffsets[0] + (fastStepsCount - step) * 163 + spinAdvance);
+        const normalizedMin = ((virtualMinutes % 1440) + 1440) % 1440;
+        const h24 = Math.floor(normalizedMin / 60);
+        const m = normalizedMin % 60;
+        const h12 = h24 % 12;
+        const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+        stepFrames.push({ hour: h12, minute: m, ampm });
       } else {
-        if (shuffleIntervalRef.current) {
-          clearInterval(shuffleIntervalRef.current);
-          shuffleIntervalRef.current = null;
+        // Deceleration and precision landing phase
+        const landingIdx = step - fastStepsCount;
+        const offset = landingOffsets[landingIdx];
+        if (offset === 0) {
+          stepFrames.push({ hour: targetFrag.hour, minute: targetFrag.minute, ampm: targetFrag.ampm });
+        } else {
+          const virtualMinutes = targetTotalMin - dir * offset;
+          const normalizedMin = ((virtualMinutes % 1440) + 1440) % 1440;
+          const h24 = Math.floor(normalizedMin / 60);
+          const m = normalizedMin % 60;
+          const h12 = h24 % 12;
+          const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+          stepFrames.push({ hour: h12, minute: m, ampm });
         }
-        setPickedHour(targetFrag.hour);
-        setPickedMinute(targetFrag.minute);
-        setPickedAMPM(targetFrag.ampm);
-        playTickSound(direction === "backward" ? "low" : "high");
+      }
+    }
+
+    let currentStep = 0;
+
+    const executeSlotStep = () => {
+      const frame = stepFrames[currentStep];
+      setPickedHour(frame.hour);
+      setPickedMinute(frame.minute);
+      setPickedAMPM(frame.ampm);
+
+      const progress = currentStep / (totalSteps - 1);
+
+      if (currentStep < totalSteps - 1) {
+        // Play rapid to easing ratchet clicks
+        playSlotSpinTick(progress);
+        currentStep++;
+
+        // Delay curve: high-speed spin initially (~28-36ms), then smooth progressive deceleration to ~380ms
+        let nextDelay = 30;
+        if (currentStep >= fastStepsCount) {
+          const decelProgress = (currentStep - fastStepsCount) / (totalSteps - 1 - fastStepsCount);
+          nextDelay = Math.round(35 + Math.pow(decelProgress, 2.6) * 360);
+        } else {
+          nextDelay = 28 + Math.round((currentStep / fastStepsCount) * 8);
+        }
+
+        shuffleTimeoutRef.current = setTimeout(executeSlotStep, nextDelay);
+      } else {
+        // Final landing step: solid mechanical lock-in sound
+        playSlotReelLock();
         setIsHooting(false);
         setCalibrationState("available");
+        shuffleTimeoutRef.current = null;
       }
-    }, 180);
+    };
+
+    executeSlotStep();
   };
 
   // Keyboard navigation for Left/Right arrow keys
@@ -763,6 +864,7 @@ export default function OwlClock({
   }, [displayHour, displayMinute, displayAMPM, isManual, exactClockFragment]);
 
   const handleTransmit = () => {
+    ensureToneStarted();
     if (exactActualFrag && onSelectFragment) {
       if (onTimeChange) {
         onTimeChange({
@@ -786,10 +888,22 @@ export default function OwlClock({
     }
   };
 
+  const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("[data-drum]")) {
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const isLeft = clickX < rect.width / 2;
+    handleDirectionalShuffle(isLeft ? "backward" : "forward");
+  };
+
   return (
     <div
       id="owl-clock-stage"
-      className="relative w-full h-full bg-black text-[#D9D6CA] flex flex-col justify-between items-center px-4 py-2 select-none overflow-hidden"
+      onClick={handleStageClick}
+      className="relative w-full h-full bg-black text-[#D9D6CA] flex flex-col justify-between items-center px-4 py-2 select-none overflow-hidden cursor-pointer"
     >
       {/* 1. Subtle global focus vignette */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,10,12,0.15)_0%,rgba(0,0,0,1)_80%)] pointer-events-none z-0" />
@@ -809,13 +923,14 @@ export default function OwlClock({
               value={displayHour}
               options={Array.from({ length: 12 }, (_, i) => i)}
               onChange={(h) => handleHourClick(h)}
+              onMovingChange={setIsDrumMoving}
               format={(h) => fmt(h === 0 ? 12 : h)}
               loop={true}
             />
 
             {/* Separator: Colon */}
             <div className="flex flex-col items-center justify-center h-32 text-center select-none w-4 z-10">
-              <div className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center drop-shadow-[0_0_8px_rgba(217,214,202,0.5)] animate-pulse">:</div>
+              <div className="text-white font-bold text-2xl sm:text-3xl h-8 flex items-center justify-center drop-shadow-[0_0_8px_rgba(217,214,202,0.5)]">:</div>
             </div>
 
             {/* Column 2: MINUTE WHEEL DRUM */}
@@ -823,6 +938,7 @@ export default function OwlClock({
               value={displayMinute}
               options={Array.from({ length: 60 }, (_, i) => i)}
               onChange={(m) => handleMinuteClick(m)}
+              onMovingChange={setIsDrumMoving}
               format={fmt}
               loop={true}
             />
@@ -832,32 +948,47 @@ export default function OwlClock({
               value={displayAMPM}
               options={["AM", "PM"]}
               onChange={(ampm) => handleAMPMClick(ampm)}
+              onMovingChange={setIsDrumMoving}
               format={(v) => v}
               loop={false}
             />
           </div>
 
-          {/* Action indicator - extremely minimal */}
+          {/* Action indicator - displays smoothly when movements stop without blinking */}
           <div className="mt-1 w-full max-w-[280px] h-[36px] flex items-center justify-center">
-            {calibrationState === "available" && (
-              <button
-                onClick={handleTransmit}
-                className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.35)] flex items-center justify-center gap-2"
-              >
-                <span>TRANSMIT SIGNAL</span>
-                <span className="font-mono text-xs">→</span>
-              </button>
-            )}
+            <AnimatePresence mode="wait">
+              {!isMovementActive && calibrationState === "available" && (
+                <motion.button
+                  key="transmit-signal-btn"
+                  initial={{ opacity: 0, y: 3, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -3, scale: 0.97 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  onClick={handleTransmit}
+                  className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-colors duration-200 shadow-[0_0_15px_rgba(255,255,255,0.25)] flex items-center justify-center gap-2 select-none"
+                >
+                  <span>TRANSMIT SIGNAL</span>
+                  <span className="font-mono text-xs">→</span>
+                </motion.button>
+              )}
 
-            {calibrationState === "restricted" && (
-              <div className="text-red-500/90 text-xs tracking-[0.2em] uppercase font-mono font-bold animate-pulse">
-                restricted
-              </div>
-            )}
+              {!isMovementActive && calibrationState === "restricted" && (
+                <motion.div
+                  key="restricted-msg"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="text-red-500/90 text-xs tracking-[0.2em] uppercase font-mono font-bold select-none"
+                >
+                  restricted
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* LOWER INTERACTIVE AREA: WITH PERMANENT REFINED DIRECTIONAL ARROWS ON BOTH SIDES */}
+        {/* LOWER INTERACTIVE AREA: WITH DYNAMIC DIRECTIONAL ARROW INDICATORS */}
         <div 
           className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 select-none overflow-hidden"
         >
@@ -873,15 +1004,8 @@ export default function OwlClock({
                 handleDirectionalShuffle("backward");
               }
             }}
-            className="absolute inset-y-0 left-0 w-1/2 z-20 cursor-pointer group focus:outline-none"
-          >
-            {/* Permanent Left Arrow pinned in fixed position */}
-            <div className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
-              <span className="font-mono text-base sm:text-lg text-zinc-400 group-hover:text-white transition-all duration-200 group-hover:-translate-x-1 select-none">
-                ←
-              </span>
-            </div>
-          </div>
+            className="absolute inset-y-0 left-0 w-1/2 z-20 cursor-pointer focus:outline-none"
+          />
 
           <div
             role="button"
@@ -894,14 +1018,47 @@ export default function OwlClock({
                 handleDirectionalShuffle("forward");
               }
             }}
-            className="absolute inset-y-0 right-0 w-1/2 z-20 cursor-pointer group focus:outline-none"
-          >
-            {/* Permanent Right Arrow pinned in fixed position */}
-            <div className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
-              <span className="font-mono text-base sm:text-lg text-zinc-400 group-hover:text-white transition-all duration-200 group-hover:translate-x-1 select-none">
-                →
-              </span>
-            </div>
+            className="absolute inset-y-0 right-0 w-1/2 z-20 cursor-pointer focus:outline-none"
+          />
+
+          {/* DYNAMIC LEFT ARROW: Fixed position in UI, hidden by default, appears dynamically on backward/left click, then disappears */}
+          <div className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+            <AnimatePresence>
+              {activeArrow === "backward" && (
+                <motion.div
+                  key="dynamic-left-arrow"
+                  initial={{ opacity: 0, x: 8, scale: 0.85 }}
+                  animate={{ opacity: 1, x: [4, -6, 0], scale: 1 }}
+                  exit={{ opacity: 0, x: -8, scale: 0.85, transition: { duration: 0.25 } }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="flex items-center justify-center"
+                >
+                  <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
+                    ←
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* DYNAMIC RIGHT ARROW: Fixed position in UI, hidden by default, appears dynamically on forward/right click, then disappears */}
+          <div className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+            <AnimatePresence>
+              {activeArrow === "forward" && (
+                <motion.div
+                  key="dynamic-right-arrow"
+                  initial={{ opacity: 0, x: -8, scale: 0.85 }}
+                  animate={{ opacity: 1, x: [-4, 6, 0], scale: 1 }}
+                  exit={{ opacity: 0, x: 8, scale: 0.85, transition: { duration: 0.25 } }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="flex items-center justify-center"
+                >
+                  <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
+                    →
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Centered Sentinel Owl Visual */}

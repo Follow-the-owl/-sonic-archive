@@ -714,6 +714,10 @@ export default function App() {
       <LicenseVerificationPage 
         initialLicenseNumber={verificationLicenseNumber}
         onBack={handleBackFromVerification}
+        onRequestClearance={(fragNameOrId) => {
+          handleBackFromVerification();
+          handleOpenContact("Fragment Licensing", fragNameOrId ? `Clearance Request for Fragment: ${fragNameOrId}` : "Fragment Clearance Request & Master Acquisition");
+        }}
       />
     );
   }
@@ -1508,16 +1512,6 @@ export default function App() {
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => {
-                              setSelectedFragment(null);
-                              setCheckoutActive(false);
-                              setMobileMenuOpen(false);
-                            }}
-                            className="text-left font-mono text-[11px] uppercase tracking-wider py-1 text-zinc-400 hover:text-white cursor-pointer"
-                          >
-                            * Recovered Fragments
-                          </button>
-                          <button
-                            onClick={() => {
                               handleOpenVerification();
                               setMobileMenuOpen(false);
                             }}
@@ -1784,14 +1778,6 @@ export default function App() {
                     <ul className="space-y-2.5 text-[10.5px] text-zinc-400 font-mono">
                       <li>
                         <button 
-                          onClick={handleOpenOwlClock}
-                          className="hover:text-white transition-colors cursor-pointer text-left block"
-                        >
-                          Recovered Fragments
-                        </button>
-                      </li>
-                      <li>
-                        <button 
                           onClick={() => handleOpenVerification()}
                           className="hover:text-white transition-colors cursor-pointer text-left block"
                         >
@@ -1921,12 +1907,6 @@ export default function App() {
                     </button>
                     {mobileFooterExpanded.ARCHIVE && (
                       <div className="pt-2.5 pb-2 pl-3 flex flex-col gap-2.5 text-[10px] text-zinc-400 font-mono text-left">
-                        <button 
-                          onClick={handleOpenOwlClock}
-                          className="hover:text-white transition-colors cursor-pointer text-left block"
-                        >
-                          * Recovered Fragments
-                        </button>
                         <button 
                           onClick={() => handleOpenVerification()}
                           className="hover:text-white transition-colors cursor-pointer text-left block"

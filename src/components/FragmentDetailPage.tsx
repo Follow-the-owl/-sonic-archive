@@ -149,7 +149,7 @@ export default function FragmentDetailPage({
 
   // Register audio engine state listener & auto-play active fragment smoothly
   useEffect(() => {
-    registerAudioCallback((playing, id, loading) => {
+    const unsubscribe = registerAudioCallback((playing, id, loading) => {
       if (id === activeFrag.id) {
         setIsPlayingBeat(playing);
         setIsLoadingBeat(!!loading);
@@ -162,6 +162,12 @@ export default function FragmentDetailPage({
     if (getActiveId() === activeFrag.id && !isAudioPaused()) {
       setIsPlayingBeat(true);
     }
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
   }, [activeFrag.id]);
 
   // Handle mount and cleanup

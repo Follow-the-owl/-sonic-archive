@@ -83,9 +83,26 @@ export function getAudioContext(): AudioContext | null {
 
 export async function ensureToneStarted() {
   initToneEngine();
-  if (Tone.getContext().state !== "running") {
-    await Tone.start();
+  try {
+    if (Tone.getContext().state !== "running") {
+      await Tone.start();
+    }
+    const rawCtx = Tone.getContext().rawContext as AudioContext;
+    if (rawCtx && rawCtx.state === "suspended") {
+      await rawCtx.resume();
+    }
+  } catch (e) {
+    console.warn("Tone.start error:", e);
   }
+}
+
+if (typeof window !== "undefined") {
+  const unlockAudioEngine = () => {
+    ensureToneStarted();
+  };
+  window.addEventListener("pointerdown", unlockAudioEngine, { passive: true, once: true });
+  window.addEventListener("keydown", unlockAudioEngine, { passive: true, once: true });
+  window.addEventListener("touchstart", unlockAudioEngine, { passive: true, once: true });
 }
 
 function initToneEngine() {
@@ -134,12 +151,17 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
 
   let result = url.trim();
 
-  // Handle Cloudinary delivery URLs
+  // If already an MP3, return directly to prevent broken video path transforms
+  if (result.endsWith(".mp3")) {
+    return result;
+  }
+
+  // Handle Cloudinary delivery URLs for WAV or raw formats
   if (result.includes("cloudinary.com") && result.includes("/upload/")) {
-    if (!result.includes("f_mp3,br_128k") && !result.includes("f_mp3")) {
+    if (result.endsWith(".wav")) {
       result = result.replace("/upload/", "/upload/f_mp3,br_128k/");
+      result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
     }
-    result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
     return result;
   }
 
@@ -348,11 +370,9 @@ export async function playFragment(
         },
         onerror: (err) => {
           if (currentAudioSessionToken !== sessionToken) return;
-          console.error("Tone.Player load error for fragment " + id, err);
+          console.warn("Tone.Player load error for fragment " + id + ", triggering procedural synth fallback.", err);
           isLoadingState = false;
-          isPlayingState = false;
-          activeId = null;
-          notifyAudioCallbacks();
+          playProceduralSynth(id, frequency, synthType);
         }
       });
 
@@ -384,12 +404,22 @@ export async function playFragment(
       }
       return;
     } catch (e) {
-      console.error("Failed to load or play MP3 with Tone.Player. Falling back to synth.", e);
+      console.warn("Failed to initialize Tone.Player for fragment " + id + ". Falling back to procedural synth.", e);
       isLoadingState = false;
+      playProceduralSynth(id, frequency, synthType);
+      return;
     }
   }
 
-  // Synth Fallback using Tone Context
+  // Direct procedural synth generation for fragments without MP3 preview
+  playProceduralSynth(id, frequency, synthType);
+}
+
+function playProceduralSynth(
+  id: string,
+  frequency: number = 110,
+  synthType: "drone" | "keys" | "bell" | "noise" | "pulse" = "drone"
+) {
   const audioCtx = getAudioCtx();
   if (!audioCtx) return;
   const now = audioCtx.currentTime;
@@ -1365,4 +1395,131 @@ export function playTickSound(type: "high" | "low" = "high") {
 
   osc.start(now);
   osc.stop(now + 0.04);
+}
+
+/**
+ * Classic Slot Machine Reel Ratchet Click
+ * @param progress 0.0 (maximum fast spin) to 1.0 (slow landing ratchet)
+ */
+export function playSlotSpinTick(progress: number = 0) {
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  const p = Math.max(0, Math.min(1, progress));
+
+  // 1. Transient noise burst (metallic/mechanical ratchet friction)
+  const bufferSize = audioCtx.sampleRate * 0.025;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.28));
+  }
+
+  const noiseSource = audioCtx.createBufferSource();
+  noiseSource.buffer = buffer;
+
+  const noiseFilter = audioCtx.createBiquadFilter();
+  noiseFilter.type = "bandpass";
+  // Pitch lowers slightly as the reel decelerates
+  const filterFreq = 3200 - p * 1400; // 3200Hz down to 1800Hz
+  noiseFilter.frequency.setValueAtTime(filterFreq, now);
+  noiseFilter.Q.setValueAtTime(3.5, now);
+
+  const noiseGain = audioCtx.createGain();
+  const noiseVol = (0.04 + (1 - p) * 0.02);
+  noiseGain.gain.setValueAtTime(0.001, now);
+  noiseGain.gain.linearRampToValueAtTime(noiseVol, now + 0.002);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
+
+  noiseSource.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(audioCtx.destination);
+
+  noiseSource.start(now);
+  noiseSource.stop(now + 0.025);
+
+  // 2. Mechanical body click (teeth strike)
+  const osc = audioCtx.createOscillator();
+  const oscGain = audioCtx.createGain();
+
+  osc.type = "triangle";
+  const startFreq = 1400 - p * 650; // 1400Hz down to 750Hz
+  osc.frequency.setValueAtTime(startFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(startFreq * 0.45, now + 0.018);
+
+  const oscVol = (0.025 + p * 0.02); // Ticks become slightly punchier as it slows
+  oscGain.gain.setValueAtTime(0.001, now);
+  oscGain.gain.linearRampToValueAtTime(oscVol, now + 0.002);
+  oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+
+  osc.connect(oscGain);
+  oscGain.connect(audioCtx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.03);
+}
+
+/**
+ * Classic Slot Machine Reel Solid Stop / Landing Snap
+ */
+export function playSlotReelLock() {
+  const audioCtx = getAudioCtx();
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+
+  // 1. High crisp mechanical catch
+  const osc1 = audioCtx.createOscillator();
+  const gain1 = audioCtx.createGain();
+  osc1.type = "sawtooth";
+  osc1.frequency.setValueAtTime(920, now);
+  osc1.frequency.exponentialRampToValueAtTime(240, now + 0.04);
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(2400, now);
+
+  gain1.gain.setValueAtTime(0.001, now);
+  gain1.gain.linearRampToValueAtTime(0.07, now + 0.003);
+  gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+
+  osc1.connect(filter);
+  filter.connect(gain1);
+  gain1.connect(audioCtx.destination);
+
+  osc1.start(now);
+  osc1.stop(now + 0.07);
+
+  // 2. Heavy mechanical thud / pawl lock (t + 12ms)
+  const osc2 = audioCtx.createOscillator();
+  const gain2 = audioCtx.createGain();
+  osc2.type = "triangle";
+  osc2.frequency.setValueAtTime(220, now + 0.012);
+  osc2.frequency.exponentialRampToValueAtTime(65, now + 0.09);
+
+  gain2.gain.setValueAtTime(0.001, now + 0.012);
+  gain2.gain.linearRampToValueAtTime(0.09, now + 0.016);
+  gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+
+  osc2.connect(gain2);
+  gain2.connect(audioCtx.destination);
+
+  osc2.start(now + 0.012);
+  osc2.stop(now + 0.13);
+
+  // 3. Resonant chime harmonic ping
+  const chimeOsc = audioCtx.createOscillator();
+  const chimeGain = audioCtx.createGain();
+  chimeOsc.type = "sine";
+  chimeOsc.frequency.setValueAtTime(659.25, now + 0.02); // E5
+
+  chimeGain.gain.setValueAtTime(0.001, now + 0.02);
+  chimeGain.gain.exponentialRampToValueAtTime(0.035, now + 0.035);
+  chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+
+  chimeOsc.connect(chimeGain);
+  chimeGain.connect(audioCtx.destination);
+
+  chimeOsc.start(now + 0.02);
+  chimeOsc.stop(now + 0.5);
 }

@@ -144,7 +144,104 @@ function generateLicenseNumber(tierId?: string, tierTitle?: string): string {
 // In-Memory Fallbacks (used if MONGODB_URI is not provided or connection fails)
 const mockUsers: Map<string, User> = new Map();
 const mockSessions: Map<string, string> = new Map(); // token -> email
-const mockLicenses: License[] = [];
+const mockLicenses: License[] = [
+  {
+    id: "TOC-CR-2026-30192",
+    song: "00:50 AM",
+    type: "Commercial Release ($500)",
+    tierId: "cr",
+    licenseeLegalName: "Alexander Sterling / Apex Soundworks LLC",
+    email: "asterling@apexsoundworks.io",
+    date: "2026-08-06 14:22:01 UTC",
+    purchaseDate: "August 6, 2026",
+    isrc: "US-LMN-26-30192",
+    iswc: "T-302.459.192-1",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ALEXANDER STERLING",
+    hash: "0x39E8F7A1B2C3D4E5",
+    archiveIdentifier: "TOC-FRAG-0050",
+    transactionRef: "LMN-TX-892019"
+  },
+  {
+    id: "TOC-AA-2026-84920",
+    song: "02:17 AM",
+    type: "Archive Access ($150)",
+    tierId: "aa",
+    licenseeLegalName: "Elena Rostova / SoundCraft Audio",
+    email: "elena@soundcraft.audio",
+    date: "2026-07-18 10:15:30 UTC",
+    purchaseDate: "July 18, 2026",
+    isrc: "US-LMN-26-84920",
+    iswc: "T-302.849.201-9",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR ELENA ROSTOVA",
+    hash: "0x8FA2C10E4B769D3A",
+    archiveIdentifier: "TOC-FRAG-0217",
+    transactionRef: "LMN-TX-394820"
+  },
+  {
+    id: "TOC-CX-2026-77102",
+    song: "9:41 PM",
+    type: "Commercial Exploitation ($1,000)",
+    tierId: "cx",
+    licenseeLegalName: "Marcus Vance / Vanguard Media Group",
+    email: "marcus.v@vanguardmg.com",
+    date: "2026-08-14 18:40:12 UTC",
+    purchaseDate: "August 14, 2026",
+    isrc: "US-LMN-26-77102",
+    iswc: "T-302.771.020-4",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR MARCUS VANCE",
+    hash: "0x6D4E2F1B9C8A0E73",
+    archiveIdentifier: "TOC-FRAG-0941",
+    transactionRef: "LMN-TX-771020"
+  },
+  {
+    id: "TOC-SYNC-2026-00482",
+    song: "10:00 PM",
+    type: "Synchronization & Master",
+    tierId: "sync",
+    licenseeLegalName: "Paramount / Horizon Filmworks",
+    email: "clearance@horizonfilm.la",
+    date: "2026-08-02 09:12:44 UTC",
+    purchaseDate: "August 2, 2026",
+    isrc: "US-LMN-26-00482",
+    iswc: "T-302.004.821-8",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR HORIZON FILMWORKS",
+    hash: "0x1A2B3C4D5E6F7890",
+    archiveIdentifier: "TOC-FRAG-1000",
+    transactionRef: "LMN-TX-004821"
+  },
+  {
+    id: "TOC-EX-2026-99001",
+    song: "07:46 AM",
+    type: "Exclusive Acquisition ($5,000)",
+    tierId: "ex",
+    licenseeLegalName: "Obsidian Vault Records / Damon Cross",
+    email: "damon@obsidianvault.com",
+    date: "2026-08-20 22:04:19 UTC",
+    purchaseDate: "August 20, 2026",
+    isrc: "US-LMN-26-99001",
+    iswc: "T-302.990.010-9",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR OBSIDIAN VAULT RECORDS",
+    hash: "0xDEADBEEFCAFE0001",
+    archiveIdentifier: "TOC-FRAG-0746",
+    transactionRef: "LMN-TX-990010"
+  },
+  {
+    id: "TOC-COL-2026-55201",
+    song: "05:58 AM",
+    type: "Producer Collaboration ($0)",
+    tierId: "col",
+    licenseeLegalName: "Kai Tanaka / Sub-Zero Productions",
+    email: "kai@subzerobeats.jp",
+    date: "2026-08-11 16:33:55 UTC",
+    purchaseDate: "August 11, 2026",
+    isrc: "US-LMN-26-55201",
+    iswc: "T-302.552.019-3",
+    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL FOR KAI TANAKA",
+    hash: "0x7E3F1A9D0C8B2E4A",
+    archiveIdentifier: "TOC-FRAG-0558",
+    transactionRef: "LMN-TX-552019"
+  }
+];
 const mockRequests: RequestItem[] = [];
 const mockPayments: Payment[] = [];
 
@@ -576,7 +673,8 @@ app.post("/api/user/purchase", async (req, res) => {
 app.get(["/api/v1/licenses/verify/:license_number", "/api/licenses/verify/:license_number"], async (req, res) => {
   try {
     const rawParam = req.params.license_number || "";
-    const cleanNumber = rawParam.trim().toUpperCase();
+    const cleanNumber = rawParam.trim();
+    const upperNumber = cleanNumber.toUpperCase();
 
     if (!cleanNumber) {
       return res.status(400).json({
@@ -592,11 +690,11 @@ app.get(["/api/v1/licenses/verify/:license_number", "/api/licenses/verify/:licen
       const col = db.collection("licenses");
       foundLicense = (await col.findOne({
         $or: [
-          { id: cleanNumber },
-          { licenseNumber: cleanNumber },
-          { id: { $regex: new RegExp(`^${cleanNumber}$`, "i") } },
-          { hash: { $regex: new RegExp(`^${cleanNumber}$`, "i") } },
-          { transactionRef: { $regex: new RegExp(`^${cleanNumber}$`, "i") } }
+          { id: upperNumber },
+          { licenseNumber: upperNumber },
+          { id: { $regex: new RegExp(`^${upperNumber}$`, "i") } },
+          { hash: { $regex: new RegExp(`^${upperNumber}$`, "i") } },
+          { transactionRef: { $regex: new RegExp(`^${upperNumber}$`, "i") } }
         ]
       })) as unknown as License | null;
     } else {
@@ -605,70 +703,118 @@ app.get(["/api/v1/licenses/verify/:license_number", "/api/licenses/verify/:licen
         const lnum = ((l as any).licenseNumber || "").toUpperCase();
         const lhash = (l.hash || "").toUpperCase();
         const lref = (l.transactionRef || "").toUpperCase();
-        return lid === cleanNumber ||
-          (lnum && lnum === cleanNumber) ||
-          (lhash && lhash === cleanNumber) ||
-          (lref && lref === cleanNumber) ||
-          (lid && lid.includes(cleanNumber)) ||
-          (lid && cleanNumber.includes(lid));
+        return lid === upperNumber ||
+          (lnum && lnum === upperNumber) ||
+          (lhash && lhash === upperNumber) ||
+          (lref && lref === upperNumber) ||
+          (lid && lid.includes(upperNumber)) ||
+          (upperNumber.includes(lid) && lid.length > 5);
       }) || null;
     }
 
-    if (!foundLicense) {
-      return res.status(404).json({
-        valid: false,
-        status: "UNVERIFIED OR INVALID",
-        licenseNumber: cleanNumber,
-        error: `No authenticated license record found matching license number: ${cleanNumber}`
+    // 1. PURCHASED VALID LICENSE FOUND
+    if (foundLicense) {
+      const licensee = foundLicense.licenseeLegalName || foundLicense.email || "Authorized Licensee";
+      const fragment = foundLicense.song || "Archived Composition";
+      
+      let tierDisplay = foundLicense.type || "Archive Access License ($150)";
+      const tLower = (foundLicense.tierId || foundLicense.type || "").toLowerCase();
+      
+      if (upperNumber.startsWith("TOC-CR") || tLower.includes("release") || tLower === "cr") {
+        tierDisplay = "Commercial Release ($500)";
+      } else if (upperNumber.startsWith("TOC-AA") || tLower.includes("access") || tLower === "aa") {
+        tierDisplay = "Archive Access ($150)";
+      } else if (upperNumber.startsWith("TOC-CX") || tLower.includes("exploitation") || tLower === "cx") {
+        tierDisplay = "Commercial Exploitation ($1,000)";
+      } else if (upperNumber.startsWith("TOC-SYNC") || tLower.includes("sync")) {
+        tierDisplay = "Synchronization & Master License (Custom)";
+      } else if (upperNumber.startsWith("TOC-EX") || tLower.includes("exclusive") || tLower === "ex") {
+        tierDisplay = "Exclusive Archive Acquisition ($5,000)";
+      } else if (upperNumber.startsWith("TOC-COL") || tLower.includes("collab") || tLower === "col") {
+        tierDisplay = "Producer Collaboration ($0)";
+      }
+
+      const issuedDate = foundLicense.purchaseDate || foundLicense.date || "August 6, 2026";
+      const scopeText = tLower.includes("access") 
+        ? "Songwriting, studio demos, rehearsals, and private creative development."
+        : tLower.includes("release")
+        ? "Commercial streaming distribution (up to 500,000 streams), digital broadcast, sync placement, global territory."
+        : tLower.includes("exploitation")
+        ? "Unlimited commercial distribution, worldwide sync placement, monetized streaming, live performance."
+        : tLower.includes("exclusive")
+        ? "100% Exclusive master acquisition, complete archival retirement from public marketplace."
+        : tLower.includes("sync")
+        ? "Audio-visual synchronization, motion picture soundtrack, episodic streaming, theatrical distribution."
+        : "Producer co-production evaluation and collaborative arrangement drafting.";
+
+      const royaltyTerms = "100% Sample-Free Master & Composition Clearance Warranty. Non-exclusive, worldwide, fully executed clearance under Schedule A & B terms.";
+
+      return res.json({
+        valid: true,
+        purchased: true,
+        status: "VALID & ACTIVE",
+        licensee,
+        licenseeEmail: foundLicense.email,
+        fragment,
+        tier: tierDisplay,
+        issuedDate,
+        licenseNumber: foundLicense.id,
+        scope: scopeText,
+        royaltyTerms,
+        details: {
+          id: foundLicense.id,
+          song: foundLicense.song,
+          type: foundLicense.type,
+          date: foundLicense.date,
+          isrc: foundLicense.isrc,
+          iswc: foundLicense.iswc,
+          email: foundLicense.email,
+          signature: foundLicense.signature,
+          hash: foundLicense.hash,
+          tierId: foundLicense.tierId || "access",
+          licenseeLegalName: licensee,
+          archiveIdentifier: foundLicense.archiveIdentifier || `TOC-${foundLicense.id.replace(/[^a-zA-Z0-9]/g, "")}-001`,
+          transactionRef: foundLicense.transactionRef || "LMN-TX-VERIFIED",
+          purchaseDate: issuedDate
+        }
       });
     }
 
-    const licensee = foundLicense.licenseeLegalName || foundLicense.email || "Authorized Licensee";
-    const fragment = foundLicense.song || "Archived Composition";
-    
-    let tierDisplay = foundLicense.type || "Archive Access License ($150)";
-    const tLower = (foundLicense.tierId || foundLicense.type || "").toLowerCase();
-    
-    if (cleanNumber.startsWith("TOC-CR") || tLower.includes("release") || tLower === "cr") {
-      tierDisplay = "Commercial Release ($500)";
-    } else if (cleanNumber.startsWith("TOC-AA") || tLower.includes("access") || tLower === "aa") {
-      tierDisplay = "Archive Access ($150)";
-    } else if (cleanNumber.startsWith("TOC-CX") || tLower.includes("exploitation") || tLower === "cx") {
-      tierDisplay = "Commercial Exploitation ($1,000)";
-    } else if (cleanNumber.startsWith("TOC-SYNC") || tLower.includes("sync")) {
-      tierDisplay = "Synchronization & Master License (Custom)";
-    } else if (cleanNumber.startsWith("TOC-EX") || tLower.includes("exclusive") || tLower === "ex") {
-      tierDisplay = "Exclusive Archive Acquisition ($5,000)";
-    } else if (cleanNumber.startsWith("TOC-COL") || tLower.includes("collab") || tLower === "col") {
-      tierDisplay = "Producer Collaboration ($0)";
-    }
+    // 2. UNPURCHASED / FRAGMENT ID / DEFAULT SEARCH -> MASTER ARCHIVE REGISTRY STATE
+    // Check if matching a known fragment timestamp or name
+    let matchedFragment = mockFragments.find(f => {
+      const fid = f.id.toUpperCase();
+      const fname = f.name.toUpperCase();
+      const ftime = f.timestamp.toUpperCase();
+      const digits = f.id.replace(/[^0-9]/g, "");
+      const cleanDigits = upperNumber.replace(/[^0-9]/g, "");
+      return fid === upperNumber ||
+        fname === upperNumber ||
+        ftime === upperNumber ||
+        (cleanDigits && digits === cleanDigits) ||
+        upperNumber.includes(fid) ||
+        upperNumber.includes(fname);
+    });
 
-    const issuedDate = foundLicense.purchaseDate || foundLicense.date || "August 6, 2026";
+    const fragTitle = matchedFragment ? matchedFragment.name : cleanNumber;
+    const fragId = matchedFragment ? matchedFragment.id : cleanNumber;
 
     return res.json({
       valid: true,
-      status: "VALID & ACTIVE",
-      licensee,
-      fragment,
-      tier: tierDisplay,
-      issuedDate,
-      licenseNumber: foundLicense.id,
-      details: {
-        id: foundLicense.id,
-        song: foundLicense.song,
-        type: foundLicense.type,
-        date: foundLicense.date,
-        isrc: foundLicense.isrc,
-        iswc: foundLicense.iswc,
-        email: foundLicense.email,
-        signature: foundLicense.signature,
-        hash: foundLicense.hash,
-        tierId: foundLicense.tierId || "access",
-        licenseeLegalName: licensee,
-        archiveIdentifier: foundLicense.archiveIdentifier || `TOC-${foundLicense.id.replace(/[^a-zA-Z0-9]/g, "")}-001`,
-        transactionRef: foundLicense.transactionRef || "LMN-TX-VERIFIED",
-        purchaseDate: issuedDate
-      }
+      purchased: false,
+      isUnpurchased: true,
+      status: "UNLICENSED / AVAILABLE FOR CLEARANCE",
+      originalRightsHolder: "LOMON LLC / THE OWL CLOCK",
+      masterOwnership: "100% SOLELY OWNED BY LOMON LLC",
+      publishingControl: "100% CONTROLLED BY LOMON LLC",
+      fragment: fragTitle,
+      fragmentId: fragId,
+      licenseNumber: upperNumber.startsWith("TOC-") ? upperNumber : `TOC-FRAG-${fragId.replace(/[^a-zA-Z0-9]/g, "") || "MASTER"}`,
+      clearanceStatus: "UNLICENSED / AVAILABLE FOR CLEARANCE",
+      sampleClearanceWarranty: "100% Sample-Free Original Composition (Direct Master Clearance)",
+      deliverables: "24-Bit 48kHz WAV Masters, Multi-track Audio Stems, Official PDF License Covenant",
+      actionCall: "REQUEST CLEARANCE / PURCHASE LICENSE",
+      actionText: "REQUEST CLEARANCE / PURCHASE LICENSE"
     });
   } catch (err: any) {
     console.error("[LICENSE VERIFY API ERROR]", err);
