@@ -42,12 +42,36 @@ function notifyAudioCallbacks() {
 // Ambient and Synth Node state
 let ambientGain: GainNode | null = null;
 let currentAmbientSectionName: string | null = null;
+let lastAmbientSectionName: string = "Signal tower";
 let ambientState: {
   oscillators: (OscillatorNode | AudioBufferSourceNode)[];
   gainNodes: GainNode[];
   intervals: any[];
 } | null = null;
 let isAmbientEnabled = true;
+
+type AmbientCallback = (enabled: boolean) => void;
+const ambientCallbacks = new Set<AmbientCallback>();
+
+export function registerAmbientCallback(callback: AmbientCallback): () => void {
+  ambientCallbacks.add(callback);
+  try {
+    callback(isAmbientEnabled);
+  } catch (e) {}
+  return () => {
+    ambientCallbacks.delete(callback);
+  };
+}
+
+function notifyAmbientCallbacks() {
+  ambientCallbacks.forEach((cb) => {
+    try {
+      cb(isAmbientEnabled);
+    } catch (e) {
+      console.error("Ambient callback error:", e);
+    }
+  });
+}
 
 let currentNodes: {
   oscillators: OscillatorNode[];
@@ -741,18 +765,26 @@ export function isAmbientOn(): boolean {
   return isAmbientEnabled;
 }
 
-export function toggleAmbientAtmosphere(): boolean {
-  isAmbientEnabled = !isAmbientEnabled;
+export function setAmbientEnabledState(enabled: boolean): boolean {
+  ensureToneStarted();
+  isAmbientEnabled = enabled;
   const audioCtx = getAudioCtx();
+
   if (ambientGain && audioCtx) {
     const targetVal = isAmbientEnabled ? 1.0 : 0.0;
-    ambientGain.gain.cancelScheduledValues(audioCtx.currentTime);
-    ambientGain.gain.setValueAtTime(ambientGain.gain.value, audioCtx.currentTime);
-    ambientGain.gain.linearRampToValueAtTime(targetVal, audioCtx.currentTime + 1.2);
+    try {
+      ambientGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      ambientGain.gain.setValueAtTime(ambientGain.gain.value, audioCtx.currentTime);
+      ambientGain.gain.linearRampToValueAtTime(targetVal, audioCtx.currentTime + (isAmbientEnabled ? 0.8 : 0.05));
+    } catch (e) {
+      try {
+        ambientGain.gain.setValueAtTime(targetVal, audioCtx.currentTime);
+      } catch (err) {}
+    }
   }
   
-  if (isAmbientEnabled && currentAmbientSectionName) {
-    const sec = currentAmbientSectionName;
+  if (isAmbientEnabled) {
+    const sec = currentAmbientSectionName || lastAmbientSectionName || "Signal tower";
     currentAmbientSectionName = null;
     transitionAmbient(sec);
   } else if (!isAmbientEnabled && ambientState) {
@@ -764,10 +796,16 @@ export function toggleAmbientAtmosphere(): boolean {
     });
   }
 
+  notifyAmbientCallbacks();
   return isAmbientEnabled;
 }
 
+export function toggleAmbientAtmosphere(): boolean {
+  return setAmbientEnabledState(!isAmbientEnabled);
+}
+
 export function transitionAmbient(sectionName: string) {
+  lastAmbientSectionName = sectionName;
   const audioCtx = getAudioCtx();
   if (!audioCtx || !ambientGain) return;
 

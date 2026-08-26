@@ -965,10 +965,9 @@ export default function OwlClock({
                   exit={{ opacity: 0, y: -3, scale: 0.97 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
                   onClick={handleTransmit}
-                  className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-colors duration-200 shadow-[0_0_15px_rgba(255,255,255,0.25)] flex items-center justify-center gap-2 select-none"
+                  className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-colors duration-200 shadow-[0_0_15px_rgba(255,255,255,0.25)] flex items-center justify-center select-none"
                 >
                   <span>TRANSMIT SIGNAL</span>
-                  <span className="font-mono text-xs">→</span>
                 </motion.button>
               )}
 
