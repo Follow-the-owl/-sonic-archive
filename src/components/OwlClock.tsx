@@ -1,11 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
-import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
+import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
 import { stopAudio, getActiveId, registerAudioCallback, playTickSound } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
+
+interface ClickCue {
+  id: number;
+  x: number;
+  y: number;
+  direction: "left" | "right";
+}
+
+const DIRECTIONAL_CHRONO_FRAGMENTS = [
+  { mappedId: "00:50", hour: 0, minute: 50, ampm: "AM" as const, totalMinutes: 50, label: "00:50 AM" },
+  { mappedId: "02:17", hour: 2, minute: 17, ampm: "AM" as const, totalMinutes: 137, label: "02:17 AM" },
+  { mappedId: "03:33", hour: 3, minute: 33, ampm: "AM" as const, totalMinutes: 213, label: "03:33 AM" },
+  { mappedId: "05:58", hour: 5, minute: 58, ampm: "AM" as const, totalMinutes: 358, label: "05:58 AM" },
+  { mappedId: "07:46", hour: 7, minute: 46, ampm: "AM" as const, totalMinutes: 466, label: "07:46 AM" },
+  { mappedId: "09:41", hour: 9, minute: 41, ampm: "PM" as const, totalMinutes: 1301, label: "09:41 PM" },
+  { mappedId: "10:00", hour: 10, minute: 0, ampm: "PM" as const, totalMinutes: 1320, label: "10:00 PM" },
+  { mappedId: "10:14", hour: 10, minute: 14, ampm: "PM" as const, totalMinutes: 1334, label: "10:14 PM" },
+  { mappedId: "11:11", hour: 11, minute: 11, ampm: "PM" as const, totalMinutes: 1391, label: "11:11 PM" },
+  { mappedId: "11:28", hour: 11, minute: 28, ampm: "PM" as const, totalMinutes: 1408, label: "11:28 PM" },
+  { mappedId: "11:59", hour: 11, minute: 59, ampm: "PM" as const, totalMinutes: 1439, label: "11:59 PM" }
+];
 
 interface ClockFragment {
   id: string;
@@ -21,6 +42,8 @@ interface OwlClockProps {
   onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
   onRequestProposal?: (fragmentName?: string, tierTitle?: string) => void;
   onRequestCollaboration?: (fragmentName?: string) => void;
+  initialTime?: { hour: number; minute: number; ampm: "AM" | "PM" } | null;
+  onTimeChange?: (time: { hour: number; minute: number; ampm: "AM" | "PM" }) => void;
 }
 
 const CLOCK_FRAGMENTS: ClockFragment[] = [
@@ -268,7 +291,9 @@ export default function OwlClock({
   onSelectFragment, 
   onAddToCart,
   onRequestProposal,
-  onRequestCollaboration
+  onRequestCollaboration,
+  initialTime,
+  onTimeChange
 }: OwlClockProps) {
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
@@ -298,6 +323,19 @@ export default function OwlClock({
   const [isHooting, setIsHooting] = useState<boolean>(false);
   const [showMutePrompt, setShowMutePrompt] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Directional interactive cues & timer ref
+  const [clickCues, setClickCues] = useState<ClickCue[]>([]);
+  const shuffleIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (shuffleIntervalRef.current) {
+        clearInterval(shuffleIntervalRef.current);
+        shuffleIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // High-fidelity license state variables
   const [showLicensePanel, setShowLicensePanel] = useState<boolean>(false);
@@ -405,11 +443,11 @@ export default function OwlClock({
     }
   ] as const;
 
-  // Scroll wheel states
-  const [pickedHour, setPickedHour] = useState<number | null>(10);
-  const [pickedMinute, setPickedMinute] = useState<number | null>(0);
-  const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>("PM");
-  const [isManual, setIsManual] = useState<boolean>(false);
+  // Scroll wheel states initialized with initialTime prop if provided (persisting chosen time across screen switches)
+  const [pickedHour, setPickedHour] = useState<number | null>(() => initialTime ? initialTime.hour : 10);
+  const [pickedMinute, setPickedMinute] = useState<number | null>(() => initialTime ? initialTime.minute : 0);
+  const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(() => initialTime ? initialTime.ampm : "PM");
+  const [isManual, setIsManual] = useState<boolean>(() => !!initialTime);
   const [calibrationState, setCalibrationState] = useState<"idle" | "calibrating" | "available" | "restricted">("available");
 
   const handleAcquireLicense = (e: React.FormEvent) => {
@@ -448,14 +486,8 @@ export default function OwlClock({
         setIsManual(false); // reset manual if user switched to playing a different signal row
         setCalibrationState("available");
       }
-    } else if (!isManual) {
-      // Overridden previous logic to let 10:00 PM be the first initial available fragment rather than current time
-      setPickedHour(10);
-      setPickedMinute(0);
-      setPickedAMPM("PM");
-      setCalibrationState("available");
     }
-  }, [activePlayId, isManual]);
+  }, [activePlayId]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -509,66 +541,6 @@ export default function OwlClock({
     };
   }, [x, y]);
 
-  // Triggers automatic timestamp shuffle to an available fragment (visually silent)
-  const handleOwlCall = () => {
-    if (isHooting) return;
-    setIsHooting(true);
-
-    // Settle into manual adjustment mode and clear current temporary state
-    setIsManual(true);
-    setCalibrationState("idle");
-
-    let count = 0;
-    const maxShuffles = 9;
-    const allowedFrags = CLOCK_FRAGMENTS.filter(
-      f => f.mappedId === "09:41" || f.mappedId === "10:00" || f.mappedId === "11:11"
-    );
-
-    const interval = setInterval(() => {
-      count++;
-      let randomFrag: ClockFragment;
-
-      if (count < maxShuffles) {
-        // Rapidly cycle through allowed fragments during shuffle ticks
-        randomFrag = allowedFrags[(count - 1) % allowedFrags.length];
-      } else {
-        // On final tick, select randomly among the allowed recovered fragments
-        const currentCleaned = `${displayHour === 0 ? 12 : displayHour}:${displayMinute.toString().padStart(2, "0")} ${displayAMPM}`;
-        const alternatives = allowedFrags.filter(f => !f.label.includes(currentCleaned));
-        const finalPool = alternatives.length > 0 ? alternatives : allowedFrags;
-        randomFrag = finalPool[Math.floor(Math.random() * finalPool.length)];
-      }
-
-      const cleaned = randomFrag.label.replace("FRAGMENT ", "").trim(); // "09:41 PM", "10:00 PM", or "11:11 PM"
-      const [timeStr, ampmStr] = cleaned.split(" ");
-      const [hStr, mStr] = timeStr.split(":");
-      let h = parseInt(hStr, 10) % 12;
-      if (h === 0) h = 12;
-      const m = parseInt(mStr, 10);
-      const ampm = (ampmStr || "AM") as "AM" | "PM";
-
-      setPickedHour(h);
-      setPickedMinute(m);
-      setPickedAMPM(ampm);
-
-      // Play mechanical shuffle tick sound
-      playTickSound(count % 2 === 0 ? "low" : "high");
-
-      if (count >= maxShuffles) {
-        clearInterval(interval);
-        setIsHooting(false);
-        setCalibrationState("available");
-      }
-    }, 100);
-  };
-
-  const handleRowClick = (item: ClockFragment) => {
-    const matchedFrag = fragments.find(f => f.id === item.mappedId);
-    if (matchedFrag && onSelectFragment) {
-      onSelectFragment(matchedFrag);
-    }
-  };
-
   const activeFragment = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
 
   // Parse active fragment timestamp if available
@@ -604,6 +576,137 @@ export default function OwlClock({
   const nextHour = displayHour === 11 ? 0 : displayHour + 1;
   const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
   const fmt = (num: number) => String(num).padStart(2, "0");
+
+  // Directional timestamp adjustments (Backward / Forward)
+  const handleDirectionalShuffle = (direction: "backward" | "forward") => {
+    if (shuffleIntervalRef.current) {
+      clearInterval(shuffleIntervalRef.current);
+      shuffleIntervalRef.current = null;
+    }
+
+    setIsHooting(true);
+    setIsManual(true);
+    setCalibrationState("idle");
+
+    const curH = displayHour % 12;
+    const curTotalMin = (displayAMPM === "PM" ? curH + 12 : curH) * 60 + displayMinute;
+
+    // Find index of current or closest fragment
+    const exactIndex = DIRECTIONAL_CHRONO_FRAGMENTS.findIndex(
+      f => f.hour === (displayHour % 12) && f.minute === displayMinute && f.ampm === displayAMPM
+    );
+
+    let targetIndex = 0;
+    if (exactIndex !== -1) {
+      if (direction === "backward") {
+        targetIndex = (exactIndex - 1 + DIRECTIONAL_CHRONO_FRAGMENTS.length) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
+      } else {
+        targetIndex = (exactIndex + 1) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
+      }
+    } else {
+      if (direction === "backward") {
+        const earlierFrags = DIRECTIONAL_CHRONO_FRAGMENTS
+          .map((f, idx) => ({ idx, diff: curTotalMin - f.totalMinutes }))
+          .filter(item => item.diff > 0);
+        if (earlierFrags.length > 0) {
+          earlierFrags.sort((a, b) => a.diff - b.diff);
+          targetIndex = earlierFrags[0].idx;
+        } else {
+          targetIndex = DIRECTIONAL_CHRONO_FRAGMENTS.length - 1;
+        }
+      } else {
+        const laterFrags = DIRECTIONAL_CHRONO_FRAGMENTS
+          .map((f, idx) => ({ idx, diff: f.totalMinutes - curTotalMin }))
+          .filter(item => item.diff > 0);
+        if (laterFrags.length > 0) {
+          laterFrags.sort((a, b) => a.diff - b.diff);
+          targetIndex = laterFrags[0].idx;
+        } else {
+          targetIndex = 0;
+        }
+      }
+    }
+
+    const targetFrag = DIRECTIONAL_CHRONO_FRAGMENTS[targetIndex];
+    let step = 0;
+    const totalSteps = 4;
+    const startIdx = exactIndex !== -1 ? exactIndex : (direction === "backward" ? (targetIndex + 1) % DIRECTIONAL_CHRONO_FRAGMENTS.length : (targetIndex - 1 + DIRECTIONAL_CHRONO_FRAGMENTS.length) % DIRECTIONAL_CHRONO_FRAGMENTS.length);
+
+    shuffleIntervalRef.current = setInterval(() => {
+      step++;
+      if (step < totalSteps) {
+        const intermediateIdx = (startIdx + (direction === "backward" ? -step : step) * 2 + DIRECTIONAL_CHRONO_FRAGMENTS.length * 10) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
+        const interim = DIRECTIONAL_CHRONO_FRAGMENTS[intermediateIdx];
+        setPickedHour(interim.hour);
+        setPickedMinute(interim.minute);
+        setPickedAMPM(interim.ampm);
+        playTickSound(step % 2 === 0 ? "low" : "high");
+      } else {
+        if (shuffleIntervalRef.current) {
+          clearInterval(shuffleIntervalRef.current);
+          shuffleIntervalRef.current = null;
+        }
+        setPickedHour(targetFrag.hour);
+        setPickedMinute(targetFrag.minute);
+        setPickedAMPM(targetFrag.ampm);
+        playTickSound(direction === "backward" ? "low" : "high");
+        setIsHooting(false);
+        setCalibrationState("available");
+      }
+    }, 65);
+  };
+
+  const handleZoneClick = (direction: "backward" | "forward", e: React.MouseEvent<HTMLDivElement>) => {
+    // Determine click position relative to the lower interactive area container
+    const container = e.currentTarget.parentElement;
+    const rect = container ? container.getBoundingClientRect() : e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const newCue: ClickCue = {
+      id: Date.now() + Math.random(),
+      x,
+      y,
+      direction: direction === "backward" ? "left" : "right"
+    };
+
+    setClickCues(prev => [...prev.slice(-8), newCue]);
+
+    setTimeout(() => {
+      setClickCues(prev => prev.filter(c => c.id !== newCue.id));
+    }, 550);
+
+    handleDirectionalShuffle(direction);
+  };
+
+  // Keyboard navigation for Left/Right arrow keys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handleDirectionalShuffle("backward");
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleDirectionalShuffle("forward");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [displayHour, displayMinute, displayAMPM]);
+
+  // Triggers automatic timestamp shuffle to an available fragment (visually silent)
+  const handleOwlCall = () => {
+    if (isHooting) return;
+    handleDirectionalShuffle("forward");
+  };
+
+  const handleRowClick = (item: ClockFragment) => {
+    const matchedFrag = fragments.find(f => f.id === item.mappedId);
+    if (matchedFrag && onSelectFragment) {
+      onSelectFragment(matchedFrag);
+    }
+  };
 
   const handleHourClick = (h: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -692,6 +795,13 @@ export default function OwlClock({
 
   const handleTransmit = () => {
     if (exactActualFrag && onSelectFragment) {
+      if (onTimeChange) {
+        onTimeChange({
+          hour: displayHour,
+          minute: displayMinute,
+          ampm: displayAMPM
+        });
+      }
       onSelectFragment(exactActualFrag);
     }
   };
@@ -778,22 +888,84 @@ export default function OwlClock({
           </div>
         </div>
 
-        {/* Beautiful full-bleed, organic Owl image and elegant writeup grouped to keep them tight on mobile */}
+        {/* LOWER INTERACTIVE AREA: DIVIDED INTO LEFT (SHUFFLE BACKWARD) AND RIGHT (SHUFFLE FORWARD) ZONES */}
         <div 
-          onClick={handleOwlCall}
-          className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 cursor-pointer"
+          className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 select-none overflow-hidden"
         >
-          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative">
+          {/* Ephemeral Semi-Transparent Arrow Signifiers (< and >) at Click/Tap Coordinates */}
+          <AnimatePresence>
+            {clickCues.map((cue) => (
+              <motion.div
+                key={cue.id}
+                initial={{ opacity: 0, scale: 0.5, x: cue.direction === "left" ? 10 : -10 }}
+                animate={{ opacity: 0.85, scale: 1.15, x: cue.direction === "left" ? -8 : 8 }}
+                exit={{ opacity: 0, scale: 1.4, x: cue.direction === "left" ? -22 : 22 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                style={{ left: `${cue.x}px`, top: `${cue.y}px` }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center select-none"
+              >
+                <div className="relative flex items-center justify-center">
+                  {/* Subtle ethereal glow */}
+                  <div className="absolute w-14 h-14 rounded-full bg-white/10 blur-md pointer-events-none" />
+                  
+                  {/* Directional Arrow Glyph */}
+                  <div className="relative flex items-center justify-center text-[#D9D6CA] drop-shadow-[0_0_12px_rgba(255,255,255,0.85)]">
+                    {cue.direction === "left" ? (
+                      <ChevronLeft className="w-9 h-9 sm:w-12 sm:h-12 opacity-90" strokeWidth={2.2} />
+                    ) : (
+                      <ChevronRight className="w-9 h-9 sm:w-12 sm:h-12 opacity-90" strokeWidth={2.2} />
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {/* TWO DISTINCT INTERACTIVE CLICK/TAP ZONES */}
+          {/* LEFT ZONE: Shuffle Backward (<) */}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Shuffle timestamp backward in time"
+            onClick={(e) => handleZoneClick("backward", e)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleDirectionalShuffle("backward");
+              }
+            }}
+            className="absolute inset-y-0 left-0 w-1/2 z-20 cursor-pointer group focus:outline-none"
+          >
+            {/* Extremely subtle ambient hover indicator */}
+            <div className="absolute inset-0 bg-gradient-to-r from-white/[0.015] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+          </div>
+
+          {/* RIGHT ZONE: Shuffle Forward (>) */}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Shuffle timestamp forward in time"
+            onClick={(e) => handleZoneClick("forward", e)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleDirectionalShuffle("forward");
+              }
+            }}
+            className="absolute inset-y-0 right-0 w-1/2 z-20 cursor-pointer group focus:outline-none"
+          >
+            {/* Extremely subtle ambient hover indicator */}
+            <div className="absolute inset-0 bg-gradient-to-l from-white/[0.015] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+          </div>
+
+          {/* Centered Sentinel Owl Visual */}
+          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative pointer-events-none">
             <motion.div 
               className="w-full aspect-[16/10] relative overflow-hidden bg-black group flex items-center justify-center"
               style={{
                 rotateX,
                 rotateY,
                 perspective: 1200
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOwlCall();
               }}
             >
               <motion.img
@@ -859,8 +1031,6 @@ export default function OwlClock({
               </motion.svg>
               <div className="h-[1.2px] flex-grow bg-gradient-to-l from-transparent to-white/20" />
             </motion.div>
-
-
           </div>
         </div>
       </div>

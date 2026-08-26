@@ -126,6 +126,19 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>("The Owl Clock");
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
+  const [preservedClockTime, setPreservedClockTime] = useState<{ hour: number; minute: number; ampm: "AM" | "PM" } | null>(null);
+
+  const parseTimestampToClock = (timestamp?: string): { hour: number; minute: number; ampm: "AM" | "PM" } | null => {
+    if (!timestamp) return null;
+    const parts = timestamp.trim().split(" ");
+    if (parts.length < 2) return null;
+    const [hStr, mStr] = parts[0].split(":");
+    let h = parseInt(hStr, 10) % 12;
+    const m = parseInt(mStr, 10);
+    const ampm = parts[1].toUpperCase() === "PM" ? "PM" : "AM";
+    if (isNaN(h) || isNaN(m)) return null;
+    return { hour: h, minute: m, ampm };
+  };
 
   // Authentication States
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -1690,7 +1703,14 @@ export default function App() {
             ) : selectedFragment ? (
               <FragmentDetailPage 
                 fragment={selectedFragment} 
-                onBack={() => {
+                onBack={(lastActiveFrag) => {
+                  const fragToRestore = lastActiveFrag || selectedFragment;
+                  if (fragToRestore && fragToRestore.timestamp) {
+                    const parsed = parseTimestampToClock(fragToRestore.timestamp);
+                    if (parsed) {
+                      setPreservedClockTime(parsed);
+                    }
+                  }
                   setSelectedFragment(null);
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }} 
@@ -1719,7 +1739,15 @@ export default function App() {
                   >
                     {activeTab === "The Owl Clock" && (
                       <OwlClock 
-                        onSelectFragment={(frag) => setSelectedFragment(frag)} 
+                        onSelectFragment={(frag) => {
+                          if (frag && frag.timestamp) {
+                            const parsed = parseTimestampToClock(frag.timestamp);
+                            if (parsed) setPreservedClockTime(parsed);
+                          }
+                          setSelectedFragment(frag);
+                        }} 
+                        initialTime={preservedClockTime}
+                        onTimeChange={(time) => setPreservedClockTime(time)}
                         onAddToCart={handleAddToCart}
                         onRequestProposal={(fragName, tierTitle) => handleOpenProposal(fragName, tierTitle)}
                         onRequestCollaboration={(fragName) => handleOpenProposal(fragName, "Producer Collaboration")}
@@ -2028,18 +2056,15 @@ export default function App() {
                 </div>
 
                 {/* BOTTOM FOOTER LINE */}
-                <div className="text-center font-mono space-y-2.5 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-950 pt-10 pb-6">
-                  <div className="space-y-1">
-                    <h6 className="text-[#D9D6CA] font-bold text-[11px] uppercase tracking-[0.3em]">
+                <div className="text-center space-y-3 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-900/60 pt-12 pb-8">
+                  <div className="space-y-2">
+                    <h6 className="text-white font-serif font-bold text-xs sm:text-[13px] tracking-[0.3em] uppercase">
                       THE OWL CLOCK
                     </h6>
-                    <p className="text-zinc-500 text-[9px] uppercase tracking-widest">
-                      Publishing • Rights Management • Licensing
+                    <p className="text-zinc-400 font-mono text-[9.5px] sm:text-[10.5px] uppercase tracking-[0.22em]">
+                      PUBLISHING | LICENSING | ATLANTA, GA
                     </p>
-                    <p className="text-zinc-500 text-[9px] uppercase tracking-widest">
-                      Atlanta, Georgia
-                    </p>
-                    <p className="text-zinc-600 text-[8.5px] pt-3 uppercase">
+                    <p className="text-zinc-500 font-mono text-[9px] sm:text-[9.5px] pt-4 uppercase tracking-[0.25em]">
                       © 2026 LOMON LLC
                     </p>
                   </div>

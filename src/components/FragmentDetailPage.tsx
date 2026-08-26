@@ -18,7 +18,7 @@ const waveHeights = [
 
 interface FragmentDetailPageProps {
   fragment: Fragment;
-  onBack: () => void;
+  onBack: (currentFrag?: Fragment) => void;
   onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
   onRequestProposal?: (fragmentName?: string, tierTitle?: string) => void;
 }
@@ -582,7 +582,7 @@ export default function FragmentDetailPage({
 
       {/* Minimal back button positioned top-left over the illustration */}
       <button 
-        onClick={onBack}
+        onClick={() => onBack(activeFrag)}
         className="absolute top-5 left-5 z-[10] flex items-center gap-1.5 text-zinc-500 hover:text-white font-mono text-[8.5px] tracking-[0.25em] transition-colors cursor-pointer uppercase py-1 px-2.5 border border-zinc-900 bg-black/70 rounded-sm"
       >
         ← EXIT
