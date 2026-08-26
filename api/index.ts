@@ -1896,7 +1896,7 @@ function getUploadthing() {
 }
 
 // 1. Cloudinary upload endpoint (for Artwork, PDF Documents, etc.)
-app.post("/api/upload/cloudinary", upload.single("file"), async (req, res) => {
+app.post("/api/upload/cloudinary", upload.single("file") as any, async (req, res) => {
   try {
     const file = req.file;
     if (!file) {
@@ -1946,7 +1946,7 @@ app.post("/api/upload/cloudinary", upload.single("file"), async (req, res) => {
 });
 
 // 2. Uploadthing upload endpoint (for Audio tracks: MP3, WAV, stems)
-app.post("/api/upload/uploadthing", upload.single("file"), async (req, res) => {
+app.post("/api/upload/uploadthing", upload.single("file") as any, async (req, res) => {
   try {
     const file = req.file;
     if (!file) {
