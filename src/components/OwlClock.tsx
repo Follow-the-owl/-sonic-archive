@@ -7,13 +7,6 @@ import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
 
-interface ClickCue {
-  id: number;
-  x: number;
-  y: number;
-  direction: "left" | "right";
-}
-
 const DIRECTIONAL_CHRONO_FRAGMENTS = [
   { mappedId: "00:50", hour: 0, minute: 50, ampm: "AM" as const, totalMinutes: 50, label: "00:50 AM" },
   { mappedId: "02:17", hour: 2, minute: 17, ampm: "AM" as const, totalMinutes: 137, label: "02:17 AM" },
@@ -324,8 +317,7 @@ export default function OwlClock({
   const [showMutePrompt, setShowMutePrompt] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
-  // Directional interactive cues & timer ref
-  const [clickCues, setClickCues] = useState<ClickCue[]>([]);
+  // Directional timer ref
   const shuffleIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -577,7 +569,7 @@ export default function OwlClock({
   const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
   const fmt = (num: number) => String(num).padStart(2, "0");
 
-  // Directional timestamp adjustments (Backward / Forward)
+  // Directional timestamp adjustments (Backward / Forward) with smooth, deliberate mechanical cadence
   const handleDirectionalShuffle = (direction: "backward" | "forward") => {
     if (shuffleIntervalRef.current) {
       clearInterval(shuffleIntervalRef.current);
@@ -629,13 +621,13 @@ export default function OwlClock({
 
     const targetFrag = DIRECTIONAL_CHRONO_FRAGMENTS[targetIndex];
     let step = 0;
-    const totalSteps = 4;
+    const totalSteps = 3;
     const startIdx = exactIndex !== -1 ? exactIndex : (direction === "backward" ? (targetIndex + 1) % DIRECTIONAL_CHRONO_FRAGMENTS.length : (targetIndex - 1 + DIRECTIONAL_CHRONO_FRAGMENTS.length) % DIRECTIONAL_CHRONO_FRAGMENTS.length);
 
     shuffleIntervalRef.current = setInterval(() => {
       step++;
       if (step < totalSteps) {
-        const intermediateIdx = (startIdx + (direction === "backward" ? -step : step) * 2 + DIRECTIONAL_CHRONO_FRAGMENTS.length * 10) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
+        const intermediateIdx = (startIdx + (direction === "backward" ? -step : step) + DIRECTIONAL_CHRONO_FRAGMENTS.length * 10) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
         const interim = DIRECTIONAL_CHRONO_FRAGMENTS[intermediateIdx];
         setPickedHour(interim.hour);
         setPickedMinute(interim.minute);
@@ -653,30 +645,7 @@ export default function OwlClock({
         setIsHooting(false);
         setCalibrationState("available");
       }
-    }, 65);
-  };
-
-  const handleZoneClick = (direction: "backward" | "forward", e: React.MouseEvent<HTMLDivElement>) => {
-    // Determine click position relative to the lower interactive area container
-    const container = e.currentTarget.parentElement;
-    const rect = container ? container.getBoundingClientRect() : e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const newCue: ClickCue = {
-      id: Date.now() + Math.random(),
-      x,
-      y,
-      direction: direction === "backward" ? "left" : "right"
-    };
-
-    setClickCues(prev => [...prev.slice(-8), newCue]);
-
-    setTimeout(() => {
-      setClickCues(prev => prev.filter(c => c.id !== newCue.id));
-    }, 550);
-
-    handleDirectionalShuffle(direction);
+    }, 180);
   };
 
   // Keyboard navigation for Left/Right arrow keys
@@ -873,10 +842,10 @@ export default function OwlClock({
             {calibrationState === "available" && (
               <button
                 onClick={handleTransmit}
-                className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.35)] flex items-center justify-center gap-1.5"
+                className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-200 animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.35)] flex items-center justify-center gap-2"
               >
                 <span>TRANSMIT SIGNAL</span>
-                <span className="font-mono text-[9px]">&gt;</span>
+                <span className="font-mono text-xs">→</span>
               </button>
             )}
 
@@ -888,46 +857,16 @@ export default function OwlClock({
           </div>
         </div>
 
-        {/* LOWER INTERACTIVE AREA: DIVIDED INTO LEFT (SHUFFLE BACKWARD) AND RIGHT (SHUFFLE FORWARD) ZONES */}
+        {/* LOWER INTERACTIVE AREA: WITH PERMANENT REFINED DIRECTIONAL ARROWS ON BOTH SIDES */}
         <div 
           className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 select-none overflow-hidden"
         >
-          {/* Ephemeral Semi-Transparent Arrow Signifiers (< and >) at Click/Tap Coordinates */}
-          <AnimatePresence>
-            {clickCues.map((cue) => (
-              <motion.div
-                key={cue.id}
-                initial={{ opacity: 0, scale: 0.5, x: cue.direction === "left" ? 10 : -10 }}
-                animate={{ opacity: 0.85, scale: 1.15, x: cue.direction === "left" ? -8 : 8 }}
-                exit={{ opacity: 0, scale: 1.4, x: cue.direction === "left" ? -22 : 22 }}
-                transition={{ duration: 0.45, ease: "easeOut" }}
-                style={{ left: `${cue.x}px`, top: `${cue.y}px` }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center select-none"
-              >
-                <div className="relative flex items-center justify-center">
-                  {/* Subtle ethereal glow */}
-                  <div className="absolute w-14 h-14 rounded-full bg-white/10 blur-md pointer-events-none" />
-                  
-                  {/* Directional Arrow Glyph */}
-                  <div className="relative flex items-center justify-center text-[#D9D6CA] drop-shadow-[0_0_12px_rgba(255,255,255,0.85)]">
-                    {cue.direction === "left" ? (
-                      <ChevronLeft className="w-9 h-9 sm:w-12 sm:h-12 opacity-90" strokeWidth={2.2} />
-                    ) : (
-                      <ChevronRight className="w-9 h-9 sm:w-12 sm:h-12 opacity-90" strokeWidth={2.2} />
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* TWO DISTINCT INTERACTIVE CLICK/TAP ZONES */}
-          {/* LEFT ZONE: Shuffle Backward (<) */}
+          {/* FULL INTERACTIVE ZONE: LEFT HALF SHUFFLES BACKWARD, RIGHT HALF SHUFFLES FORWARD */}
           <div
             role="button"
             tabIndex={0}
-            aria-label="Shuffle timestamp backward in time"
-            onClick={(e) => handleZoneClick("backward", e)}
+            aria-label="Shuffle timestamp backward"
+            onClick={() => handleDirectionalShuffle("backward")}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -936,16 +875,19 @@ export default function OwlClock({
             }}
             className="absolute inset-y-0 left-0 w-1/2 z-20 cursor-pointer group focus:outline-none"
           >
-            {/* Extremely subtle ambient hover indicator */}
-            <div className="absolute inset-0 bg-gradient-to-r from-white/[0.015] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            {/* Permanent Left Arrow pinned in fixed position */}
+            <div className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+              <span className="font-mono text-base sm:text-lg text-zinc-400 group-hover:text-white transition-all duration-200 group-hover:-translate-x-1 select-none">
+                ←
+              </span>
+            </div>
           </div>
 
-          {/* RIGHT ZONE: Shuffle Forward (>) */}
           <div
             role="button"
             tabIndex={0}
-            aria-label="Shuffle timestamp forward in time"
-            onClick={(e) => handleZoneClick("forward", e)}
+            aria-label="Shuffle timestamp forward"
+            onClick={() => handleDirectionalShuffle("forward")}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -954,12 +896,16 @@ export default function OwlClock({
             }}
             className="absolute inset-y-0 right-0 w-1/2 z-20 cursor-pointer group focus:outline-none"
           >
-            {/* Extremely subtle ambient hover indicator */}
-            <div className="absolute inset-0 bg-gradient-to-l from-white/[0.015] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            {/* Permanent Right Arrow pinned in fixed position */}
+            <div className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+              <span className="font-mono text-base sm:text-lg text-zinc-400 group-hover:text-white transition-all duration-200 group-hover:translate-x-1 select-none">
+                →
+              </span>
+            </div>
           </div>
 
           {/* Centered Sentinel Owl Visual */}
-          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative pointer-events-none">
+          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative pointer-events-none px-4">
             <motion.div 
               className="w-full aspect-[16/10] relative overflow-hidden bg-black group flex items-center justify-center"
               style={{
