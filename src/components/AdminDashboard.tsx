@@ -180,97 +180,9 @@ const DEMO_CLEARANCE_SAMPLE: ClearanceRequestRecord[] = [
   }
 ];
 
-const SEED_LICENSES: IssuedLicenseRecord[] = [
-  {
-    id: "TOC-LIC-2026-00941",
-    archiveIdentifier: "TOC-941PM-001",
-    fragmentId: "09:41",
-    song: "9:41 PM",
-    clientName: "Paramount Pictures / Sync Dept",
-    clientEmail: "sync@paramount.com",
-    clientId: "LOC-CLT-0014",
-    documentId: "LOC-DOC-00941",
-    type: "Commercial Synchronization ($1,000 USD)",
-    tierId: "commercial",
-    agreementVersion: "v2.4 - Standard Synchronization",
-    status: "ACTIVE",
-    executionStatus: "Fully Executed & Sealed",
-    effectiveDate: "August 08, 2026",
-    purchaseDate: "August 08, 2026",
-    expirationDate: "Perpetual / Worldwide",
-    transactionRef: "LMN-TX-941001",
-    certificateId: "TOC-CERT-00941",
-    hash: "0xE5A3F1C9D7B5E3A1F9D7B5E3A1F9D7B5",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
-    isrc: "US-LMN-26-00941",
-    iswc: "T-932.408.941-4",
-    masterOwnership: "100% LOMON LLC",
-    publishingShare: "100% LOMON Publishing (BMI)"
-  },
-  {
-    id: "TOC-LIC-2026-01000",
-    archiveIdentifier: "TOC-1000PM-001",
-    fragmentId: "10:00",
-    song: "10:00 PM",
-    clientName: "Eva Concepts Media",
-    clientEmail: "evianaconcepts1@gmail.com",
-    clientId: "LOC-CLT-0082",
-    documentId: "LOC-DOC-01000",
-    type: "Commercial Synchronization ($1,000 USD)",
-    tierId: "commercial",
-    agreementVersion: "v2.4 - Standard Synchronization",
-    status: "ACTIVE",
-    executionStatus: "Fully Executed & Sealed",
-    effectiveDate: "July 14, 2026",
-    purchaseDate: "July 14, 2026",
-    expirationDate: "Perpetual / Worldwide",
-    transactionRef: "LMN-TX-100002",
-    certificateId: "TOC-CERT-01000",
-    hash: "0x8B2D4F6A0C1E3E5B7D9F1A3C5E7A9B1D",
-    signature: "DIGITALLY REGISTERED COVENANT VIA LOMON SECURE CRYPTOGRAPHIC PROTOCOL",
-    isrc: "US-LMN-26-01000",
-    iswc: "T-932.408.100-2",
-    masterOwnership: "100% LOMON LLC",
-    publishingShare: "100% LOMON Publishing (BMI)"
-  }
-];
+const SEED_LICENSES: IssuedLicenseRecord[] = [];
 
-const SEED_TRANSACTIONS: TransactionRecord[] = [
-  {
-    id: "LMN-TX-941001",
-    clientId: "LOC-CLT-0014",
-    clientName: "Paramount Pictures / Sync Dept",
-    clientEmail: "sync@paramount.com",
-    fragmentId: "09:41",
-    fragmentName: "9:41 PM",
-    licenseType: "Commercial Synchronization",
-    amount: 1000,
-    currency: "USD",
-    paymentMethod: "PayPal",
-    paymentStatus: "Completed",
-    transactionDate: "August 08, 2026",
-    refundStatus: "None",
-    connectedClearanceRef: "CLR-2026-0941",
-    connectedLicenseId: "TOC-LIC-2026-00941"
-  },
-  {
-    id: "LMN-TX-100002",
-    clientId: "LOC-CLT-0082",
-    clientName: "Eva Concepts Media",
-    clientEmail: "evianaconcepts1@gmail.com",
-    fragmentId: "10:00",
-    fragmentName: "10:00 PM",
-    licenseType: "Commercial Synchronization",
-    amount: 1000,
-    currency: "USD",
-    paymentMethod: "PayPal",
-    paymentStatus: "Completed",
-    transactionDate: "July 14, 2026",
-    refundStatus: "None",
-    connectedClearanceRef: "CLR-2026-1000",
-    connectedLicenseId: "TOC-LIC-2026-01000"
-  }
-];
+const SEED_TRANSACTIONS: TransactionRecord[] = [];
 
 function normalizeRawLicense(raw: any, index: number): IssuedLicenseRecord {
   const song = raw.song || raw.fragmentName || raw.fragmentTitle || "Recovered Fragment";
@@ -1436,12 +1348,6 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             <Plus size={14} />
                             <span>CREATE CLEARANCE PETITION</span>
                           </button>
-                          <button
-                            onClick={() => setClearanceRequests(DEMO_CLEARANCE_SAMPLE)}
-                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-md cursor-pointer transition-all flex items-center gap-1.5"
-                          >
-                            <span>LOAD TEST SAMPLE</span>
-                          </button>
                         </div>
                       </div>
                     );
@@ -1611,6 +1517,36 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       </div>
                     );
                   })}
+
+                {clientsList.length === 0 && (
+                  <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-2">
+                    <p className="text-xs text-zinc-400">
+                      No client records found in database. Records are dynamically synchronized when licenses, clearances, or transactions are logged.
+                    </p>
+                  </div>
+                )}
+
+                {clientsList.length > 0 && clientsList.filter(client => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    (client.name || "").toLowerCase().includes(q) ||
+                    (client.email || "").toLowerCase().includes(q) ||
+                    (client.id || "").toLowerCase().includes(q)
+                  );
+                }).length === 0 && (
+                  <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-3">
+                    <p className="text-xs text-zinc-400">
+                      No client records match search "{searchQuery}".
+                    </p>
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10.5px] font-bold uppercase px-3 py-1.5 rounded cursor-pointer"
+                    >
+                      RESET SEARCH
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1711,6 +1647,38 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       </div>
                     );
                   })}
+
+                {licenses.length === 0 && (
+                  <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-2">
+                    <p className="text-xs text-zinc-400">
+                      No issued licenses in database. Licenses will appear here once executed via checkout or issued by admin.
+                    </p>
+                  </div>
+                )}
+
+                {licenses.length > 0 && licenses.filter(lic => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    (lic.song || "").toLowerCase().includes(q) ||
+                    (lic.clientName || "").toLowerCase().includes(q) ||
+                    (lic.clientEmail || "").toLowerCase().includes(q) ||
+                    (lic.id || "").toLowerCase().includes(q) ||
+                    (lic.type || "").toLowerCase().includes(q)
+                  );
+                }).length === 0 && (
+                  <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-3">
+                    <p className="text-xs text-zinc-400">
+                      No licenses match search "{searchQuery}".
+                    </p>
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10.5px] font-bold uppercase px-3 py-1.5 rounded cursor-pointer"
+                    >
+                      RESET SEARCH
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1794,6 +1762,37 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       </div>
                     );
                   })}
+
+                {transactions.length === 0 && (
+                  <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-2">
+                    <p className="text-xs text-zinc-400">
+                      No transaction records in database. Completed checkout payments and clearance orders will appear here automatically.
+                    </p>
+                  </div>
+                )}
+
+                {transactions.length > 0 && transactions.filter(tx => {
+                  if (!searchQuery.trim()) return true;
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    (tx.fragmentName || "").toLowerCase().includes(q) ||
+                    (tx.clientName || "").toLowerCase().includes(q) ||
+                    (tx.clientEmail || "").toLowerCase().includes(q) ||
+                    (tx.id || "").toLowerCase().includes(q)
+                  );
+                }).length === 0 && (
+                  <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-3">
+                    <p className="text-xs text-zinc-400">
+                      No transactions match search "{searchQuery}".
+                    </p>
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10.5px] font-bold uppercase px-3 py-1.5 rounded cursor-pointer"
+                    >
+                      RESET SEARCH
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

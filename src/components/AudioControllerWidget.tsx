@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   registerAudioCallback, 
   registerAmbientCallback,
@@ -9,15 +9,16 @@ import {
   toggleAmbientAtmosphere,
   ensureToneStarted
 } from "../audio";
-import { Volume2, VolumeX, Square, RefreshCw, Loader2, Radio } from "lucide-react";
+import { Volume1, Volume2, VolumeX, Square, RefreshCw, Loader2, Radio } from "lucide-react";
 import { getAllActiveFragments } from "../lib/fragmentService";
 
 export default function AudioControllerWidget() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeFragmentId, setActiveFragmentId] = useState<string | null>(null);
-  const [volume, setVolume] = useState(0.5);
+  const [volume, setVolume] = useState(() => getMasterVolume() || 0.7);
   const [ambientEnabled, setAmbientEnabled] = useState(isAmbientOn());
+  const prevVolRef = useRef(getMasterVolume() > 0 ? getMasterVolume() : 0.7);
 
   useEffect(() => {
     // Sync initial state
@@ -42,20 +43,33 @@ export default function AudioControllerWidget() {
     };
   }, []);
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    setVolume(val);
-    setMasterVolume(val);
+  const handleVolumeValChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(1, val));
+    setVolume(clamped);
+    if (clamped > 0) {
+      prevVolRef.current = clamped;
+    }
+    setMasterVolume(clamped);
+  };
+
+  const handleVolumePointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const offsetX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, offsetX / rect.width));
+    handleVolumeValChange(pct);
   };
 
   const toggleMute = () => {
     ensureToneStarted();
     if (volume > 0) {
+      prevVolRef.current = volume;
       setVolume(0);
       setMasterVolume(0);
     } else {
-      setVolume(0.5);
-      setMasterVolume(0.5);
+      const restored = prevVolRef.current > 0 ? prevVolRef.current : 0.7;
+      setVolume(restored);
+      setMasterVolume(restored);
     }
   };
 
@@ -118,28 +132,58 @@ export default function AudioControllerWidget() {
 
       {/* Control sliders & mutes */}
       <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start border-t border-zinc-800/80 pt-2 sm:pt-0 sm:border-t-0 sm:pl-3 sm:border-l sm:border-zinc-800">
-        {/* Seek Volume controls */}
+        {/* Master Volume controls */}
         <div className="flex items-center gap-2">
           <button 
             id="widget-mute-toggle"
             onClick={toggleMute}
-            className="text-zinc-400 hover:text-gold-muted active:scale-95 transition-all p-1 -m-1 cursor-pointer"
+            className="text-zinc-400 hover:text-white active:scale-95 transition-all p-1 -m-1 cursor-pointer"
             title={volume === 0 ? "Unmute" : "Mute"}
             aria-label="Toggle Master Audio Mute"
           >
-            {volume === 0 ? <VolumeX size={14} className="text-red-400" /> : <Volume2 size={14} />}
+            {volume === 0 ? (
+              <VolumeX size={14} className="text-zinc-500 hover:text-zinc-300" />
+            ) : volume < 0.5 ? (
+              <Volume1 size={14} className="text-zinc-300" />
+            ) : (
+              <Volume2 size={14} className="text-zinc-300" />
+            )}
           </button>
-          <input 
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={volume}
-            onChange={handleVolumeChange}
-            className="w-14 sm:w-16 h-[2px] bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-gold-muted"
-            style={{ color: '#C5A059' }}
-            aria-label="Master Volume Slider"
-          />
+
+          {/* Tactile Volume Slider & Knob Cursor */}
+          <div 
+            className="w-14 sm:w-16 relative flex items-center h-5 group cursor-pointer select-none touch-none"
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture?.(e.pointerId);
+              handleVolumePointer(e);
+            }}
+            onPointerMove={(e) => {
+              if (e.buttons === 1 || e.pressure > 0) {
+                handleVolumePointer(e);
+              }
+            }}
+          >
+            <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white rounded-full transition-all duration-75"
+                style={{ width: `${Math.round(volume * 100)}%` }}
+              />
+            </div>
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none transition-transform group-hover:scale-125 active:scale-125"
+              style={{ left: `calc(${Math.round(volume * 100)}% - 6px)` }}
+            />
+            <input 
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => handleVolumeValChange(parseFloat(e.target.value))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer touch-none z-10"
+              aria-label="Master Volume Slider"
+            />
+          </div>
         </div>
 
         {/* Atmosphere loop control toggle */}

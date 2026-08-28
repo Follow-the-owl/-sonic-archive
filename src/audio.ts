@@ -160,11 +160,20 @@ function initToneEngine() {
 
 export function setMasterVolume(pct: number) {
   masterVolumeLevel = Math.min(1, Math.max(0, pct));
+  if (currentHtmlAudio) {
+    try {
+      currentHtmlAudio.volume = masterVolumeLevel;
+    } catch (_e) {}
+  }
   const db = pctToDb(masterVolumeLevel);
   if (toneMasterVolume) {
-    toneMasterVolume.volume.rampTo(db, 0.05);
+    try {
+      toneMasterVolume.volume.rampTo(db, 0.05);
+    } catch (_e) {}
   } else {
-    Tone.getDestination().volume.rampTo(db, 0.05);
+    try {
+      Tone.getDestination().volume.rampTo(db, 0.05);
+    } catch (_e) {}
   }
 }
 

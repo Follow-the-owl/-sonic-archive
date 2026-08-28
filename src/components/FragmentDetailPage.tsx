@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2 } from "lucide-react";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume1, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2 } from "lucide-react";
 import { Fragment, getTimeCapsuleForFragment } from "../data";
 import { getAllActiveFragments } from "../lib/fragmentService";
 import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
@@ -50,8 +50,9 @@ export default function FragmentDetailPage({
   const [licenseSuccess, setLicenseSuccess] = useState(false);
   const [clientEmail, setClientEmail] = useState("evianaconcepts1@gmail.com");
   const [isProcessingLicense, setIsProcessingLicense] = useState(false);
-  const [volumeLevel, setVolumeLevel] = useState(0.7); // Default high volume
-  const [isMuted, setIsMuted] = useState(false);
+  const prevVolumeRef = useRef<number>(getMasterVolume() > 0 ? getMasterVolume() : 0.7);
+  const [volumeLevel, setVolumeLevel] = useState(() => (getMasterVolume() > 0 ? getMasterVolume() : 0.7));
+  const [isMuted, setIsMuted] = useState(() => getMasterVolume() === 0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   const parseDurationSec = (dur?: string) => {
@@ -293,31 +294,68 @@ export default function FragmentDetailPage({
   };
 
   const handleVolumeChange = (newVol: number) => {
-    setVolumeLevel(newVol);
+    const clamped = Math.max(0, Math.min(1, newVol));
+    setVolumeLevel(clamped);
+    if (clamped > 0) {
+      prevVolumeRef.current = clamped;
+      setIsMuted(false);
+      setMasterVolume(clamped);
+    } else {
+      setIsMuted(true);
+      setMasterVolume(0);
+    }
     if (masterGainRef.current && audioCtxRef.current) {
-      masterGainRef.current.gain.setValueAtTime(newVol, audioCtxRef.current.currentTime);
+      try {
+        masterGainRef.current.gain.setValueAtTime(clamped, audioCtxRef.current.currentTime);
+      } catch (_e) {}
     }
     if (audioElRef.current) {
-      audioElRef.current.volume = newVol;
-    }
-    if (newVol > 0 && isMuted) {
-      setIsMuted(false);
+      try {
+        audioElRef.current.volume = clamped;
+      } catch (_e) {}
     }
   };
 
   const handleToggleMute = () => {
-    if (isMuted) {
+    if (isMuted || volumeLevel === 0) {
+      const restored = prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.7;
       setIsMuted(false);
-      handleVolumeChange(volumeLevel || 0.7);
-    } else {
-      setIsMuted(true);
+      setVolumeLevel(restored);
+      setMasterVolume(restored);
       if (masterGainRef.current && audioCtxRef.current) {
-        masterGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
+        try {
+          masterGainRef.current.gain.setValueAtTime(restored, audioCtxRef.current.currentTime);
+        } catch (_e) {}
       }
       if (audioElRef.current) {
-        audioElRef.current.volume = 0;
+        try {
+          audioElRef.current.volume = restored;
+        } catch (_e) {}
+      }
+    } else {
+      prevVolumeRef.current = volumeLevel > 0 ? volumeLevel : 0.7;
+      setIsMuted(true);
+      setVolumeLevel(0);
+      setMasterVolume(0);
+      if (masterGainRef.current && audioCtxRef.current) {
+        try {
+          masterGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
+        } catch (_e) {}
+      }
+      if (audioElRef.current) {
+        try {
+          audioElRef.current.volume = 0;
+        } catch (_e) {}
       }
     }
+  };
+
+  const handleVolumeTrackInteraction = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const offsetX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, offsetX / rect.width));
+    handleVolumeChange(pct);
   };
 
   // Synthesizes a warm analog console mechanical noise and 55Hz sub oscillation
@@ -665,23 +703,62 @@ export default function FragmentDetailPage({
             </span>
 
             {/* Volume feedback indicator and slider */}
-            <div className="flex items-center gap-2 pl-2.5 border-l border-zinc-800 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-2.5 border-l border-zinc-800 shrink-0">
               <button
+                type="button"
                 onClick={handleToggleMute}
-                className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                title={isMuted ? "Unmute" : "Mute"}
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-0.5"
+                title={isMuted || volumeLevel === 0 ? "Unmute" : "Mute"}
+                aria-label={isMuted || volumeLevel === 0 ? "Unmute sound" : "Mute sound"}
               >
-                {isMuted || volumeLevel === 0 ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                {isMuted || volumeLevel === 0 ? (
+                  <VolumeX size={13} className="text-zinc-500 hover:text-zinc-300" />
+                ) : volumeLevel < 0.5 ? (
+                  <Volume1 size={13} className="text-zinc-300" />
+                ) : (
+                  <Volume2 size={13} className="text-zinc-300" />
+                )}
               </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volumeLevel}
-                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                className="w-14 sm:w-16 h-1 accent-white bg-zinc-800 rounded-lg cursor-pointer appearance-none focus:outline-none"
-              />
+
+              {/* Interactive volume slider with custom track and tactile cursor knob */}
+              <div 
+                className="w-14 sm:w-16 relative flex items-center h-5 group cursor-pointer select-none touch-none"
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                  handleVolumeTrackInteraction(e);
+                }}
+                onPointerMove={(e) => {
+                  if (e.buttons === 1 || e.pressure > 0) {
+                    handleVolumeTrackInteraction(e);
+                  }
+                }}
+              >
+                {/* Background track rail */}
+                <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-white rounded-full transition-all duration-75"
+                    style={{ width: `${Math.round((isMuted ? 0 : volumeLevel) * 100)}%` }}
+                  />
+                </div>
+
+                {/* White circular cursor knob matching the screenshot */}
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none transition-transform group-hover:scale-125 active:scale-125"
+                  style={{ left: `calc(${Math.round((isMuted ? 0 : volumeLevel) * 100)}% - 6px)` }}
+                />
+
+                {/* Invisible HTML range input for full accessibility and mobile tap/slide handling */}
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volumeLevel}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer touch-none z-10"
+                  aria-label="Volume Level"
+                />
+              </div>
             </div>
         </div>
 
