@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Square, Eye, Compass, Info, X, Loader2 } from "lucide-react";
-import { FRAGMENTS, Fragment } from "../data";
+import { Fragment } from "../data";
+import { getAllActiveFragments } from "../lib/fragmentService";
 import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
@@ -9,6 +10,7 @@ export default function FeaturedSection() {
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
   const [loadingSignal, setLoadingSignal] = useState<string | null>(null);
   const [selectedFragment, setSelectedFragment] = useState<Fragment | null>(null);
+  const [allFragments, setAllFragments] = useState<Fragment[]>(() => getAllActiveFragments());
 
   useEffect(() => {
     // Keep local player state synchronized with the synthesiser
@@ -25,6 +27,16 @@ export default function FeaturedSection() {
         setLoadingSignal(null);
       }
     });
+
+    const handleUpdate = () => {
+      setAllFragments(getAllActiveFragments());
+    };
+    window.addEventListener("fragments-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("fragments-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   const handleTogglePlay = (frag: Fragment) => {
@@ -35,9 +47,8 @@ export default function FeaturedSection() {
     }
   };
 
-  // Only display the 4 main requested featured fragments in this section
-  const featuredIds = ["00:50", "02:17", "03:33", "05:58"];
-  const featuredFragments = FRAGMENTS.filter(f => featuredIds.includes(f.id));
+  // Display all active recovered fragments in chronology order
+  const featuredFragments = allFragments.slice(0, 6);
 
   return (
     <div id="section-flight-path" className="max-w-5xl mx-auto py-12 px-4 md:px-8 space-y-16">

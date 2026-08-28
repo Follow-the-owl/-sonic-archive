@@ -1294,9 +1294,13 @@ export default function CheckoutPage({
                           {/* Schedule B Table */}
                           <div className="border border-zinc-800 rounded-[4px] overflow-hidden bg-zinc-950/60">
                             <div className="bg-zinc-900/80 px-3 py-2 border-b border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 tracking-wider uppercase">
-                              SCHEDULE B: OWNERSHIP &amp; PUBLISHING SPLITS
+                              SCHEDULE B: OWNERSHIP, PRO &amp; PUBLISHING SPLITS
                             </div>
                             <div className="divide-y divide-zinc-900 text-[11px]">
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor Legal Entity:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.licensorEntity}</span>
+                              </div>
                               <div className="grid grid-cols-3 p-2.5">
                                 <span className="text-zinc-500 font-mono">Master Ownership:</span>
                                 <span className="col-span-2 text-zinc-200 font-medium">{schedB.masterOwnership}</span>
@@ -1310,8 +1314,32 @@ export default function CheckoutPage({
                                 <span className="col-span-2 text-zinc-200 font-medium">{schedB.writerShare}</span>
                               </div>
                               <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Content ID:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.contentIdRegistration}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
                                 <span className="text-zinc-500 font-mono">Exclusivity:</span>
                                 <span className="col-span-2 text-zinc-200 font-medium">{schedB.exclusivity}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor PRO:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.licensorPro}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor Writer &amp; IPI:</span>
+                                <span className="col-span-2 text-zinc-200 font-mono text-[10.5px]">
+                                  {schedB.licensorWriterName} <span className="text-zinc-400 font-sans">• IPI:</span> <span className="text-[#00E676]">{schedB.licensorWriterIpi}</span>
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor Publisher &amp; IPI:</span>
+                                <span className="col-span-2 text-zinc-200 font-mono text-[10.5px]">
+                                  {schedB.licensorPublisherName} <span className="text-zinc-400 font-sans">• IPI:</span> <span className="text-[#00E676]">{schedB.licensorPublisherIpi}</span>
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Contract Version:</span>
+                                <span className="col-span-2 text-zinc-400 font-mono text-[10.5px]">{schedB.contractVersion}</span>
                               </div>
                             </div>
                           </div>

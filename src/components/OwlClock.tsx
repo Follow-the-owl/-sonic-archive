@@ -1,25 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
 import { Volume2, VolumeX, RefreshCw, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Package, Mail, Download, Play, Pause, Lock } from "lucide-react";
 import { FRAGMENTS, Fragment } from "../data";
+import { getAllActiveFragments, parseFragmentTimeDetails } from "../lib/fragmentService";
 import { stopAudio, getActiveId, registerAudioCallback, playTickSound, playSlotSpinTick, playSlotReelLock, ensureToneStarted } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
 
 const owlBgImage = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
-
-const DIRECTIONAL_CHRONO_FRAGMENTS = [
-  { mappedId: "00:50", hour: 0, minute: 50, ampm: "AM" as const, totalMinutes: 50, label: "00:50 AM" },
-  { mappedId: "02:17", hour: 2, minute: 17, ampm: "AM" as const, totalMinutes: 137, label: "02:17 AM" },
-  { mappedId: "03:33", hour: 3, minute: 33, ampm: "AM" as const, totalMinutes: 213, label: "03:33 AM" },
-  { mappedId: "05:58", hour: 5, minute: 58, ampm: "AM" as const, totalMinutes: 358, label: "05:58 AM" },
-  { mappedId: "07:46", hour: 7, minute: 46, ampm: "AM" as const, totalMinutes: 466, label: "07:46 AM" },
-  { mappedId: "09:41", hour: 9, minute: 41, ampm: "PM" as const, totalMinutes: 1301, label: "09:41 PM" },
-  { mappedId: "10:00", hour: 10, minute: 0, ampm: "PM" as const, totalMinutes: 1320, label: "10:00 PM" },
-  { mappedId: "10:14", hour: 10, minute: 14, ampm: "PM" as const, totalMinutes: 1334, label: "10:14 PM" },
-  { mappedId: "11:11", hour: 11, minute: 11, ampm: "PM" as const, totalMinutes: 1391, label: "11:11 PM" },
-  { mappedId: "11:28", hour: 11, minute: 28, ampm: "PM" as const, totalMinutes: 1408, label: "11:28 PM" },
-  { mappedId: "11:59", hour: 11, minute: 59, ampm: "PM" as const, totalMinutes: 1439, label: "11:59 PM" }
-];
 
 interface ClockFragment {
   id: string;
@@ -38,105 +25,6 @@ interface OwlClockProps {
   initialTime?: { hour: number; minute: number; ampm: "AM" | "PM" } | null;
   onTimeChange?: (time: { hour: number; minute: number; ampm: "AM" | "PM" }) => void;
 }
-
-const CLOCK_FRAGMENTS: ClockFragment[] = [
-  {
-    id: "frag-0941",
-    label: "FRAGMENT 09:41 PM",
-    mappedId: "09:41",
-    synthType: "keys",
-    frequency: 246.94,
-    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM."
-  },
-  {
-    id: "frag-10",
-    label: "FRAGMENT 10:00 PM",
-    mappedId: "10:00",
-    synthType: "keys",
-    frequency: 311.13,
-    description: "Lomon Recovery. Pure E♭ Major harmonic pulse, compiled and certified under Archivist Lomon's protocols."
-  },
-  {
-    id: "frag-1111",
-    label: "FRAGMENT 11:11 PM",
-    mappedId: "11:11",
-    synthType: "keys",
-    frequency: 440,
-    description: "Last Laugh Echoes. Rare celestial fragments decaying inside vintage tape reels at 125 BPM."
-  },
-  {
-    id: "frag-1",
-    label: "FRAGMENT 00:50 AM",
-    mappedId: "00:50",
-    synthType: "drone",
-    frequency: 110,
-    description: "Deep submerged sub-bass. The separation threshold between heavy thoughts and deep sleep."
-  },
-  {
-    id: "frag-2",
-    label: "FRAGMENT 07:46 AM",
-    mappedId: "07:46",
-    synthType: "pulse",
-    frequency: 329.63,
-    description: "Radioactive forest canopies. Outlaw radio transmission oscillating through early fog."
-  },
-  {
-    id: "frag-3",
-    label: "FRAGMENT 02:17 AM",
-    mappedId: "02:17",
-    synthType: "keys",
-    frequency: 293.66,
-    description: "Cold copper shortwave signals found floating under the concrete radio tower shadow."
-  },
-  {
-    id: "frag-4",
-    label: "FRAGMENT 05:58 AM",
-    mappedId: "05:58",
-    synthType: "pulse",
-    frequency: 146.83,
-    description: "Radioactive dawn sirens. Evolving warm wave-shapes as the night velvet dissolves."
-  },
-  {
-    id: "frag-5",
-    label: "FRAGMENT 03:33 AM",
-    mappedId: "03:33",
-    synthType: "bell",
-    frequency: 220,
-    description: "High-energy industrial watch hour. Dark machine rumbles and hollow metal tolls."
-  },
-  {
-    id: "frag-6",
-    label: "FRAGMENT 10:14 PM",
-    mappedId: "10:14",
-    synthType: "drone",
-    frequency: 98.0,
-    description: "Dark ambient sub-harmonic landscape reflecting security chambers and chrome steel finishes."
-  },
-  {
-    id: "frag-7",
-    label: "FRAGMENT 11:28 PM",
-    mappedId: "11:28",
-    synthType: "drone",
-    frequency: 196.0,
-    description: "Chrono motorcycle anthem. Majestic tape-saturated synthesizer spanning miles of empty road."
-  },
-  {
-    id: "frag-8",
-    label: "FRAGMENT 11:59 PM",
-    mappedId: "11:59",
-    synthType: "keys",
-    frequency: 440,
-    description: "A beautiful, decaying celestial chord sequence played on vintage magnetic tape reels."
-  },
-  {
-    id: "frag-9",
-    label: "FRAGMENT 11:28 PM",
-    mappedId: "11:28-alt",
-    synthType: "noise",
-    frequency: 164.81,
-    description: "Saturated analog tape-static pulsing like a dark motorcycle rev. Raw and heavy."
-  }
-];
 
 interface WheelDrumProps {
   value: any;
@@ -312,14 +200,24 @@ export default function OwlClock({
 }: OwlClockProps) {
   const recoveredSectionRef = useRef<HTMLDivElement>(null);
   const [activePlayId, setActivePlayId] = useState<string | null>(getActiveId());
-  const [fragments, setFragments] = useState<Fragment[]>(FRAGMENTS);
+  const [fragments, setFragments] = useState<Fragment[]>(() => getAllActiveFragments());
 
   // Guarantee complete silence on Owl Clock page mount
   useEffect(() => {
     stopAudio();
   }, []);
 
+  // Listen to live database sync and API updates
   useEffect(() => {
+    const refreshFragments = () => {
+      const active = getAllActiveFragments();
+      if (active.length > 0) {
+        setFragments(active);
+      }
+    };
+
+    refreshFragments();
+
     fetch("/api/fragments")
       .then(res => {
         if (!res.ok) return null;
@@ -331,9 +229,54 @@ export default function OwlClock({
         }
       })
       .catch(() => {
-        // Gracefully keep pre-loaded local FRAGMENTS
+        // Keep local synchronized active fragments
       });
+
+    window.addEventListener("fragments-updated", refreshFragments);
+    window.addEventListener("storage", refreshFragments);
+    return () => {
+      window.removeEventListener("fragments-updated", refreshFragments);
+      window.removeEventListener("storage", refreshFragments);
+    };
   }, []);
+
+  // Dynamically derive directional chronological fragments from all published beats
+  const dynamicDirectionalChronoFragments = useMemo(() => {
+    const list = fragments.map(f => {
+      const timeInfo = parseFragmentTimeDetails((f as any).fragmentTimestamp || f.timestamp || f.name || f.id);
+      return {
+        mappedId: f.id,
+        hour: timeInfo.hour,
+        minute: timeInfo.minute,
+        ampm: timeInfo.ampm,
+        totalMinutes: timeInfo.totalMinutes,
+        label: timeInfo.formatted
+      };
+    });
+    // Sort ascending by totalMinutes in 24-hour day
+    list.sort((a, b) => a.totalMinutes - b.totalMinutes);
+    return list.length > 0 ? list : [
+      { mappedId: "07:15", hour: 7, minute: 15, ampm: "AM" as const, totalMinutes: 435, label: "07:15 AM" },
+      { mappedId: "09:41", hour: 9, minute: 41, ampm: "PM" as const, totalMinutes: 1301, label: "09:41 PM" },
+      { mappedId: "10:00", hour: 10, minute: 0, ampm: "PM" as const, totalMinutes: 1320, label: "10:00 PM" },
+      { mappedId: "11:11", hour: 11, minute: 11, ampm: "PM" as const, totalMinutes: 1391, label: "11:11 PM" }
+    ];
+  }, [fragments]);
+
+  // Dynamically derive clock fragments catalog
+  const dynamicClockFragments = useMemo<ClockFragment[]>(() => {
+    return fragments.map(f => {
+      const timeInfo = parseFragmentTimeDetails((f as any).fragmentTimestamp || f.timestamp || f.name || f.id);
+      return {
+        id: `frag-${f.id.replace(/[^a-zA-Z0-9]/g, "")}`,
+        label: `FRAGMENT ${timeInfo.formatted}`,
+        mappedId: f.id,
+        synthType: (f.synthType as any) || "keys",
+        frequency: f.frequency || 440,
+        description: f.description || `Time Capsule Entry ${f.timestamp || f.name}. High-fidelity recovered tape fragment carrying a ${f.tonalSignature || "harmonic"} axis at ${f.bpm || 110} BPM.`
+      };
+    });
+  }, [fragments]);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
   const [isDrumMoving, setIsDrumMoving] = useState<boolean>(false);
@@ -515,9 +458,9 @@ export default function OwlClock({
   // Sync picked values with current active signal or default to 10:00 PM if user hasn't gone manual
   useEffect(() => {
     if (activePlayId) {
-      const activeFrag = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
+      const activeFrag = dynamicClockFragments.find(f => f.id === activePlayId || f.mappedId === activePlayId);
       if (activeFrag) {
-        const cleaned = activeFrag.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
+        const cleaned = activeFrag.label.replace("FRAGMENT ", "").trim(); // "07:15 AM"
         const [timeStr, ampmStr] = cleaned.split(" ");
         const [hStr, mStr] = timeStr.split(":");
         let h = parseInt(hStr, 10) % 12;
@@ -528,7 +471,7 @@ export default function OwlClock({
         setCalibrationState("available");
       }
     }
-  }, [activePlayId]);
+  }, [activePlayId, dynamicClockFragments]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -566,44 +509,39 @@ export default function OwlClock({
 
     window.addEventListener("mousemove", handleMouseMove);
 
-    // Synchronize active play state from main audio core callbacks
-    registerAudioCallback((isPlaying, fragmentId) => {
-      // Check if any mapping correlates
-      if (fragmentId) {
-        const found = CLOCK_FRAGMENTS.find(f => f.mappedId === fragmentId);
-        setActivePlayId(found ? found.id : null);
-      } else {
-        setActivePlayId(null);
-      }
-    });
-
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
     };
   }, [x, y]);
 
-  const activeFragment = CLOCK_FRAGMENTS.find(f => f.id === activePlayId);
+  // Synchronize active play state from main audio core callbacks
+  useEffect(() => {
+    const unsub = registerAudioCallback((_isPlaying, fragmentId) => {
+      if (fragmentId) {
+        const found = dynamicClockFragments.find(f => f.mappedId === fragmentId || f.id === fragmentId);
+        setActivePlayId(found ? found.id : null);
+      } else {
+        setActivePlayId(null);
+      }
+    });
+    return () => {
+      unsub();
+    };
+  }, [dynamicClockFragments]);
+
+  const activeFragment = dynamicClockFragments.find(f => f.id === activePlayId || f.mappedId === activePlayId);
 
   // Parse active fragment timestamp if available
-  let activeFragH = 2;
-  let activeFragM = 17;
-  let activeFragAMPM: "AM" | "PM" = "AM";
+  let activeFragH = 10;
+  let activeFragM = 0;
+  let activeFragAMPM: "AM" | "PM" = "PM";
   if (activeFragment) {
-    const matched = FRAGMENTS.find(f => f.id === activeFragment.mappedId);
-    if (matched && matched.timestamp) {
-      const timeParts = matched.timestamp.split(" ");
-      if (timeParts.length === 2) {
-        const hhmm = timeParts[0].split(":");
-        if (hhmm.length === 2) {
-          const h12 = parseInt(hhmm[0], 10);
-          const m = parseInt(hhmm[1], 10);
-          if (!isNaN(h12) && !isNaN(m)) {
-            activeFragH = h12 % 12;
-            activeFragM = m;
-            activeFragAMPM = timeParts[1].toUpperCase() === "PM" ? "PM" : "AM";
-          }
-        }
-      }
+    const matched = fragments.find(f => f.id === activeFragment.mappedId);
+    if (matched && (matched.timestamp || matched.name)) {
+      const parsedTime = parseFragmentTimeDetails(matched.timestamp || matched.name);
+      activeFragH = parsedTime.hour;
+      activeFragM = parsedTime.minute;
+      activeFragAMPM = parsedTime.ampm;
     }
   }
 
@@ -636,30 +574,30 @@ export default function OwlClock({
     const curTotalMin = (displayAMPM === "PM" ? curH + 12 : curH) * 60 + displayMinute;
 
     // Find index of current or closest fragment
-    const exactIndex = DIRECTIONAL_CHRONO_FRAGMENTS.findIndex(
+    const exactIndex = dynamicDirectionalChronoFragments.findIndex(
       f => f.hour === (displayHour % 12) && f.minute === displayMinute && f.ampm === displayAMPM
     );
 
     let targetIndex = 0;
     if (exactIndex !== -1) {
       if (direction === "backward") {
-        targetIndex = (exactIndex - 1 + DIRECTIONAL_CHRONO_FRAGMENTS.length) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
+        targetIndex = (exactIndex - 1 + dynamicDirectionalChronoFragments.length) % dynamicDirectionalChronoFragments.length;
       } else {
-        targetIndex = (exactIndex + 1) % DIRECTIONAL_CHRONO_FRAGMENTS.length;
+        targetIndex = (exactIndex + 1) % dynamicDirectionalChronoFragments.length;
       }
     } else {
       if (direction === "backward") {
-        const earlierFrags = DIRECTIONAL_CHRONO_FRAGMENTS
+        const earlierFrags = dynamicDirectionalChronoFragments
           .map((f, idx) => ({ idx, diff: curTotalMin - f.totalMinutes }))
           .filter(item => item.diff > 0);
         if (earlierFrags.length > 0) {
           earlierFrags.sort((a, b) => a.diff - b.diff);
           targetIndex = earlierFrags[0].idx;
         } else {
-          targetIndex = DIRECTIONAL_CHRONO_FRAGMENTS.length - 1;
+          targetIndex = dynamicDirectionalChronoFragments.length - 1;
         }
       } else {
-        const laterFrags = DIRECTIONAL_CHRONO_FRAGMENTS
+        const laterFrags = dynamicDirectionalChronoFragments
           .map((f, idx) => ({ idx, diff: f.totalMinutes - curTotalMin }))
           .filter(item => item.diff > 0);
         if (laterFrags.length > 0) {
@@ -671,7 +609,7 @@ export default function OwlClock({
       }
     }
 
-    const targetFrag = DIRECTIONAL_CHRONO_FRAGMENTS[targetIndex];
+    const targetFrag = dynamicDirectionalChronoFragments[targetIndex] || dynamicDirectionalChronoFragments[0];
     const dir = direction === "forward" ? 1 : -1;
     const targetH24 = (targetFrag.ampm === "PM" ? (targetFrag.hour % 12) + 12 : (targetFrag.hour % 12));
     const targetTotalMin = targetH24 * 60 + targetFrag.minute;
@@ -801,21 +739,9 @@ export default function OwlClock({
 
   // Find the closest fragment circular in time (1440 minutes)
   const getFragmentCloseness = (item: ClockFragment, h: number, m: number, ampm: "AM" | "PM") => {
-    const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
-    const [timeStr, ampmStr] = cleaned.split(" ");
-    const [hStr, mStr] = timeStr.split(":");
-    const itemH = parseInt(hStr, 10);
-    const itemM = parseInt(mStr, 10);
-    const itemAMPM = ampmStr || "AM";
-
-    const get24Min = (hour: number, minute: number, mer: string) => {
-      let h24 = hour % 12;
-      if (mer === "PM") h24 += 12;
-      return h24 * 60 + minute;
-    };
-
-    const targetMinutes = get24Min(h, m, ampm);
-    const itemMinutes = get24Min(itemH, itemM, itemAMPM);
+    const timeInfo = parseFragmentTimeDetails(item.label);
+    const targetMinutes = ((ampm === "PM" ? (h % 12) + 12 : (h % 12)) * 60) + m;
+    const itemMinutes = timeInfo.totalMinutes;
 
     let diff = Math.abs(targetMinutes - itemMinutes);
     if (diff > 720) {
@@ -824,22 +750,22 @@ export default function OwlClock({
     return diff;
   };
 
-  const exactClockFragment = CLOCK_FRAGMENTS.find(item => {
-    const cleaned = item.label.replace("FRAGMENT ", "").trim(); // "02:17 AM"
-    const [timeStr, ampmStr] = cleaned.split(" ");
-    const [hStr, mStr] = timeStr.split(":");
-    let itemH = parseInt(hStr, 10) % 12;
-    let itemM = parseInt(mStr, 10);
-    const itemAMPM = (ampmStr || "AM") as "AM" | "PM";
-    return itemH === displayHour && itemM === displayMinute && itemAMPM === displayAMPM;
-  });
+  const exactActualFrag = useMemo(() => {
+    return fragments.find(f => {
+      const timeInfo = parseFragmentTimeDetails((f as any).fragmentTimestamp || f.timestamp || f.name || f.id);
+      return (timeInfo.hour % 12) === (displayHour % 12) && 
+             timeInfo.minute === displayMinute && 
+             timeInfo.ampm === displayAMPM;
+    }) || null;
+  }, [fragments, displayHour, displayMinute, displayAMPM]);
 
-  const exactActualFrag = exactClockFragment
-    ? (fragments.find(f => f.id === exactClockFragment.mappedId) || FRAGMENTS.find(f => f.id === exactClockFragment.mappedId) || null)
-    : null;
+  const exactClockFragment = useMemo(() => {
+    if (!exactActualFrag) return null;
+    return dynamicClockFragments.find(cf => cf.mappedId === exactActualFrag.id) || null;
+  }, [dynamicClockFragments, exactActualFrag]);
 
   const handleImmediateCheck = () => {
-    if (exactClockFragment) {
+    if (exactActualFrag) {
       setCalibrationState("available");
     } else {
       setCalibrationState("restricted");
@@ -853,7 +779,7 @@ export default function OwlClock({
     setCalibrationState("idle");
 
     const timer = setTimeout(() => {
-      if (exactClockFragment) {
+      if (exactActualFrag) {
         setCalibrationState("available");
       } else {
         setCalibrationState("restricted");
@@ -861,7 +787,7 @@ export default function OwlClock({
     }, 750); // 750ms of inactivity represents finishing interaction
 
     return () => clearTimeout(timer);
-  }, [displayHour, displayMinute, displayAMPM, isManual, exactClockFragment]);
+  }, [displayHour, displayMinute, displayAMPM, isManual, exactActualFrag]);
 
   const handleTransmit = () => {
     ensureToneStarted();
@@ -877,9 +803,9 @@ export default function OwlClock({
     }
   };
 
-  const currentClockItem = exactClockFragment || CLOCK_FRAGMENTS.find(item => item.id === activePlayId) || CLOCK_FRAGMENTS[0]; // fallback to exactClockFragment or active or 10:00 PM
-  const matchedFrag = FRAGMENTS.find(f => f.id === currentClockItem.mappedId) || FRAGMENTS.find(f => f.id === "10:00") || FRAGMENTS[0];
-  const formattedTitle = matchedFrag.name.toUpperCase();
+  const currentClockItem = exactClockFragment || dynamicClockFragments.find(item => item.id === activePlayId || item.mappedId === activePlayId) || dynamicClockFragments[0];
+  const matchedFrag = exactActualFrag || fragments.find(f => f.id === currentClockItem?.mappedId) || fragments[0] || FRAGMENTS[0];
+  const formattedTitle = (matchedFrag?.name || "RECOVERED FRAGMENT").toUpperCase();
   const isPlayingBeat = false;
 
   const toggleModalPlay = () => {
@@ -958,7 +884,7 @@ export default function OwlClock({
                   exit={{ opacity: 0, y: -3, scale: 0.97 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
                   onClick={handleTransmit}
-                  className="w-full bg-white hover:bg-zinc-200 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-colors duration-200 shadow-[0_0_15px_rgba(255,255,255,0.25)] flex items-center justify-center select-none"
+                  className="w-full bg-white hover:bg-zinc-100 text-black font-sans font-bold text-[11px] tracking-widest uppercase py-2 px-4 rounded-[4px] cursor-pointer transition-all duration-300 shadow-[0_0_16px_rgba(255,255,255,0.35)] hover:shadow-[0_0_30px_rgba(255,255,255,0.85)] hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center select-none"
                 >
                   <span>TRANSMIT SIGNAL</span>
                 </motion.button>
@@ -980,84 +906,83 @@ export default function OwlClock({
           </div>
         </div>
 
-        {/* LOWER AREA: SENTINEL OWL WITH TIGHTLY CONFINED INTERACTIVE SENSITIVE ZONE */}
+        {/* LOWER AREA: FULLY INTERACTIVE SENSITIVE ZONE ACROSS ENTIRE REGION */}
         <div 
           className="flex-grow w-full flex flex-col items-center justify-center min-h-0 relative z-10 gap-3 sm:gap-6 mt-1 sm:mt-4 md:mt-6 mb-2 select-none"
         >
-          {/* Centered Sentinel Owl Visual + Focused Sensitive Interaction Box */}
-          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative px-4">
-            
-            {/* OWL SENSITIVE CLICK ZONE: LEFT HALF (BACKWARD) & RIGHT HALF (FORWARD) */}
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label="Shuffle timestamp backward"
-              onClick={() => handleDirectionalShuffle("backward")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleDirectionalShuffle("backward");
-                }
-              }}
-              className="absolute inset-y-0 left-4 w-[calc(50%-16px)] z-20 cursor-pointer focus:outline-none rounded-l-xl"
-              title="Previous Fragment"
-            />
+          {/* FULL INTERACTIVE ZONE: LEFT HALF SHUFFLES BACKWARD, RIGHT HALF SHUFFLES FORWARD */}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Shuffle timestamp backward"
+            onClick={() => handleDirectionalShuffle("backward")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleDirectionalShuffle("backward");
+              }
+            }}
+            className="absolute inset-y-0 left-0 w-1/2 z-20 cursor-pointer focus:outline-none touch-manipulation"
+            title="Previous Fragment"
+          />
 
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label="Shuffle timestamp forward"
-              onClick={() => handleDirectionalShuffle("forward")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleDirectionalShuffle("forward");
-                }
-              }}
-              className="absolute inset-y-0 right-4 w-[calc(50%-16px)] z-20 cursor-pointer focus:outline-none rounded-r-xl"
-              title="Next Fragment"
-            />
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Shuffle timestamp forward"
+            onClick={() => handleDirectionalShuffle("forward")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleDirectionalShuffle("forward");
+              }
+            }}
+            className="absolute inset-y-0 right-0 w-1/2 z-20 cursor-pointer focus:outline-none touch-manipulation"
+            title="Next Fragment"
+          />
 
-            {/* DYNAMIC LEFT ARROW: Appears right beside the Owl on backward shuffle */}
-            <div className="absolute -left-2 sm:-left-4 md:-left-6 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
-              <AnimatePresence>
-                {activeArrow === "backward" && (
-                  <motion.div
-                    key="dynamic-left-arrow"
-                    initial={{ opacity: 0, x: 8, scale: 0.85 }}
-                    animate={{ opacity: 1, x: [4, -6, 0], scale: 1 }}
-                    exit={{ opacity: 0, x: -8, scale: 0.85, transition: { duration: 0.25 } }}
-                    transition={{ duration: 0.35, ease: "easeOut" }}
-                    className="flex items-center justify-center"
-                  >
-                    <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
-                      ←
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          {/* DYNAMIC LEFT ARROW: Appears on backward / left-half interaction */}
+          <div className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+            <AnimatePresence>
+              {activeArrow === "backward" && (
+                <motion.div
+                  key="dynamic-left-arrow"
+                  initial={{ opacity: 0, x: 8, scale: 0.85 }}
+                  animate={{ opacity: 1, x: [4, -6, 0], scale: 1 }}
+                  exit={{ opacity: 0, x: -8, scale: 0.85, transition: { duration: 0.25 } }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="flex items-center justify-center"
+                >
+                  <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
+                    ←
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-            {/* DYNAMIC RIGHT ARROW: Appears right beside the Owl on forward shuffle */}
-            <div className="absolute -right-2 sm:-right-4 md:-right-6 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
-              <AnimatePresence>
-                {activeArrow === "forward" && (
-                  <motion.div
-                    key="dynamic-right-arrow"
-                    initial={{ opacity: 0, x: -8, scale: 0.85 }}
-                    animate={{ opacity: 1, x: [-4, 6, 0], scale: 1 }}
-                    exit={{ opacity: 0, x: 8, scale: 0.85, transition: { duration: 0.25 } }}
-                    transition={{ duration: 0.35, ease: "easeOut" }}
-                    className="flex items-center justify-center"
-                  >
-                    <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
-                      →
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          {/* DYNAMIC RIGHT ARROW: Appears on forward / right-half interaction */}
+          <div className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center">
+            <AnimatePresence>
+              {activeArrow === "forward" && (
+                <motion.div
+                  key="dynamic-right-arrow"
+                  initial={{ opacity: 0, x: -8, scale: 0.85 }}
+                  animate={{ opacity: 1, x: [-4, 6, 0], scale: 1 }}
+                  exit={{ opacity: 0, x: 8, scale: 0.85, transition: { duration: 0.25 } }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="flex items-center justify-center"
+                >
+                  <span className="font-mono text-xl sm:text-2xl text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.75)] select-none">
+                    →
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
+          {/* Centered Sentinel Owl Visual */}
+          <div className="w-full max-w-[380px] sm:max-w-[440px] md:max-w-[480px] flex items-center justify-center min-h-0 relative px-4 pointer-events-none">
             {/* Owl Image Canvas */}
             <motion.div 
               className="w-full aspect-[16/10] relative overflow-hidden bg-black group flex items-center justify-center pointer-events-none"
@@ -1112,13 +1037,12 @@ export default function OwlClock({
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 animate={{
-                  opacity: [0.35, 1, 0.35],
+                  opacity: [0.4, 1, 0.4],
                   filter: [
                     "drop-shadow(0 0 0px rgba(255, 255, 255, 0))",
-                    "drop-shadow(0 0 5px rgba(255, 255, 255, 0.85))",
+                    "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))",
                     "drop-shadow(0 0 0px rgba(255, 255, 255, 0))"
-                  ],
-                  scale: [0.95, 1.08, 0.95]
+                  ]
                 }}
                 transition={{
                   duration: 2.8,

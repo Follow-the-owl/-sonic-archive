@@ -496,15 +496,13 @@ export default function DocumentDashboard({
 
   // Hard Reset / Cache Purge Handler
   const handlePurgeAndReset = async () => {
-    if (window.confirm("Reset document repository and clear legacy cache? Your active licenses will be re-synchronized with the secure archive.")) {
-      try {
-        localStorage.removeItem("dashboard_vault_documents");
-        // Also call backend to clear dummy history
-        await fetch("/api/user/clear-history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).catch(() => {});
-      } catch (_e) {}
-      reloadFromStorageAndUser();
-      if (onRefreshData) onRefreshData();
-    }
+    try {
+      localStorage.removeItem("dashboard_vault_documents");
+      // Also call backend to clear dummy history
+      await fetch("/api/user/clear-history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }).catch(() => {});
+    } catch (_e) {}
+    reloadFromStorageAndUser();
+    if (onRefreshData) onRefreshData();
   };
 
   // Set default view menu mode on load depending on login state, route, or mode prop

@@ -1,14 +1,16 @@
 // Tone.js Web Audio Engine for LOMON / UNKNOWN
 import * as Tone from "tone";
 import { FRAGMENTS } from "./data";
+import { getStoredFullFragments } from "./lib/fragmentService";
 
 let isToneInitialized = false;
 let toneMasterVolume: Tone.Volume | null = null;
 let rawAnalyser: AnalyserNode | null = null;
 let masterVolumeLevel = 0.7;
 
-// Tone.Player state for MP3 fragment playback
+// Active audio players (Tone.Player & HTMLAudioElement for local/blob/Cloudinary assets)
 let currentTonePlayer: Tone.Player | null = null;
+let currentHtmlAudio: HTMLAudioElement | null = null;
 let currentBufferDuration = 0;
 let playbackStartedAt = 0;
 let playbackOffsetSec = 0;
@@ -175,7 +177,12 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
 
   let result = url.trim();
 
-  // If already an MP3, return directly to prevent broken video path transforms
+  // If base64 or blob URL, return untouched
+  if (result.startsWith("blob:") || result.startsWith("data:")) {
+    return result;
+  }
+
+  // If already an MP3, return directly
   if (result.endsWith(".mp3")) {
     return result;
   }
@@ -187,10 +194,6 @@ export function getOptimizedAudioUrl(url: string | undefined | null): string {
       result = result.replace(/\.wav(\?.*)?$/i, ".mp3$1");
     }
     return result;
-  }
-
-  if (result.endsWith(".wav")) {
-    return result.replace(/\.wav$/, ".mp3");
   }
 
   return result;
@@ -207,10 +210,13 @@ export function preloadAllAudio() {
 }
 
 export function getCurrentAudioElement(): HTMLAudioElement | null {
-  return null;
+  return currentHtmlAudio;
 }
 
 export function getCurrentTime(): number {
+  if (currentHtmlAudio && !isNaN(currentHtmlAudio.currentTime)) {
+    return currentHtmlAudio.currentTime;
+  }
   if (currentTonePlayer && isPlayingState && currentBufferDuration > 0) {
     const elapsed = Tone.now() - playbackStartedAt;
     return (elapsed % currentBufferDuration);
@@ -219,6 +225,9 @@ export function getCurrentTime(): number {
 }
 
 export function getDuration(): number {
+  if (currentHtmlAudio && currentHtmlAudio.duration && !isNaN(currentHtmlAudio.duration)) {
+    return currentHtmlAudio.duration;
+  }
   if (currentTonePlayer && currentBufferDuration > 0) {
     return currentBufferDuration;
   }
@@ -229,6 +238,12 @@ export function seekAudio(seconds: number) {
   const dur = getDuration() || seconds;
   const validSec = Math.max(0, Math.min(seconds, dur));
   playbackOffsetSec = validSec;
+
+  if (currentHtmlAudio) {
+    try {
+      currentHtmlAudio.currentTime = validSec;
+    } catch (e) {}
+  }
 
   if (currentTonePlayer && isPlayingState) {
     playbackStartedAt = Tone.now() - validSec;
@@ -242,6 +257,12 @@ export function seekAudio(seconds: number) {
 }
 
 export function pauseAudio() {
+  if (currentHtmlAudio && isPlayingState) {
+    playbackOffsetSec = currentHtmlAudio.currentTime;
+    try {
+      currentHtmlAudio.pause();
+    } catch (e) {}
+  }
   if (currentTonePlayer && isPlayingState) {
     playbackOffsetSec = getCurrentTime();
     try {
@@ -254,6 +275,17 @@ export function pauseAudio() {
 }
 
 export async function resumeAudio() {
+  if (currentHtmlAudio && activeId) {
+    try {
+      await currentHtmlAudio.play();
+      isPlayingState = true;
+      isLoadingState = false;
+      notifyAudioCallbacks();
+      return;
+    } catch (e) {
+      console.error("Error resuming HTML Audio:", e);
+    }
+  }
   await ensureToneStarted();
   if (currentTonePlayer && activeId) {
     playbackStartedAt = Tone.now() - playbackOffsetSec;
@@ -285,7 +317,18 @@ export function isAudioLoading(): boolean {
 
 export function stopAudio() {
   currentAudioSessionToken++;
-  // CRITICAL: Stop and dispose Tone.Player instance to avoid memory leaks
+
+  // Stop HTML audio if active
+  if (currentHtmlAudio) {
+    try {
+      currentHtmlAudio.pause();
+      currentHtmlAudio.removeAttribute("src");
+      currentHtmlAudio.load();
+    } catch (e) {}
+    currentHtmlAudio = null;
+  }
+
+  // Stop Tone.Player instance
   if (currentTonePlayer) {
     try {
       currentTonePlayer.stop();
@@ -336,106 +379,121 @@ if (typeof window !== "undefined") {
 export function toggleFragment(
   id: string,
   frequency: number,
-  synthType: "drone" | "keys" | "bell" | "noise" | "pulse"
+  synthType: "drone" | "keys" | "bell" | "noise" | "pulse",
+  customAudioUrl?: string
 ) {
   if (activeId === id && isPlayingState) {
     pauseAudio();
   } else if (activeId === id && !isPlayingState) {
     resumeAudio();
   } else {
-    playFragment(id, frequency, synthType);
+    playFragment(id, frequency, synthType, customAudioUrl);
   }
 }
 
 export async function playFragment(
   id: string,
   frequency: number = 110,
-  synthType: "drone" | "keys" | "bell" | "noise" | "pulse" = "drone"
+  synthType: "drone" | "keys" | "bell" | "noise" | "pulse" = "drone",
+  customAudioUrl?: string
 ) {
-  await ensureToneStarted();
-
-  if (activeId === id && currentTonePlayer && isPlayingState) {
+  if (activeId === id && isPlayingState && (currentHtmlAudio || currentTonePlayer || currentNodes)) {
     return;
   }
 
-  // Cleanly stop and dispose previous player instance
+  // Cleanly stop and dispose previous player instances
   stopAudio();
 
+  activeId = id;
   const sessionToken = currentAudioSessionToken;
 
-  const fragment = FRAGMENTS.find((f) => f.id === id);
-  if (fragment && fragment.mp3Preview) {
-    const optimizedUrl = getOptimizedAudioUrl(fragment.mp3Preview);
+  // Resolve target audio URL
+  let targetAudioUrl: string | undefined = customAudioUrl;
+
+  if (!targetAudioUrl) {
+    try {
+      const stored = getStoredFullFragments();
+      const matchStored = stored.find(f => f.id === id || f.compositionId === id || f.fragmentTimestamp === id);
+      if (matchStored && matchStored.audioFiles && matchStored.audioFiles.length > 0) {
+        targetAudioUrl = matchStored.audioFiles.find(a => a.fileType === "publicPreviewMp3")?.fileUrl
+          || matchStored.audioFiles.find(a => a.fileType === "untaggedPreview")?.fileUrl
+          || matchStored.audioFiles.find(a => a.fileType === "licensedMp3")?.fileUrl
+          || matchStored.audioFiles.find(a => a.fileType === "taggedPreview")?.fileUrl
+          || matchStored.audioFiles.find(a => a.fileType === "masterWav")?.fileUrl
+          || matchStored.audioFiles.find(a => a.fileType === "instrumental")?.fileUrl
+          || matchStored.audioFiles.find(a => a.fileType === "alternateVersion")?.fileUrl
+          || matchStored.audioFiles[0]?.fileUrl;
+      }
+    } catch (_e) {}
+  }
+
+  if (!targetAudioUrl) {
+    const fragment = FRAGMENTS.find((f) => f.id === id);
+    if (fragment) {
+      targetAudioUrl = fragment.mp3Preview || fragment.previewAudioUrl || fragment.audioUrl;
+    }
+  }
+
+  // If a valid audio URL exists (attached file, preview, or master asset), play the actual sound file
+  if (targetAudioUrl && targetAudioUrl.trim()) {
+    const cleanUrl = targetAudioUrl.trim();
+    const optimizedUrl = getOptimizedAudioUrl(cleanUrl);
     isLoadingState = true;
-    activeId = id;
-    playbackOffsetSec = 0;
+    notifyAudioCallbacks();
 
     try {
-      const player = new Tone.Player({
-        url: optimizedUrl,
-        loop: true,
-        autostart: false,
-        onload: () => {
-          if (currentAudioSessionToken !== sessionToken || activeId !== id) {
-            try {
-              player.stop();
-              player.dispose();
-            } catch (e) {}
-            return;
-          }
-          isLoadingState = false;
-          if (player === currentTonePlayer) {
-            currentBufferDuration = player.buffer.duration || 0;
-            playbackStartedAt = Tone.now() - playbackOffsetSec;
-            player.start(0, playbackOffsetSec);
-            isPlayingState = true;
-            notifyAudioCallbacks();
-          }
-        },
-        onerror: (err) => {
-          if (currentAudioSessionToken !== sessionToken) return;
-          console.warn("Tone.Player load error for fragment " + id + ", triggering procedural synth fallback.", err);
-          isLoadingState = false;
-          playProceduralSynth(id, frequency, synthType);
-        }
-      });
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous";
+      audio.src = optimizedUrl;
+      audio.volume = masterVolumeLevel;
+      audio.loop = true;
 
-      if (toneMasterVolume) {
-        player.connect(toneMasterVolume);
-      } else {
-        player.toDestination();
-      }
+      currentHtmlAudio = audio;
 
-      player.loop = true; // Sample-accurate, gapless looping
-      currentTonePlayer = player;
-
-      if (player.loaded) {
+      audio.oncanplay = () => {
         if (currentAudioSessionToken !== sessionToken || activeId !== id) {
-          try {
-            player.stop();
-            player.dispose();
-          } catch (e) {}
+          audio.pause();
           return;
         }
         isLoadingState = false;
-        currentBufferDuration = player.buffer.duration || 0;
-        playbackStartedAt = Tone.now() - playbackOffsetSec;
-        player.start(0, playbackOffsetSec);
+        isPlayingState = true;
+        audio.play().catch(e => {
+          console.warn("Autoplay or audio play catch:", e);
+        });
+        notifyAudioCallbacks();
+      };
+
+      audio.onplaying = () => {
+        if (currentAudioSessionToken !== sessionToken || activeId !== id) {
+          audio.pause();
+          return;
+        }
+        isLoadingState = false;
         isPlayingState = true;
         notifyAudioCallbacks();
-      } else {
-        notifyAudioCallbacks();
-      }
+      };
+
+      audio.onerror = (e) => {
+        if (currentAudioSessionToken !== sessionToken) return;
+        console.warn(`HTML Audio load failed for fragment ${id}, attempting procedural synth fallback:`, e);
+        if (currentHtmlAudio === audio) {
+          currentHtmlAudio = null;
+        }
+        isLoadingState = false;
+        playProceduralSynth(id, frequency, synthType);
+      };
+
+      audio.load();
       return;
-    } catch (e) {
-      console.warn("Failed to initialize Tone.Player for fragment " + id + ". Falling back to procedural synth.", e);
+    } catch (err) {
+      console.warn("Audio creation failed, falling back to procedural synth:", err);
       isLoadingState = false;
       playProceduralSynth(id, frequency, synthType);
       return;
     }
   }
 
-  // Direct procedural synth generation for fragments without MP3 preview
+  // Direct procedural synth generation for fragments without attached audio
   playProceduralSynth(id, frequency, synthType);
 }
 

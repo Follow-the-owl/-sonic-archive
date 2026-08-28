@@ -1,7 +1,16 @@
 // ============================================================================
 // THE OWL CLOCK / LOMON LLC — OFFICIAL LEGAL LICENSE AGREEMENT ENGINE
-// Exact First Edition Legal Contracts for $150, $500, $1,000, $5,000 Tiers
+// Exact Legal Contracts for $150, $500, $1,000, $5,000, Sync, and Collab Tiers
 // ============================================================================
+
+export const LICENSOR_GLOBAL_METADATA = {
+  legalEntity: "LOMON LLC d/b/a The Owl Clock",
+  pro: "BMI",
+  writerName: "CHRISTOPHER SOLOMON PAUL",
+  writerIpi: "01305977829",
+  publisherName: "CHRISTOPHER SOLOMON PAUL (d/b/a The Owl Clock)",
+  publisherIpi: "01305977829"
+} as const;
 
 export interface LicenseAgreementData {
   licenseId: string; // Unique auto-generated ID, e.g., "TOC-LIC-20260804-4837"
@@ -12,7 +21,7 @@ export interface LicenseAgreementData {
   licenseeAddress?: string;
   fragmentTitle: string; // e.g., "9:41 PM"
   archiveIdentifier: string; // e.g., "TOC-0941PM-001" or "09:41"
-  licenseTierId: "access" | "release" | "commercial" | "exclusive" | "sync" | string;
+  licenseTierId: "access" | "release" | "commercial" | "exclusive" | "sync" | "collaboration" | string;
   licenseTierTitle?: string;
   price?: number | string;
   
@@ -21,6 +30,7 @@ export interface LicenseAgreementData {
   compositionOwnership?: string;
   publishingShare?: string;
   writerShare?: string;
+  contentIdRegistration?: string;
   exclusivity?: string;
   contractVersion?: string;
 }
@@ -41,12 +51,19 @@ export interface ScheduleAData {
 }
 
 export interface ScheduleBData {
+  licensorEntity: string;
   masterOwnership: string;
-  compositionOwnership: string;
   publishingShare: string;
   writerShare: string;
+  contentIdRegistration: string;
   exclusivity: string;
+  licensorPro: string;
+  licensorWriterName: string;
+  licensorWriterIpi: string;
+  licensorPublisherName: string;
+  licensorPublisherIpi: string;
   contractVersion: string;
+  compositionOwnership?: string;
 }
 
 export interface LegalArticle {
@@ -60,13 +77,15 @@ export interface LegalArticle {
 /**
  * Normalizes tier ID from price or tier string
  */
-export function normalizeTierId(tierIdOrPrice?: string | number): "access" | "release" | "commercial" | "exclusive" | "sync" {
-  if (!tierIdOrPrice) return "access";
+export function normalizeTierId(tierIdOrPrice?: string | number): "access" | "release" | "commercial" | "exclusive" | "sync" | "collaboration" {
+  if (!tierIdOrPrice && tierIdOrPrice !== 0) return "access";
   const str = String(tierIdOrPrice).toLowerCase().replace(/[^a-z0-9]/g, "");
   if (str.includes("5000") || str.includes("exclusive") || str.includes("acqui")) return "exclusive";
   if (str.includes("1000") || str.includes("commercial") || str.includes("exploit")) return "commercial";
   if (str.includes("500") || str.includes("release")) return "release";
-  if (str.includes("sync") || str.includes("custom")) return "sync";
+  if (str.includes("150") || str.includes("access")) return "access";
+  if (str.includes("collab") || str.includes("collaboration") || str.includes("producer")) return "collaboration";
+  if (str.includes("sync") || str.includes("custom") || str.includes("proposal")) return "sync";
   return "access";
 }
 
@@ -74,7 +93,7 @@ export function normalizeTierId(tierIdOrPrice?: string | number): "access" | "re
  * Dynamically computes Schedule A from purchase data & fragment metadata.
  */
 export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
-  const tierId = normalizeTierId(data.licenseTierId || (typeof data.price === "number" || typeof data.price === "string" ? String(data.price) : "access"));
+  const tierId = normalizeTierId(data.licenseTierId || (data.price !== undefined ? String(data.price) : "access"));
   
   let tierTitle = "Archive Access License ($150.00 USD)";
   let feeStr = "USD $150.00";
@@ -99,7 +118,7 @@ export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
       "Approved Promotional Video use (one official music video, lyric video, visualizer)",
       "Live Public Concert & Venue Performances Permitted",
       "Performance Rights Organizations (PRO) Registration (50/50 Split)",
-      "Master Ownership remains 100% with Lomon LLC"
+      "Master Ownership retained 100% by LOMON LLC"
     ];
   } else if (tierId === "commercial") {
     tierTitle = "Commercial Exploitation License ($1,000.00 USD)";
@@ -112,30 +131,45 @@ export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
       "Unlimited Physical & Digital Sales across commercial retail channels",
       "Full Production Stems Package included for advanced mixing & rearrangement",
       "Monetized Video, Social Media Promotional Campaigns & Live Performances",
-      "Master Ownership remains 100% with Lomon LLC (50/50 Publishing Split)"
+      "Master Ownership retained 100% by LOMON LLC (50/50 Publishing Split)"
     ];
   } else if (tierId === "exclusive") {
     tierTitle = "Exclusive Archive Acquisition ($5,000.00 USD)";
     feeStr = "USD $5,000.00";
     deliveryPackage = "Full Production Files, Production Stems, High-Resolution WAV, Metadata Transfer, Exclusive Clearance Certificate, Ownership Documentation";
-    catalogStatus = "Retired / Removed from Public Licensing";
+    catalogStatus = "Retired & Permanently Removed from Archive";
     scope = [
       "100% Exclusive Commercial Rights & Worldwide Exploitation",
       "Permanent Catalog Removal & Retirement from The Owl Clock public licensing platform",
       "Full Production Files & Multi-track Stems Included",
-      "Master Ownership Transferred & Assigned to Licensee per executed terms",
-      "Automated Content Identification System (Content ID) registration permitted",
+      "Master Ownership 100% Transferred and Assigned to Licensee per executed terms",
+      "Publishing & Writer Split: 50% LOMON LLC / 50% Licensee",
+      "Automated Content Identification System (Content ID) registration permitted per Section 3.8",
       "Prior lawfully issued non-exclusive licenses remain valid per Section 3.8"
     ];
+  } else if (tierId === "collaboration") {
+    tierTitle = "Producer Collaboration License (Collaboration Tier)";
+    feeStr = "USD $0.00 (Collaboration)";
+    deliveryPackage = "Production Stems, High-Resolution WAV, Metadata Package, Co-Publishing Agreement";
+    catalogStatus = "Collaborative Archive Project";
+    scope = [
+      "1 Collaborative Music Release Project",
+      "Upfront Fee: $0.00",
+      "Master Ownership: 50% LOMON LLC / 50% Licensee",
+      "Publishing Split: 50% LOMON LLC / 50% Licensee",
+      "Writer Split: 50% LOMON LLC / 50% Licensee",
+      "Commercial distribution permitted subject to joint clearance execution"
+    ];
   } else if (tierId === "sync") {
-    tierTitle = "Synchronization & Master License (Project Schedule)";
+    tierTitle = "Synchronization & Master License (Custom Proposal)";
     feeStr = data.price ? `USD $${data.price}` : "Custom Project Quoted";
     deliveryPackage = "High-Resolution Master WAV, Production Stems, Project Clearance Schedule";
-    catalogStatus = "Project Specific Clearance";
+    catalogStatus = "Project-Specific Clearance";
     scope = [
-      "Project-Specific Synchronization License",
+      "Project-Specific Synchronization & Master License",
       "Approved Film, Television, Advertising, Streaming Series, or Video Game integration",
-      "Worldwide Broadcast & VoD Rights Per Executed Project Schedule"
+      "Worldwide Broadcast & VoD Rights Per Executed Project Schedule",
+      "Master Ownership & Publishing Splits Negotiated Per Project Schedule"
     ];
   }
 
@@ -155,7 +189,7 @@ export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
   }
 
   return {
-    licensor: "Lomon LLC d/b/a The Owl Clock",
+    licensor: LICENSOR_GLOBAL_METADATA.legalEntity,
     licenseeLegalName: data.licenseeLegalName || "Valued Licensee",
     licensedFragmentTitle: data.fragmentTitle || "The Owl Clock Archive Fragment",
     archiveIdentifier: formattedArchiveId,
@@ -172,49 +206,93 @@ export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
 
 /**
  * Dynamically computes Schedule B from purchase data & fragment metadata.
+ * Strictly populated with explicit baseline percentages and PRO/IPI metadata.
  */
 export function getScheduleBData(data: LicenseAgreementData): ScheduleBData {
-  const tierId = normalizeTierId(data.licenseTierId || (typeof data.price === "number" || typeof data.price === "string" ? String(data.price) : "access"));
+  const tierId = normalizeTierId(data.licenseTierId || (data.price !== undefined ? String(data.price) : "access"));
 
+  // Common PRO / Entity metadata
+  const basePro = {
+    licensorEntity: LICENSOR_GLOBAL_METADATA.legalEntity,
+    licensorPro: LICENSOR_GLOBAL_METADATA.pro,
+    licensorWriterName: LICENSOR_GLOBAL_METADATA.writerName,
+    licensorWriterIpi: LICENSOR_GLOBAL_METADATA.writerIpi,
+    licensorPublisherName: LICENSOR_GLOBAL_METADATA.publisherName,
+    licensorPublisherIpi: LICENSOR_GLOBAL_METADATA.publisherIpi,
+  };
+
+  // Tier 5: Exclusive Archive Acquisition ($5,000)
   if (tierId === "exclusive") {
     return {
-      masterOwnership: data.masterOwnership || "Transferred per executed agreement (Schedule A/B)",
-      compositionOwnership: data.compositionOwnership || "Negotiable Transfer (as specified: __% Licensor / __% Licensee)",
-      publishingShare: data.publishingShare || "Negotiable Transfer (as specified: __% Licensor / __% Licensee)",
-      writerShare: data.writerShare || "Negotiable Transfer per executed agreement",
+      ...basePro,
+      masterOwnership: data.masterOwnership || "100% Transferred and Assigned to Licensee (per executed Schedule A/B)",
+      publishingShare: data.publishingShare || "50% LOMON LLC / 50% Licensee",
+      writerShare: data.writerShare || "50% LOMON LLC / 50% Licensee",
+      contentIdRegistration: data.contentIdRegistration || "Permitted (Subject to Section 3.8 prior non-exclusive rights)",
       exclusivity: data.exclusivity || "100% Exclusive Acquisition",
       contractVersion: data.contractVersion || "v3.0-2026"
     };
   }
 
+  // Tier 3: Commercial Exploitation License ($1,000)
   if (tierId === "commercial") {
     return {
-      masterOwnership: data.masterOwnership || "100% Lomon LLC",
-      compositionOwnership: data.compositionOwnership || "50% Writer / Publisher (Lomon LLC) | 50% Writer / Publisher (Licensee)",
-      publishingShare: data.publishingShare || "50% Publisher (Lomon LLC) / 50% Licensee's publisher",
-      writerShare: data.writerShare || "50% Writer (Lomon LLC) / 50% Licensee's writers",
+      ...basePro,
+      masterOwnership: data.masterOwnership || "Retained by LOMON LLC (100%)",
+      publishingShare: data.publishingShare || "50% LOMON LLC / 50% Licensee",
+      writerShare: data.writerShare || "50% LOMON LLC / 50% Licensee",
+      contentIdRegistration: data.contentIdRegistration || "Restricted / Prohibited",
       exclusivity: data.exclusivity || "Non-Exclusive",
       contractVersion: data.contractVersion || "v1.5-2026"
     };
   }
 
+  // Tier 2: Commercial Release License ($500)
   if (tierId === "release") {
     return {
-      masterOwnership: data.masterOwnership || "100% Lomon LLC",
-      compositionOwnership: data.compositionOwnership || "50% Writer / Publisher (Lomon LLC) | 50% Writer / Publisher (Licensee)",
-      publishingShare: data.publishingShare || "50% Publisher (Lomon LLC) / 50% Licensee's publisher",
-      writerShare: data.writerShare || "50% Writer (Lomon LLC) / 50% Licensee's writers",
+      ...basePro,
+      masterOwnership: data.masterOwnership || "Retained by LOMON LLC (100%)",
+      publishingShare: data.publishingShare || "50% LOMON LLC / 50% Licensee",
+      writerShare: data.writerShare || "50% LOMON LLC / 50% Licensee",
+      contentIdRegistration: data.contentIdRegistration || "Restricted / Prohibited",
       exclusivity: data.exclusivity || "Non-Exclusive",
       contractVersion: data.contractVersion || "v1.2-2026"
     };
   }
 
-  // Default: Access Tier ($150)
+  // Tier 6: Producer Collaboration ($0)
+  if (tierId === "collaboration") {
+    return {
+      ...basePro,
+      masterOwnership: data.masterOwnership || "50% LOMON LLC / 50% Licensee",
+      publishingShare: data.publishingShare || "50% LOMON LLC / 50% Licensee",
+      writerShare: data.writerShare || "50% LOMON LLC / 50% Licensee",
+      contentIdRegistration: data.contentIdRegistration || "Restricted / Subject to Joint Written Approval",
+      exclusivity: data.exclusivity || "Collaborative Project Allocation",
+      contractVersion: data.contractVersion || "v1.0-Collab-2026"
+    };
+  }
+
+  // Tier 4: Synchronization & Master License (Custom Proposal)
+  if (tierId === "sync") {
+    return {
+      ...basePro,
+      masterOwnership: data.masterOwnership || "Negotiated Per Project",
+      publishingShare: data.publishingShare || "Negotiated Per Project",
+      writerShare: data.writerShare || "Negotiated Per Project",
+      contentIdRegistration: data.contentIdRegistration || "Per Project Agreement / Negotiated",
+      exclusivity: data.exclusivity || "Project-Specific / Negotiable",
+      contractVersion: data.contractVersion || "v2.0-2026"
+    };
+  }
+
+  // Tier 1: Archive Access License ($150) — Default
   return {
-    masterOwnership: data.masterOwnership || "100% Lomon LLC",
-    compositionOwnership: data.compositionOwnership || "100% Lomon LLC",
-    publishingShare: data.publishingShare || "100% Lomon LLC",
-    writerShare: data.writerShare || "100% Lomon LLC",
+    ...basePro,
+    masterOwnership: data.masterOwnership || "Retained by LOMON LLC (100%)",
+    publishingShare: data.publishingShare || "100% LOMON LLC / 0% Licensee",
+    writerShare: data.writerShare || "100% LOMON LLC / 0% Licensee",
+    contentIdRegistration: data.contentIdRegistration || "Strictly Prohibited",
     exclusivity: data.exclusivity || "Non-Exclusive",
     contractVersion: data.contractVersion || "v1.0-2026"
   };
@@ -844,12 +922,17 @@ export function generateFullAgreementText(data: LicenseAgreementData): string {
   out += `• License Fee: ${schedA.licenseFee}\n\n`;
 
   out += `================================================================================\n`;
-  out += `SCHEDULE B: OWNERSHIP & SPLITS\n`;
+  out += `SCHEDULE B: OWNERSHIP, PRO & PUBLISHING SPLITS\n`;
   out += `================================================================================\n`;
+  out += `• Licensor Legal Entity: ${schedB.licensorEntity}\n`;
   out += `• Master Ownership: ${schedB.masterOwnership}\n`;
   out += `• Publishing Split: ${schedB.publishingShare}\n`;
   out += `• Writer Split: ${schedB.writerShare}\n`;
+  out += `• Content ID Registration: ${schedB.contentIdRegistration}\n`;
   out += `• Exclusivity: ${schedB.exclusivity}\n`;
+  out += `• Licensor PRO: ${schedB.licensorPro}\n`;
+  out += `• Licensor Writer Name: ${schedB.licensorWriterName} (IPI: ${schedB.licensorWriterIpi})\n`;
+  out += `• Licensor Publisher Name: ${schedB.licensorPublisherName} (IPI: ${schedB.licensorPublisherIpi})\n`;
   out += `• Contract Version: ${schedB.contractVersion}\n\n`;
 
   out += `================================================================================\n`;
@@ -1176,7 +1259,7 @@ export function generateAgreementHTML(data: LicenseAgreementData): string {
     <div class="article-title">SCHEDULE A: TRANSACTION & ASSET DETAILS</div>
     <table class="schedule-table">
       <tr>
-        <td class="label-col">Licensor</td>
+        <td class="label-col">Licensor Legal Entity</td>
         <td class="val-col">${schedA.licensor}</td>
       </tr>
       <tr>
@@ -1227,8 +1310,12 @@ export function generateAgreementHTML(data: LicenseAgreementData): string {
       </tr>
     </table>
 
-    <div class="article-title">SCHEDULE B: OWNERSHIP & SPLITS</div>
+    <div class="article-title">SCHEDULE B: OWNERSHIP, PRO & PUBLISHING SPLITS</div>
     <table class="schedule-table">
+      <tr>
+        <td class="label-col">Licensor Legal Entity</td>
+        <td class="val-col">${schedB.licensorEntity}</td>
+      </tr>
       <tr>
         <td class="label-col">Master Ownership</td>
         <td class="val-col">${schedB.masterOwnership}</td>
@@ -1242,8 +1329,24 @@ export function generateAgreementHTML(data: LicenseAgreementData): string {
         <td class="val-col">${schedB.writerShare}</td>
       </tr>
       <tr>
+        <td class="label-col">Content ID Registration</td>
+        <td class="val-col">${schedB.contentIdRegistration}</td>
+      </tr>
+      <tr>
         <td class="label-col">Exclusivity</td>
         <td class="val-col">${schedB.exclusivity}</td>
+      </tr>
+      <tr>
+        <td class="label-col">Licensor PRO</td>
+        <td class="val-col">${schedB.licensorPro}</td>
+      </tr>
+      <tr>
+        <td class="label-col">Licensor Writer Name & IPI</td>
+        <td class="val-col">${schedB.licensorWriterName} &bull; IPI: ${schedB.licensorWriterIpi}</td>
+      </tr>
+      <tr>
+        <td class="label-col">Licensor Publisher Name & IPI</td>
+        <td class="val-col">${schedB.licensorPublisherName} &bull; IPI: ${schedB.licensorPublisherIpi}</td>
       </tr>
       <tr>
         <td class="label-col">Contract Version</td>

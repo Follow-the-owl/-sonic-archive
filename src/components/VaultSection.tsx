@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Eye, ShieldAlert, Key, Unlock, Send, CheckCircle, FileCode, Play, Square, Loader2 } from "lucide-react";
 import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
-import { FRAGMENTS, Fragment } from "../data";
+import { Fragment } from "../data";
+import { getAllActiveFragments } from "../lib/fragmentService";
 
 export default function VaultSection() {
   const [passcode, setPasscode] = useState("");
@@ -12,20 +13,13 @@ export default function VaultSection() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
   const [loadingSignal, setLoadingSignal] = useState<string | null>(null);
+  const [allFragments, setAllFragments] = useState<Fragment[]>(() => getAllActiveFragments());
 
   // Form states
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPurpose, setFormPurpose] = useState("Private Licensing");
   const [formMessage, setFormMessage] = useState("");
-
-  const validCodes = {
-    "0333": "03:33", // The Watch Hour
-    "1111": "11:11", // The Wish Hour
-    "0050": "00:50", // The Threshold
-    "0217": "02:17", // The Discovery Hour
-    "0558": "05:58"  // Before Sunrise
-  };
 
   useEffect(() => {
     setActiveSignal(getActiveId());
@@ -41,6 +35,16 @@ export default function VaultSection() {
         setLoadingSignal(null);
       }
     });
+
+    const handleUpdate = () => {
+      setAllFragments(getAllActiveFragments());
+    };
+    window.addEventListener("fragments-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("fragments-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   const handleKeyPress = (num: string) => {
@@ -56,17 +60,17 @@ export default function VaultSection() {
   };
 
   const validateCode = (code: string) => {
-    const matchedId = (validCodes as any)[code];
-    if (matchedId) {
-      const found = FRAGMENTS.find(f => f.id === code || (code === "1111" && f.id === "11-11") || f.id === "11:11" || f.id.replace(':', '') === code);
-      const actualFragment = found || FRAGMENTS.find(f => f.id === "07:44" || f.id === "11:11" || f.id === "03:33" || f.isExclusive);
-      
-      if (actualFragment) {
-        setUnlockedFragment(actualFragment);
-        setIsUnlocked(true);
-        // Play audio directly upon unlock sequence success
-        playFragment(actualFragment.id, actualFragment.frequency, actualFragment.synthType);
-      }
+    const cleanDigits = code.replace(/[^0-9]/g, "");
+    const found = allFragments.find(f => {
+      const fragDigits = (f.timestamp || f.name || f.id).replace(/[^0-9]/g, "");
+      return fragDigits.includes(cleanDigits) || cleanDigits.includes(fragDigits);
+    }) || allFragments.find(f => f.id === code || f.id.replace(':', '') === code);
+
+    if (found) {
+      setUnlockedFragment(found);
+      setIsUnlocked(true);
+      // Play audio directly upon unlock sequence success
+      playFragment(found.id, found.frequency, found.synthType);
     } else {
       // Trigger short error shake then clear
       setTimeout(() => {

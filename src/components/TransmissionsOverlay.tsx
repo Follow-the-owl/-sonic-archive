@@ -465,7 +465,6 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
   };
 
   const handleDeleteUser = async (email: string) => {
-    if (!window.confirm(`Wipe user terminal ${email} permanently?`)) return;
     setAdminLoading(true);
     setAdminError("");
     setAdminSuccessMsg("");
@@ -533,7 +532,6 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
   };
 
   const handleDeletePayment = async (id: string) => {
-    if (!window.confirm(`Purge payment record ${id} from database?`)) return;
     setAdminLoading(true);
     setAdminError("");
     setAdminSuccessMsg("");

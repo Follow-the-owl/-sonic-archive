@@ -27,6 +27,7 @@ import AboutArchivePage from "./components/AboutArchivePage";
 import ProposalPage from "./components/ProposalPage";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import { Fragment } from "./data";
+import { parseFragmentTimeDetails } from "./lib/fragmentService";
 
 
 type NavigationTab =
@@ -130,14 +131,12 @@ export default function App() {
 
   const parseTimestampToClock = (timestamp?: string): { hour: number; minute: number; ampm: "AM" | "PM" } | null => {
     if (!timestamp) return null;
-    const parts = timestamp.trim().split(" ");
-    if (parts.length < 2) return null;
-    const [hStr, mStr] = parts[0].split(":");
-    let h = parseInt(hStr, 10) % 12;
-    const m = parseInt(mStr, 10);
-    const ampm = parts[1].toUpperCase() === "PM" ? "PM" : "AM";
-    if (isNaN(h) || isNaN(m)) return null;
-    return { hour: h, minute: m, ampm };
+    try {
+      const parsed = parseFragmentTimeDetails(timestamp);
+      return { hour: parsed.hour, minute: parsed.minute, ampm: parsed.ampm };
+    } catch (_e) {
+      return null;
+    }
   };
 
   // Authentication States
@@ -2036,17 +2035,14 @@ export default function App() {
                 </div>
 
                 {/* BOTTOM FOOTER LINE */}
-                <div className="text-center space-y-3 tracking-[0.2em] max-w-4xl mx-auto w-full border-t border-zinc-900/60 pt-12 pb-8">
-                  <div className="space-y-2">
-                    <h6 className="text-white font-serif font-bold text-xs sm:text-[13px] tracking-[0.3em] uppercase">
-                      THE OWL CLOCK
-                    </h6>
-                    <p className="text-zinc-400 font-mono text-[9.5px] sm:text-[10.5px] uppercase tracking-[0.22em]">
-                      PUBLISHING | LICENSING | ATLANTA, GA
-                    </p>
-                    <p className="text-zinc-500 font-mono text-[9px] sm:text-[9.5px] pt-4 uppercase tracking-[0.25em]">
-                      © 2026 LOMON LLC
-                    </p>
+                <div className="text-center max-w-4xl mx-auto w-full border-t border-zinc-900/60 pt-10 pb-8 flex flex-col items-center justify-center gap-2 select-none">
+                  <h6 className="text-white font-sans font-medium text-sm sm:text-base tracking-[0.28em] uppercase">
+                    THE OWL CLOCK
+                  </h6>
+                  <div className="inline-flex items-center justify-center gap-2.5 px-4 py-1 rounded-full bg-zinc-900/70 border border-zinc-800/60 font-mono text-[10px] sm:text-[11px] text-zinc-400 tracking-[0.2em] uppercase">
+                    <span>ATLANTA, GA</span>
+                    <span className="text-zinc-600">•</span>
+                    <span>© 2026</span>
                   </div>
                 </div>
               </footer>

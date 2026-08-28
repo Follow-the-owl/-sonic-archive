@@ -47,8 +47,8 @@ export const DEFAULT_LICENSE_TEMPLATES: LicenseTemplate[] = [
     performanceRights: "Rehearsals & private development",
     term: "Perpetual",
     territory: "Worldwide",
-    publishingSplit: "100% Lomon LLC",
-    masterOwnership: "100% Lomon LLC",
+    publishingSplit: "100% LOMON LLC / 0% Licensee",
+    masterOwnership: "100% Retained by LOMON LLC",
     exclusivity: "Non-exclusive",
     contractVersion: "v1.0-2026"
   },
@@ -76,8 +76,8 @@ export const DEFAULT_LICENSE_TEMPLATES: LicenseTemplate[] = [
     performanceRights: "Permitted within agreement",
     term: "Perpetual",
     territory: "Worldwide",
-    publishingSplit: "50% Writer / 50% Publisher",
-    masterOwnership: "100% Lomon LLC",
+    publishingSplit: "50% LOMON LLC / 50% Licensee",
+    masterOwnership: "100% Retained by LOMON LLC",
     exclusivity: "Non-exclusive",
     contractVersion: "v1.2-2026"
   },
@@ -106,8 +106,8 @@ export const DEFAULT_LICENSE_TEMPLATES: LicenseTemplate[] = [
     performanceRights: "Live Performance Allowed",
     term: "Perpetual",
     territory: "Worldwide",
-    publishingSplit: "50% Writer / 50% Publisher",
-    masterOwnership: "100% Lomon LLC",
+    publishingSplit: "50% LOMON LLC / 50% Licensee",
+    masterOwnership: "100% Retained by LOMON LLC",
     exclusivity: "Non-exclusive",
     contractVersion: "v1.5-2026"
   },
@@ -134,8 +134,8 @@ export const DEFAULT_LICENSE_TEMPLATES: LicenseTemplate[] = [
     performanceRights: "Broadcast & Cue Sheet Rights",
     term: "Per Schedule",
     territory: "Per Schedule",
-    publishingSplit: "Subject to Clearance Agreement",
-    masterOwnership: "100% Lomon LLC",
+    publishingSplit: "Negotiated Per Project",
+    masterOwnership: "Negotiated Per Project",
     exclusivity: "Project-Specific / Negotiable",
     contractVersion: "v2.0-2026"
   },
@@ -165,8 +165,8 @@ export const DEFAULT_LICENSE_TEMPLATES: LicenseTemplate[] = [
     performanceRights: "Unlimited",
     term: "Perpetual",
     territory: "Worldwide",
-    publishingSplit: "Negotiable Transfer",
-    masterOwnership: "Transferred per executed agreement",
+    publishingSplit: "50% LOMON LLC / 50% Licensee",
+    masterOwnership: "100% Transferred and Assigned to Licensee",
     exclusivity: "100% Exclusive Acquisition",
     contractVersion: "v3.0-2026"
   },
@@ -190,9 +190,9 @@ export const DEFAULT_LICENSE_TEMPLATES: LicenseTemplate[] = [
     performanceRights: "Per Split Sheet",
     term: "Per Agreement",
     territory: "Worldwide",
-    publishingSplit: "Negotiated Individually",
-    masterOwnership: "Negotiated Individually",
-    exclusivity: "Custom",
+    publishingSplit: "50% LOMON LLC / 50% Licensee",
+    masterOwnership: "50% LOMON LLC / 50% Licensee",
+    exclusivity: "Collaborative Co-Ownership",
     contractVersion: "v1.0-Collab"
   }
 ];

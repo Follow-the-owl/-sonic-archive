@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Square, Key, Bell, Search, Clock, ShieldAlert, Loader2 } from "lucide-react";
-import { FRAGMENTS, ARCHIVE_CATEGORIES, CLOCK_MEANINGS, Fragment } from "../data";
+import { ARCHIVE_CATEGORIES, CLOCK_MEANINGS, Fragment } from "../data";
+import { getAllActiveFragments } from "../lib/fragmentService";
 import { playFragment, stopAudio, registerAudioCallback, getActiveId } from "../audio";
 
 interface DeepArchiveSectionProps {
@@ -13,7 +14,8 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
   const [loadingSignal, setLoadingSignal] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeClockHour, setActiveClockHour] = useState<string>("03:33");
+  const [activeClockHour, setActiveClockHour] = useState<string>("10:00");
+  const [fragments, setFragments] = useState<Fragment[]>(() => getAllActiveFragments());
 
   useEffect(() => {
     setActiveSignal(getActiveId());
@@ -29,6 +31,16 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
         setLoadingSignal(null);
       }
     });
+
+    const handleUpdate = () => {
+      setFragments(getAllActiveFragments());
+    };
+    window.addEventListener("fragments-updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("fragments-updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   const handleTogglePlay = (frag: Fragment) => {
@@ -52,7 +64,7 @@ export default function DeepArchiveSection({ onRequestVaultAccess }: DeepArchive
   };
 
   // Filter Fragments based on Category and Search Query
-  const filteredFragments = FRAGMENTS.filter(frag => {
+  const filteredFragments = fragments.filter(frag => {
     const matchesCategory = selectedCategory === "All" || frag.classification === selectedCategory;
     const matchesSearch = 
       frag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

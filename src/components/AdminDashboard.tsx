@@ -10,6 +10,16 @@ import {
   HelpCircle, Shield, Award, Terminal, Cpu, FileSignature, CheckSquare, Hash
 } from "lucide-react";
 import { Fragment, FRAGMENTS, CLOCK_MEANINGS, getFragmentTimeName } from "../data";
+import { 
+  FullFragmentRecord, 
+  getStoredFullFragments, 
+  saveStoredFullFragments, 
+  sanitizeToPublicCatalog,
+  syncFragmentToBackend,
+  deleteFragmentFromBackend,
+  patchFragmentStatusOnBackend
+} from "../lib/fragmentService";
+import NewFragmentWizardModal from "./NewFragmentWizardModal";
 import { DEFAULT_LICENSE_TEMPLATES, LicenseTemplate } from "../licenses";
 import { 
   openOrDownloadLicenseAgreement,
@@ -360,8 +370,119 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // Master Fragments State
-  const [fragments, setFragments] = useState<Fragment[]>(FRAGMENTS);
+  // Master Fragments State with Full CRUD & Sync support
+  const [fullFragments, setFullFragments] = useState<FullFragmentRecord[]>(() => getStoredFullFragments());
+  const [editingFragment, setEditingFragment] = useState<FullFragmentRecord | null>(null);
+  const [showCreateFragmentModal, setShowCreateFragmentModal] = useState<boolean>(false);
+  const [archiveFilterStatus, setArchiveFilterStatus] = useState<string>("ALL");
+
+  // Keep public catalog fragments reactive
+  const fragments = useMemo(() => {
+    return fullFragments
+      .filter(f => !f.deletedAt)
+      .map(f => sanitizeToPublicCatalog(f));
+  }, [fullFragments]);
+
+  // Handle Create / Update Fragment from 6-Step Wizard
+  const handleSaveFullFragment = async (record: FullFragmentRecord) => {
+    setFullFragments(prev => {
+      const idx = prev.findIndex(item => item.id === record.id);
+      let updated: FullFragmentRecord[];
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = record;
+      } else {
+        updated = [record, ...prev];
+      }
+      saveStoredFullFragments(updated);
+      return updated;
+    });
+
+    // Also persist directly to backend API database
+    syncFragmentToBackend(record);
+  };
+
+  // Quick Status Patch (draft / published / archived)
+  const handleQuickStatusChange = (fragId: string, newStatus: "draft" | "published" | "archived") => {
+    setFullFragments(prev => {
+      const updated = prev.map(f => {
+        if (f.id === fragId) {
+          return {
+            ...f,
+            status: newStatus,
+            syncStatus: newStatus === "published" ? "synced" : "pending",
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return f;
+      });
+      saveStoredFullFragments(updated);
+      return updated;
+    });
+    patchFragmentStatusOnBackend(fragId, newStatus);
+  };
+
+  // Delete Fragment (removes from active list & persists to localStorage and MongoDB)
+  const handleSoftDeleteFragment = (fragId: string) => {
+    setFullFragments(prev => {
+      const updated = prev.filter(f => f.id !== fragId);
+      saveStoredFullFragments(updated);
+      return updated;
+    });
+    deleteFragmentFromBackend(fragId, true);
+  };
+
+  // Hard / Permanent Delete Fragment
+  const handlePermanentDeleteFragment = (fragId: string) => {
+    setFullFragments(prev => {
+      const updated = prev.filter(f => f.id !== fragId);
+      saveStoredFullFragments(updated);
+      return updated;
+    });
+    deleteFragmentFromBackend(fragId, true);
+  };
+
+  // Duplicate Fragment
+  const handleDuplicateFragment = (frag: FullFragmentRecord) => {
+    const newId = `${frag.id}-COPY-${Math.floor(100 + Math.random() * 900)}`;
+    const duplicated: FullFragmentRecord = {
+      ...frag,
+      id: newId,
+      compositionId: `LOC-COMP-${newId.replace(/[^a-zA-Z0-9]/g, "")}`,
+      compositionTitle: `${frag.compositionTitle} (Copy)`,
+      fragmentTimestamp: `${frag.fragmentTimestamp} (Duplicate)`,
+      status: "draft",
+      syncStatus: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null
+    };
+
+    setFullFragments(prev => {
+      const updated = [duplicated, ...prev];
+      saveStoredFullFragments(updated);
+      return updated;
+    });
+    syncFragmentToBackend(duplicated);
+  };
+
+  // Manual Sync Trigger
+  const handleManualSync = (fragId: string) => {
+    setFullFragments(prev => {
+      const updated = prev.map(f => {
+        if (f.id === fragId) {
+          return {
+            ...f,
+            syncStatus: "synced" as const,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return f;
+      });
+      saveStoredFullFragments(updated);
+      return updated;
+    });
+  };
   const [clearanceRequests, setClearanceRequests] = useState<ClearanceRequestRecord[]>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -447,7 +568,63 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
       .then(res => res.json())
       .then(data => {
         if (data && data.success && Array.isArray(data.fragments) && data.fragments.length > 0) {
-          setFragments(data.fragments);
+          // If server fragments returned, merge into fullFragments
+          const serverConverted: FullFragmentRecord[] = data.fragments.map((f: any) => ({
+            id: f.id,
+            fragmentTimestamp: f.timestamp || f.name || f.id,
+            compositionTitle: f.name || f.id,
+            compositionId: f.timeCapsule?.catalogNo || `LOC-${f.id.replace(/[^a-zA-Z0-9]/g, "")}`,
+            bpm: f.bpm || 108,
+            key: f.tonalSignature || "C Minor",
+            duration: f.duration || "03:00",
+            genre: [f.classification || "Acoustic / Ambient Sound Recording"],
+            mood: ["Atmospheric", "Reflective"],
+            status: "published",
+            availability: f.isExclusive ? "sold" : "available",
+            archiveNote: f.observation || "",
+            description: f.description || "",
+            releaseDate: f.fullRecoveryDate || "2024-10-14",
+            syncStatus: "synced",
+            audioFiles: [
+              {
+                fileType: "publicPreviewMp3",
+                fileName: `${(f.name || f.id).replace(/\s+/g, "_")}_Preview.mp3`,
+                fileSize: 3145728,
+                duration: 194,
+                fileUrl: f.previewAudioUrl || f.audioUrl || "",
+                uploadedAt: new Date().toISOString()
+              }
+            ],
+            stemManifest: {
+              stemCount: 6,
+              fileNames: ["01_Drums.wav", "02_SubBass.wav", "03_Atmosphere.wav", "04_Keys.wav", "05_Harmonics.wav", "06_Transitions.wav"],
+              totalSizeBytes: 142606336,
+              format: "WAV / Lossless",
+              sampleRate: "48.0 kHz",
+              bitDepth: "24-bit"
+            },
+            documents: [],
+            licenses: {
+              mp3: { enabled: true, price: 150 },
+              wav: { enabled: true, price: 350 },
+              trackouts: { enabled: true, price: 650 },
+              unlimited: { enabled: true, price: 1200 },
+              exclusive: { enabled: !f.isExclusive, price: 4500 }
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }));
+          setFullFragments(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const merged = [...prev];
+            for (const s of serverConverted) {
+              if (!existingIds.has(s.id)) {
+                merged.push(s);
+              }
+            }
+            saveStoredFullFragments(merged);
+            return merged;
+          });
         }
       })
       .catch(() => {});
@@ -621,8 +798,8 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
     return clients;
   }, [licenses, clearanceRequests, transactions]);
 
-  // Audio Synth preview toggle using playFragment
-  const handleTogglePlay = (frag: Fragment) => {
+  // Audio preview toggle using playFragment (plays actual uploaded audio if present)
+  const handleTogglePlay = (frag: Fragment, directAudioUrl?: string) => {
     if (playingFragmentId === frag.id) {
       stopAudio();
       setPlayingFragmentId(null);
@@ -633,7 +810,8 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
       const synth: "keys" | "drone" | "bell" | "noise" | "pulse" = validSynths.includes(rawSynth as any)
         ? (rawSynth as "keys" | "drone" | "bell" | "noise" | "pulse")
         : "keys";
-      playFragment(frag.id, frag.frequency || 440, synth);
+      const audioToPlay = directAudioUrl || frag.mp3Preview || frag.previewAudioUrl || frag.audioUrl;
+      playFragment(frag.id, frag.frequency || 440, synth, audioToPlay);
       setPlayingFragmentId(frag.id);
     }
   };
@@ -700,7 +878,25 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
       publishingShare: "50% Assignee / 50% LOMON Co-Pub"
     };
 
-    setFragments(prev => prev.map(f => f.id === frag.id ? updatedFragment : f));
+    // Mark fragment exclusive in fullFragments
+    setFullFragments(prev => {
+      const updated = prev.map(f => {
+        if (f.id === frag.id) {
+          return {
+            ...f,
+            availability: "sold" as const,
+            licenses: {
+              ...f.licenses,
+              exclusive: { ...f.licenses.exclusive, enabled: false }
+            },
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return f;
+      });
+      saveStoredFullFragments(updated);
+      return updated;
+    });
     setLicenses(prev => [newLicense, ...prev]);
     setTransactions(prev => [newTransaction, ...prev]);
 
@@ -928,6 +1124,15 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
 
             {/* Quick Action Badges */}
             <div className="flex items-center gap-2">
+              {activeSection === "01_ARCHIVE" && (
+                <button
+                  onClick={() => setShowCreateFragmentModal(true)}
+                  className="bg-amber-400 hover:bg-amber-300 text-black text-[10.5px] font-bold uppercase tracking-wider px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                >
+                  <Plus size={13} />
+                  <span>CREATE NEW FRAGMENT</span>
+                </button>
+              )}
               {activeSection === "02_CLEARANCE" && (
                 <button
                   onClick={() => setShowCreateClearanceModal(true)}
@@ -964,6 +1169,24 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
               )}
             </div>
 
+            {/* Status Filter for Archive */}
+            {activeSection === "01_ARCHIVE" && (
+              <div className="flex flex-wrap items-center gap-1">
+                {(["ALL", "published", "draft", "scheduled", "archived"] as const).map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setArchiveFilterStatus(st)}
+                    className={`px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider rounded transition-all cursor-pointer border ${
+                      archiveFilterStatus === st 
+                        ? "bg-amber-400/15 border-amber-400 text-amber-400" 
+                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Status Filter for Clearance */}
             {activeSection === "02_CLEARANCE" && (
               <div className="flex flex-wrap items-center gap-1">
@@ -990,98 +1213,180 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
           {activeSection === "01_ARCHIVE" && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3">
-                {fragments
+                {fullFragments
+                  .filter(f => !f.deletedAt)
                   .filter(f => {
+                    if (archiveFilterStatus !== "ALL" && f.status !== archiveFilterStatus) return false;
                     if (!searchQuery.trim()) return true;
                     const q = searchQuery.toLowerCase();
                     return (
-                      (f.name || "").toLowerCase().includes(q) ||
+                      (f.fragmentTimestamp || "").toLowerCase().includes(q) ||
                       (f.id || "").toLowerCase().includes(q) ||
-                      (f.tonalSignature || "").toLowerCase().includes(q)
+                      (f.compositionTitle || "").toLowerCase().includes(q) ||
+                      (f.key || "").toLowerCase().includes(q) ||
+                      (f.compositionId || "").toLowerCase().includes(q)
                     );
                   })
-                  .map(frag => {
-                    const isPlaying = playingFragmentId === frag.id;
-                    const isExcl = frag.isExclusive || frag.timeCapsule?.clearanceStatus === "EXCLUSIVELY ACQUIRED";
-                    const bpm = frag.bpm || (frag.timeCapsule?.tempoPulse ? parseInt(frag.timeCapsule.tempoPulse) : 103);
-                    const tonal = frag.tonalSignature || frag.timeCapsule?.tonalAxis || "B Major";
-                    const duration = frag.duration || "03:06";
-                    const recoveryState = frag.recoveryState || "FULLY RECOVERED";
+                  .map(fragRecord => {
+                    const isPlaying = playingFragmentId === fragRecord.id;
+                    const fragPublic = sanitizeToPublicCatalog(fragRecord);
+                    const isExcl = fragRecord.availability === "sold" || !fragRecord.licenses.exclusive.enabled;
+                    const bpm = fragRecord.bpm;
+                    const tonal = fragRecord.key;
+                    const duration = fragRecord.duration;
+                    const recoveryState = fragRecord.status.toUpperCase();
 
                     return (
                       <div
-                        key={frag.id}
-                        className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-lg hover:border-zinc-700/80 transition-all group"
+                        key={fragRecord.id}
+                        className="border border-zinc-800/90 rounded-lg bg-[#080808] p-4 sm:p-5 flex flex-col gap-3.5 shadow-lg hover:border-zinc-700/80 transition-all group"
                       >
-                        {/* Primary Fragment Info */}
-                        <div className="space-y-1.5 min-w-0">
-                          <div className="flex items-center gap-2.5">
-                            <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
-                              {getFragmentTimeName(frag.name || frag.id)}
-                            </span>
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              (TOC-{(frag.id || "001").replace(/[^a-zA-Z0-9]/g, "")})
-                            </span>
-                          </div>
-
-                          {/* Metadata Line */}
-                          <div className="text-xs text-zinc-400 flex flex-wrap items-center gap-1.5 font-medium">
-                            <span className="text-zinc-200">{tonal}</span>
-                            <span className="text-zinc-600">·</span>
-                            <span className="text-zinc-200">{bpm} BPM</span>
-                            <span className="text-zinc-600">·</span>
-                            <span className="text-zinc-200">{duration}</span>
-                          </div>
-
-                          {/* State & Clearance Tags */}
-                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
-                            <span className="bg-zinc-900/90 text-zinc-300 px-2 py-0.5 border border-zinc-800 rounded font-semibold uppercase tracking-wider">
-                              {recoveryState}
-                            </span>
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider rounded border ${
-                              isExcl
-                                ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
-                                : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isExcl ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
-                              {isExcl ? "Clearance: EXCLUSIVELY ACQUIRED" : "Clearance: AVAILABLE"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Actions (Horizontal Audio Preview Pill & Open Master Record Button) */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-900">
-                          {/* Audio Preview Button */}
-                          <button
-                            onClick={() => handleTogglePlay(frag)}
-                            className={`inline-flex items-center justify-center gap-2 px-3 py-2 border rounded-md text-[10.5px] uppercase font-bold tracking-wider cursor-pointer transition-all ${
-                              isPlaying 
-                                ? "border-[#00E676] bg-[#00E676]/20 text-[#00E676] shadow-[0_0_12px_rgba(0,230,118,0.25)]" 
-                                : "border-zinc-800 bg-[#0c0c0c] text-zinc-300 hover:text-white hover:border-zinc-700 hover:bg-zinc-900"
-                            }`}
-                            title="Play audio preview"
-                          >
-                            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${isPlaying ? "bg-[#00E676] text-black" : "bg-zinc-800 text-zinc-300"}`}>
-                              {isPlaying ? <Pause size={9} /> : <Play size={9} className="ml-0.5" />}
-                            </span>
-                            <span>{isPlaying ? "STOP AUDIO" : "PREVIEW AUDIO"}</span>
-                            {isPlaying && (
-                              <span className="flex items-center gap-0.5 h-2.5 ml-1">
-                                <span className="w-0.5 h-2.5 bg-[#00E676] animate-pulse" />
-                                <span className="w-0.5 h-1.5 bg-[#00E676] animate-pulse delay-75" />
-                                <span className="w-0.5 h-3 bg-[#00E676] animate-pulse delay-150" />
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          {/* Primary Fragment Info */}
+                          <div className="space-y-1.5 min-w-0">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
+                                {getFragmentTimeName(fragRecord.fragmentTimestamp || fragRecord.id)}
                               </span>
-                            )}
-                          </button>
+                              <span className="text-[10px] text-zinc-500 font-mono">
+                                ({fragRecord.compositionId || `LOC-${fragRecord.id}`})
+                              </span>
+                              <span className="text-[10px] text-amber-500/80 font-mono bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/20">
+                                {fragRecord.compositionTitle}
+                              </span>
+                            </div>
 
-                          {/* Open Master Record Button */}
-                          <button
-                            onClick={() => setSelectedFragmentMaster(frag)}
-                            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
-                          >
-                            <span>OPEN MASTER RECORD</span>
-                            <ArrowRight size={13} className="text-amber-400" />
-                          </button>
+                            {/* Metadata Line */}
+                            <div className="text-xs text-zinc-400 flex flex-wrap items-center gap-1.5 font-medium">
+                              <span className="text-zinc-200">{tonal}</span>
+                              <span className="text-zinc-600">·</span>
+                              <span className="text-zinc-200">{bpm} BPM</span>
+                              <span className="text-zinc-600">·</span>
+                              <span className="text-zinc-200">{duration}</span>
+                              <span className="text-zinc-600">·</span>
+                              <span className="text-zinc-400">{fragRecord.audioFiles.length} Audio Files</span>
+                              <span className="text-zinc-600">·</span>
+                              <span className="text-zinc-400">
+                                {fragRecord.stemManifest ? `${fragRecord.stemManifest.stemCount} Stems` : `${fragRecord.individualStems?.length || 0} Stems`}
+                              </span>
+                            </div>
+
+                            {/* State, Availability & Sync Status Tags */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                              {/* Status Badge */}
+                              <span className={`px-2 py-0.5 border rounded font-semibold uppercase tracking-wider ${
+                                fragRecord.status === "published"
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                  : fragRecord.status === "scheduled"
+                                  ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                                  : "bg-zinc-900 text-zinc-400 border-zinc-800"
+                              }`}>
+                                STATUS: {recoveryState}
+                              </span>
+
+                              {/* Availability Badge */}
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider rounded border ${
+                                isExcl
+                                  ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                  : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isExcl ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
+                                {fragRecord.availability.toUpperCase()}
+                              </span>
+
+                              {/* Sync Status Badge */}
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9.5px] font-mono border ${
+                                fragRecord.syncStatus === "synced"
+                                  ? "text-emerald-400 border-emerald-500/20 bg-emerald-950/20"
+                                  : fragRecord.syncStatus === "failed"
+                                  ? "text-red-400 border-red-500/30 bg-red-950/30"
+                                  : "text-amber-300 border-amber-500/30 bg-amber-950/30"
+                              }`}>
+                                <RefreshCw size={10} className={fragRecord.syncStatus === "pending" ? "animate-spin" : ""} />
+                                <span>SYNC: {fragRecord.syncStatus?.toUpperCase() || "SYNCED"}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Actions Row */}
+                          <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                            {/* Audio Preview Button */}
+                            <button
+                              onClick={() => {
+                                const directAudio = fragRecord.audioFiles?.find(a => a.fileType === "publicPreviewMp3")?.fileUrl
+                                  || fragRecord.audioFiles?.find(a => a.fileType === "untaggedPreview")?.fileUrl
+                                  || fragRecord.audioFiles?.find(a => a.fileType === "licensedMp3")?.fileUrl
+                                  || fragRecord.audioFiles?.find(a => a.fileType === "taggedPreview")?.fileUrl
+                                  || fragRecord.audioFiles?.find(a => a.fileType === "masterWav")?.fileUrl
+                                  || fragRecord.audioFiles?.find(a => a.fileType === "instrumental")?.fileUrl
+                                  || fragRecord.audioFiles?.find(a => a.fileType === "alternateVersion")?.fileUrl
+                                  || fragRecord.audioFiles?.[0]?.fileUrl;
+                                handleTogglePlay(fragPublic, directAudio);
+                              }}
+                              className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border rounded-md text-[10.5px] uppercase font-bold tracking-wider cursor-pointer transition-all ${
+                                isPlaying 
+                                  ? "border-[#00E676] bg-[#00E676]/20 text-[#00E676] shadow-[0_0_12px_rgba(0,230,118,0.25)]" 
+                                  : "border-zinc-800 bg-[#0c0c0c] text-zinc-300 hover:text-white hover:border-zinc-700 hover:bg-zinc-900"
+                              }`}
+                              title="Play audio preview"
+                            >
+                              <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${isPlaying ? "bg-[#00E676] text-black" : "bg-zinc-800 text-zinc-300"}`}>
+                                {isPlaying ? <Pause size={8} /> : <Play size={8} className="ml-0.5" />}
+                              </span>
+                              <span>{isPlaying ? "STOP" : "PREVIEW"}</span>
+                            </button>
+
+                            {/* Quick Publish / Unpublish Toggle */}
+                            <button
+                              onClick={() => handleQuickStatusChange(fragRecord.id, fragRecord.status === "published" ? "draft" : "published")}
+                              className={`px-3 py-1.5 border rounded-md text-[10.5px] uppercase font-bold tracking-wider cursor-pointer transition-all ${
+                                fragRecord.status === "published"
+                                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-950/30 hover:bg-emerald-900/40"
+                                  : "border-zinc-800 text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800"
+                              }`}
+                            >
+                              {fragRecord.status === "published" ? "UNPUBLISH" : "PUBLISH"}
+                            </button>
+
+                            {/* Edit in 6-Step Wizard */}
+                            <button
+                              onClick={() => {
+                                setEditingFragment(fragRecord);
+                                setShowCreateFragmentModal(true);
+                              }}
+                              className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-md cursor-pointer transition-colors"
+                              title="Edit in Wizard"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+
+                            {/* Duplicate */}
+                            <button
+                              onClick={() => handleDuplicateFragment(fragRecord)}
+                              className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-md cursor-pointer transition-colors"
+                              title="Duplicate Fragment"
+                            >
+                              <Copy size={13} />
+                            </button>
+
+                            {/* Soft Delete */}
+                            <button
+                              onClick={() => handleSoftDeleteFragment(fragRecord.id)}
+                              className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-500 hover:text-red-400 rounded-md cursor-pointer transition-colors"
+                              title="Soft Delete Fragment"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+
+                            {/* Open Master Record Inspector */}
+                            <button
+                              onClick={() => setSelectedFragmentMaster(fragPublic)}
+                              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-3 py-1.5 rounded-md uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer shadow-sm"
+                            >
+                              <span>RECORD</span>
+                              <ArrowRight size={12} className="text-amber-400" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -2043,10 +2348,8 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-800">
                 <button
                   onClick={() => {
-                    if (window.confirm(`Permanently remove clearance petition ${selectedClearanceRequest.ref}?`)) {
-                      setClearanceRequests(prev => prev.filter(r => r.ref !== selectedClearanceRequest.ref));
-                      setSelectedClearanceRequest(null);
-                    }
+                    setClearanceRequests(prev => prev.filter(r => r.ref !== selectedClearanceRequest.ref));
+                    setSelectedClearanceRequest(null);
                   }}
                   className="border border-zinc-800 hover:border-red-800/60 text-zinc-500 hover:text-red-400 px-3 py-2 rounded text-[10.5px] uppercase font-bold cursor-pointer transition-all flex items-center gap-1.5"
                 >
@@ -2644,9 +2947,13 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                           {/* Schedule B Table */}
                           <div className="border border-zinc-800 rounded-[4px] overflow-hidden bg-zinc-950/60">
                             <div className="bg-zinc-900/80 px-3 py-2 border-b border-zinc-800 text-[10px] font-mono font-bold text-zinc-300 tracking-wider uppercase">
-                              SCHEDULE B: OWNERSHIP &amp; PUBLISHING SPLITS
+                              SCHEDULE B: OWNERSHIP, PRO &amp; PUBLISHING SPLITS
                             </div>
                             <div className="divide-y divide-zinc-900 text-[11px]">
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor Legal Entity:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.licensorEntity}</span>
+                              </div>
                               <div className="grid grid-cols-3 p-2.5">
                                 <span className="text-zinc-500 font-mono">Master Ownership:</span>
                                 <span className="col-span-2 text-zinc-200 font-medium">{schedB.masterOwnership}</span>
@@ -2660,8 +2967,32 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                                 <span className="col-span-2 text-zinc-200 font-medium">{schedB.writerShare}</span>
                               </div>
                               <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Content ID:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.contentIdRegistration}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
                                 <span className="text-zinc-500 font-mono">Exclusivity:</span>
                                 <span className="col-span-2 text-zinc-200 font-medium">{schedB.exclusivity}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor PRO:</span>
+                                <span className="col-span-2 text-zinc-200 font-medium">{schedB.licensorPro}</span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor Writer &amp; IPI:</span>
+                                <span className="col-span-2 text-zinc-200 font-mono text-[10.5px]">
+                                  {schedB.licensorWriterName} <span className="text-zinc-400 font-sans">• IPI:</span> <span className="text-[#00E676]">{schedB.licensorWriterIpi}</span>
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Licensor Publisher &amp; IPI:</span>
+                                <span className="col-span-2 text-zinc-200 font-mono text-[10.5px]">
+                                  {schedB.licensorPublisherName} <span className="text-zinc-400 font-sans">• IPI:</span> <span className="text-[#00E676]">{schedB.licensorPublisherIpi}</span>
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 p-2.5">
+                                <span className="text-zinc-500 font-mono">Contract Version:</span>
+                                <span className="col-span-2 text-zinc-400 font-mono text-[10.5px]">{schedB.contractVersion}</span>
                               </div>
                             </div>
                           </div>
@@ -2807,6 +3138,16 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
           </div>
         )}
       </AnimatePresence>
+      {/* 6-STEP COMPREHENSIVE FRAGMENT REGISTRATION & EDIT WIZARD */}
+      <NewFragmentWizardModal
+        isOpen={showCreateFragmentModal}
+        onClose={() => {
+          setShowCreateFragmentModal(false);
+          setEditingFragment(null);
+        }}
+        onSave={handleSaveFullFragment}
+        initialData={editingFragment}
+      />
     </div>
   );
 }

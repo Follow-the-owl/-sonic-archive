@@ -10,7 +10,7 @@ import {
   ensureToneStarted
 } from "../audio";
 import { Volume2, VolumeX, Square, RefreshCw, Loader2, Radio } from "lucide-react";
-import { FRAGMENTS } from "../data";
+import { getAllActiveFragments } from "../lib/fragmentService";
 
 export default function AudioControllerWidget() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -68,7 +68,7 @@ export default function AudioControllerWidget() {
     setAmbientEnabled(nextVal);
   };
 
-  const activeFragment = FRAGMENTS.find(f => f.id === activeFragmentId);
+  const activeFragment = getAllActiveFragments().find(f => f.id === activeFragmentId);
 
   return (
     <div 

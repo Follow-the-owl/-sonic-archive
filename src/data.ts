@@ -30,6 +30,8 @@ export interface Fragment {
   frequency: number; // For synth generation
   synthType: "drone" | "keys" | "bell" | "noise" | "pulse";
   bpm: number;
+  audioUrl?: string;
+  previewAudioUrl?: string;
   licenseOverrides?: {
     [templateId: string]: {
       enabled?: boolean;
@@ -46,6 +48,10 @@ export interface Fragment {
 }
 
 export const FRAGMENT_CANONICAL_NAMES: Record<string, string> = {
+  "07:15": "07:15 AM",
+  "0715": "07:15 AM",
+  "7:15": "07:15 AM",
+  "715": "07:15 AM",
   "00:50": "00:50 AM",
   "0050": "00:50 AM",
   "07:46": "07:46 AM",
@@ -131,174 +137,111 @@ export interface ObservatoryMedia {
 
 export const CLOCK_MEANINGS = [
   {
-    hour: "00:50",
-    name: "00:50 AM",
-    description: "The separation threshold between heavy thoughts and deep sleep. Mimics slow, submerged keys.",
+    hour: "07:15",
+    name: "07:15 AM",
+    description: "Time Capsule Entry 0715. Tonal Axis: C Minor. Tempo / Pulse: 110 BPM. Runtime: 02:49. Recovery Status: FULLY RECOVERED.",
   },
   {
-    hour: "02:17",
-    name: "02:17 AM",
-    description: "Lost copper shortwave signals found accidentally under the stone-cold Houston peaks.",
-  },
-  {
-    hour: "03:33",
-    name: "03:33 AM",
-    description: "The watch hour where the chronicle owl is awake and industrial engines rumble in the dark.",
-  },
-  {
-    hour: "05:58",
-    name: "05:58 AM",
-    description: "Evolving synthesizer siren pads layered with cold 05:58 AM sunrise drone elements.",
+    hour: "09:41",
+    name: "9:41 PM",
+    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM.",
   },
   {
     hour: "10:00",
     name: "10:00 PM",
-    description: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered. Full Recovery: 2025.07.14. Archivist: Lomon.",
+    description: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.",
   },
   {
     hour: "11:11",
     name: "11:11 PM",
-    description: "Rare celestial fragments decaying inside vintage tape reels. Hopeful and decaying.",
+    description: "Rare celestial fragments decaying inside vintage tape reels with hopeful harmonic decay vibrating at 125 BPM.",
   }
 ];
 
 export const FRAGMENTS: Fragment[] = [
   {
-    id: "00:50",
-    name: "00:50 AM",
-    timestamp: "00:50 AM",
-    classification: "THRESHOLD COIL",
-    observation: "Registered in a submerged concrete chamber with heavy hydrostatic filters.",
-    duration: "4:12",
-    description: "A slow, breathing analog sub-drone layered with tape dust and a recurring minor two-note theme, capturing the dark wet highway energy of Don't Care deep-space records.",
+    id: "07:15",
+    name: "07:15 AM",
+    timestamp: "07:15 AM",
+    classification: "RECOVERY STATE",
+    observation: "Time Capsule Entry 0715. Captured August 15, 2026. Tonal Axis: C Minor. Tempo / Pulse: 110 BPM. Runtime: 02:49. Recovery Status: FULLY RECOVERED.",
+    duration: "02:49",
+    description: "Time Capsule Entry 0715. High-fidelity recovered tape fragment carrying a C Minor tonal axis at 110 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
     isExclusive: false,
-    frequency: 110, // A2 (deep drone)
-    synthType: "drone",
-    bpm: 78,
-    licenseOverrides: {
-      access: {
-        priceOverride: 75,
-        overrides: {
-          subtitle: "PROMO RATE: For testing deep concepts."
-        }
-      }
+    frequency: 261.63,
+    synthType: "keys",
+    bpm: 110,
+    tonalSignature: "C Minor",
+    recoveryState: "Fully Recovered",
+    fullRecoveryDate: "2026.08.15",
+    archivist: "LOMON",
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3",
+    timeCapsule: {
+      entryNo: "0715",
+      catalogNo: "LOC-0715",
+      title: "07:15 AM",
+      timeOfMark: "07:15:00 AM",
+      recoveryStamp: "AUG 15, 2026",
+      completionStamp: "AUG 28, 2026",
+      tonalAxis: "C MINOR",
+      tempoPulse: "110 BPM",
+      runtime: "02:49",
+      masterControl: "100% LOMON / THE OWL CLOCK",
+      publishingControl: "100% LOMON / THE OWL CLOCK",
+      origin: "100% ORIGINAL",
+      thirdPartyAssets: "NONE",
+      clearanceStatus: "FULLY CLEARED",
+      deliverableAssets: [
+        "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
+        "02. REFERENCE MP3 [ 320 KBPS ]",
+        "03. UNCOMPRESSED INSTRUMENTAL MASTER",
+        "04. COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      recoveryStatus: "FULLY RECOVERED",
+      archivist: "LOMON"
     }
   },
   {
-    id: "07:46",
-    name: "07:46 AM",
-    timestamp: "07:46 AM",
-    classification: "MOONLIT RUN",
-    observation: "Traced on empty Houston freeways. Motorcycle exhaust heat waves visible.",
-    duration: "3:50",
-    description: "A hyper-distorted analog tape-loop pulse that sounds like tires peeling on cold concrete. Brutal, rhythmic, and high-contrast.",
-    isExclusive: true,
-    frequency: 329.63, // E4
-    synthType: "pulse",
-    bpm: 160,
-    licenseOverrides: {
-      access: { enabled: false },
-      release: { enabled: false },
-      commercial: { enabled: false },
-      sync: { enabled: false },
-      exclusive: {
-        priceOverride: 3200,
-        overrides: {
-          subtitle: "PREMIUM 07:46 AM EXCLUSIVE ACQUISITION"
-        }
-      }
+    id: "09:41",
+    name: "9:41 PM",
+    timestamp: "09:41 PM",
+    classification: "RECOVERY STATE",
+    observation: "Time Capsule Entry 0941. Captured May 19, 2026. Tonal Axis: B Major. Tempo / Pulse: 103 BPM. Runtime: 03:06. Recovery Status: FULLY RECOVERED.",
+    duration: "03:06",
+    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
+    isExclusive: false,
+    frequency: 246.94, // B3 pitch
+    synthType: "keys",
+    bpm: 103,
+    tonalSignature: "B Major",
+    recoveryState: "Fully Recovered",
+    fullRecoveryDate: "2026.08.08",
+    archivist: "LOMON",
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3",
+    timeCapsule: {
+      entryNo: "0941",
+      catalogNo: "TOC-0941-B",
+      title: "9:41 PM",
+      timeOfMark: "09:41:00 PM",
+      recoveryStamp: "MAY 19, 2026",
+      completionStamp: "AUG 08, 2026",
+      tonalAxis: "B MAJOR",
+      tempoPulse: "103 BPM",
+      runtime: "03:06",
+      masterControl: "100% LOMON / THE OWL CLOCK",
+      publishingControl: "100% LOMON / THE OWL CLOCK",
+      origin: "100% ORIGINAL",
+      thirdPartyAssets: "NONE",
+      clearanceStatus: "FULLY CLEARED",
+      deliverableAssets: [
+        "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
+        "02. REFERENCE MP3 [ 320 KBPS ]",
+        "03. UNCOMPRESSED INSTRUMENTAL MASTER",
+        "04. COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      recoveryStatus: "FULLY RECOVERED",
+      archivist: "LOMON"
     }
-  },
-  {
-    id: "02:17",
-    name: "02:17 AM",
-    timestamp: "02:17 AM",
-    classification: "DISCOVERY FREQ",
-    observation: "Captured on an old copper shortwave receiver under radio tower shadows.",
-    duration: "6:04",
-    description: "Faint glass-like piano notes suspended in a vast cavern of pitch-shifted delays. Captures the eerie, neon green energy of kryptonite elements.",
-    isExclusive: false,
-    frequency: 293.66, // D4 (glass harp tone)
-    synthType: "keys",
-    bpm: 92
-  },
-  {
-    id: "05:58",
-    name: "05:58 AM",
-    timestamp: "05:58 AM",
-    classification: "SUNRISE SIREN",
-    observation: "Triggered as the eastern sky changed from black velvet to radioactive neon-orange.",
-    duration: "7:20",
-    description: "An evolving, majestic low-bass drone with wave-shaping sirens and warm tape saturation that builds slowly, introducing high-pitch string overtones.",
-    isExclusive: false,
-    frequency: 146.83, // D3 (warm swell)
-    synthType: "pulse",
-    bpm: 128
-  },
-  {
-    id: "03:33",
-    name: "03:33 AM",
-    timestamp: "03:33 AM",
-    classification: "WATCH CORE",
-    observation: "The watch-owl guide is fully alert. Low-frequency exhaust vibrations recorded.",
-    duration: "5:45",
-    description: "High-energy, industrial-trap sub-bass synthetic grit combined with isolated hollow metal bell strikes. Mastered at 03:33 AM in cold vacuum chambers.",
-    isExclusive: false,
-    frequency: 220, // A3 (haunting bell)
-    synthType: "bell",
-    bpm: 140
-  },
-  {
-    id: "10:14",
-    name: "10:14 PM",
-    timestamp: "10:14 PM",
-    classification: "RESTLESS COID",
-    observation: "Dynamic chamber echoes registered during heavy storm conditions.",
-    duration: "4:32",
-    description: "A dark ambient sub-harmonic landscape reflecting security chambers and chrome steel finishes, with freezing atmospheric high air frequencies.",
-    isExclusive: false,
-    frequency: 98.0, // G2
-    synthType: "drone",
-    bpm: 120
-  },
-  {
-    id: "11:28",
-    name: "11:28 PM",
-    timestamp: "11:28 PM",
-    classification: "CHRONO ANTHEM",
-    observation: "Simultaneous signal broadcasted to all active members of the watch.",
-    duration: "5:00",
-    description: "A heavy, majestic ambient motorcycle synth-chorus spanning miles of empty asphalt. Cinematic, grand, and forever bound to the asphalt.",
-    isExclusive: true,
-    frequency: 196.0, // G3
-    synthType: "drone",
-    bpm: 120
-  },
-  {
-    id: "11:59",
-    name: "11:59 PM",
-    timestamp: "11:59 PM",
-    classification: "DEVIANT KEYS",
-    observation: "Recorded during a temporary electrical blackout across the main signal tower.",
-    duration: "8:11",
-    description: "A beautiful, decaying celestial chord sequence played on vintage magnetic tape reels that breaks down and reforms, mimicking the final melodic fade out.",
-    isExclusive: true,
-    frequency: 440, // A4
-    synthType: "keys",
-    bpm: 105
-  },
-  {
-    id: "11:28-alt",
-    name: "11:28 PM",
-    timestamp: "11:28 PM",
-    classification: "SHADOW HARMONY",
-    observation: "Eerie low-RPM engine hum detected from the local Hardstone MC clubhouse.",
-    duration: "5:10",
-    description: "Saturated analog tape-static pulsing like a dark motorcycle rev, layered with a warning-buzz major fifth chord. Raw and heavy.",
-    isExclusive: false,
-    frequency: 164.81, // E3
-    synthType: "noise",
-    bpm: 85
   },
   {
     id: "10:00",
@@ -316,7 +259,31 @@ export const FRAGMENTS: Fragment[] = [
     recoveryState: "Fully Recovered",
     fullRecoveryDate: "2025.07.14",
     archivist: "Lomon",
-    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3"
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3",
+    timeCapsule: {
+      entryNo: "1000",
+      catalogNo: "TOC-1000-B",
+      title: "10:00 PM",
+      timeOfMark: "10:00:00 PM",
+      recoveryStamp: "MAY 14, 2025",
+      completionStamp: "JUL 14, 2025",
+      tonalAxis: "E♭ MAJOR",
+      tempoPulse: "100 BPM",
+      runtime: "06:15",
+      masterControl: "100% LOMON / THE OWL CLOCK",
+      publishingControl: "100% LOMON / THE OWL CLOCK",
+      origin: "100% ORIGINAL",
+      thirdPartyAssets: "NONE",
+      clearanceStatus: "FULLY CLEARED",
+      deliverableAssets: [
+        "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
+        "02. REFERENCE MP3 [ 320 KBPS ]",
+        "03. UNCOMPRESSED INSTRUMENTAL MASTER",
+        "04. COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      recoveryStatus: "FULLY RECOVERED",
+      archivist: "LOMON"
+    }
   },
   {
     id: "11:11",
@@ -357,48 +324,6 @@ export const FRAGMENTS: Fragment[] = [
         "04. COMPLETE STEM / TRACKOUT SUITE"
       ],
       recoveryStatus: "SECURED & INDEXED",
-      archivist: "LOMON"
-    }
-  },
-  {
-    id: "09:41",
-    name: "9:41 PM",
-    timestamp: "09:41 PM",
-    classification: "RECOVERY STATE",
-    observation: "Time Capsule Entry 0941. Captured May 19, 2026. Tonal Axis: B Major. Tempo / Pulse: 103 BPM. Runtime: 03:06. Recovery Status: SECURED & INDEXED.",
-    duration: "03:06",
-    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
-    isExclusive: false,
-    frequency: 246.94, // B3 pitch
-    synthType: "keys",
-    bpm: 103,
-    tonalSignature: "B Major",
-    recoveryState: "Fully Recovered",
-    fullRecoveryDate: "2026.08.08",
-    archivist: "LOMON",
-    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3",
-    timeCapsule: {
-      entryNo: "0941",
-      catalogNo: "TOC-0941-B",
-      title: "9:41 PM",
-      timeOfMark: "09:41:00 PM",
-      recoveryStamp: "MAY 19, 2026",
-      completionStamp: "AUG 08, 2026",
-      tonalAxis: "B MAJOR",
-      tempoPulse: "103 BPM",
-      runtime: "03:06",
-      masterControl: "100% LOMON / THE OWL CLOCK",
-      publishingControl: "100% LOMON / THE OWL CLOCK",
-      origin: "100% ORIGINAL",
-      thirdPartyAssets: "NONE",
-      clearanceStatus: "FULLY CLEARED",
-      deliverableAssets: [
-        "01. HIGH-RES WAV MASTER [ 24-BIT / 48KHZ ]",
-        "02. REFERENCE MP3 [ 320 KBPS ]",
-        "03. UNCOMPRESSED INSTRUMENTAL MASTER",
-        "04. COMPLETE STEM / TRACKOUT SUITE"
-      ],
-      recoveryStatus: "FULLY RECOVERED",
       archivist: "LOMON"
     }
   }

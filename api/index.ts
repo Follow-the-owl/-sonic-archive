@@ -99,7 +99,60 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "1000mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1000mb" }));
+
+// In-memory audio/file storage for seamless local and preview mode playback
+interface StoredFile {
+  id: string;
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+  createdAt: number;
+}
+export const inMemoryFileStore = new Map<string, StoredFile>();
+
+// Streaming endpoint with HTTP 206 Partial Content (Byte Range) support for audio/media playback
+app.get("/api/storage/file/:id", (req, res) => {
+  const { id } = req.params;
+  const file = inMemoryFileStore.get(id);
+  if (!file) {
+    return res.status(404).json({ error: "File not found or expired from runtime cache." });
+  }
+
+  const range = req.headers.range;
+  const totalSize = file.size;
+
+  res.setHeader("Content-Type", file.mimetype || "application/octet-stream");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Content-Disposition", `inline; filename="${file.originalname}"`);
+
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+
+    if (start >= totalSize || end >= totalSize) {
+      res.status(416).setHeader("Content-Range", `bytes */${totalSize}`);
+      return res.end();
+    }
+
+    const chunksize = (end - start) + 1;
+    const chunk = file.buffer.subarray(start, end + 1);
+
+    res.writeHead(206, {
+      "Content-Range": `bytes ${start}-${end}/${totalSize}`,
+      "Accept-Ranges": "bytes",
+      "Content-Length": chunksize,
+      "Content-Type": file.mimetype,
+    });
+    return res.end(chunk);
+  } else {
+    res.setHeader("Content-Length", totalSize);
+    return res.end(file.buffer);
+  }
+});
 
 // Database initialization middleware (critical for serverless execution like Vercel)
 app.use(async (req, res, next) => {
@@ -282,16 +335,90 @@ interface Fragment {
 }
 
 const mockFragments: Fragment[] = [
-  { id: "00:50", name: "00:50 AM", timestamp: "00:50 AM", classification: "THRESHOLD COIL", observation: "Registered in a submerged concrete chamber.", duration: "4:12", description: "Analog sub-drone theme.", isExclusive: false, frequency: 110, synthType: "drone", bpm: 78, status: "Published", plays: 2840, revenue: 1200 },
-  { id: "07:46", name: "07:46 AM", timestamp: "07:46 AM", classification: "MOONLIT RUN", observation: "Traced on empty Houston freeways.", duration: "3:50", description: "Hyper-distorted pulse.", isExclusive: true, frequency: 329.63, synthType: "pulse", bpm: 160, status: "Published", plays: 3120, revenue: 150 },
-  { id: "02:17", name: "02:17 AM", timestamp: "02:17 AM", classification: "DISCOVERY FREQ", observation: "Captured on an old copper receiver.", duration: "6:04", description: "Glass-like piano notes.", isExclusive: false, frequency: 293.66, synthType: "keys", bpm: 92, status: "Published", plays: 1540, revenue: 0 },
-  { id: "05:58", name: "05:58 AM", timestamp: "05:58 AM", classification: "SUNRISE SIREN", observation: "Triggered as eastern sky changed.", duration: "7:20", description: "Evolving majestic low-bass drone.", isExclusive: false, frequency: 146.83, synthType: "pulse", bpm: 128, status: "Published", plays: 1980, revenue: 50 },
-  { id: "03:33", name: "03:33 AM", timestamp: "03:33 AM", classification: "WATCH CORE", observation: "Low frequency exhaust vibrations.", duration: "5:45", description: "High-energy industrial trap.", isExclusive: false, frequency: 220, synthType: "bell", bpm: 140, status: "Published", plays: 2100, revenue: 300 },
-  { id: "10:14", name: "10:14 PM", timestamp: "10:14 PM", classification: "RESTLESS COID", observation: "Dynamic chamber echoes.", duration: "4:32", description: "Dark ambient sub-harmonic landscape.", isExclusive: false, frequency: 98.0, synthType: "drone", bpm: 120, status: "Draft", plays: 450, revenue: 0 },
-  { id: "10:00", name: "10:00 PM", timestamp: "10:00 PM", classification: "RECOVERY STATE", observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.", duration: "6:15", description: "A majestic, fully recovered 10:00 PM transmission carrying a pure E♭ Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.", isExclusive: false, frequency: 311.13, synthType: "keys", bpm: 100, status: "Published", plays: 1200, revenue: 200, tonalSignature: "E♭ Major", recoveryState: "Fully Recovered", fullRecoveryDate: "2025.07.14", archivist: "Lomon", mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3" },
-  { id: "09:41", name: "9:41 PM", timestamp: "09:41 PM", classification: "RECOVERY STATE", observation: "Time Capsule Entry 0941. Tonal Axis: B Major. Tempo / Pulse: 103 BPM. Runtime: 03:06. Recovery Status: FULLY RECOVERED.", duration: "03:06", description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM.", isExclusive: false, frequency: 246.94, synthType: "keys", bpm: 103, status: "Published", plays: 1890, revenue: 350, tonalSignature: "B Major", recoveryState: "Fully Recovered", fullRecoveryDate: "2026.08.08", archivist: "LOMON", mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3" },
-  { id: "11:28", name: "11:28 PM", timestamp: "11:28 PM", classification: "CHRONO ANTHEM", observation: "Simultaneous signal broadcasted.", duration: "5:00", description: "Heavy majestic ambient motorcycle synth.", isExclusive: true, frequency: 196.0, synthType: "drone", bpm: 120, status: "Draft", plays: 320, revenue: 0 },
-  { id: "11:59", name: "11:59 PM", timestamp: "11:59 PM", classification: "DEVIANT KEYS", observation: "Recorded during electrical blackout.", duration: "8:11", description: "Decaying celestial chord sequence.", isExclusive: true, frequency: 440, synthType: "keys", bpm: 105, status: "Draft", plays: 100, revenue: 750 }
+  { 
+    id: "07:15", 
+    name: "07:15 AM", 
+    timestamp: "07:15 AM", 
+    classification: "RECOVERY STATE", 
+    observation: "Time Capsule Entry 0715. Tonal Axis: C Minor. Tempo / Pulse: 110 BPM. Runtime: 02:49. Recovery Status: FULLY RECOVERED.", 
+    duration: "02:49", 
+    description: "Time Capsule Entry 0715. High-fidelity recovered tape fragment carrying a C Minor tonal axis at 110 BPM.", 
+    isExclusive: false, 
+    frequency: 261.63, 
+    synthType: "keys", 
+    bpm: 110, 
+    status: "Published", 
+    plays: 980, 
+    revenue: 150, 
+    tonalSignature: "C Minor", 
+    recoveryState: "Fully Recovered", 
+    fullRecoveryDate: "2026.08.15", 
+    archivist: "LOMON", 
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3" 
+  },
+  { 
+    id: "09:41", 
+    name: "9:41 PM", 
+    timestamp: "09:41 PM", 
+    classification: "RECOVERY STATE", 
+    observation: "Time Capsule Entry 0941. Tonal Axis: B Major. Tempo / Pulse: 103 BPM. Runtime: 03:06. Recovery Status: FULLY RECOVERED.", 
+    duration: "03:06", 
+    description: "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM.", 
+    isExclusive: false, 
+    frequency: 246.94, 
+    synthType: "keys", 
+    bpm: 103, 
+    status: "Published", 
+    plays: 1890, 
+    revenue: 350, 
+    tonalSignature: "B Major", 
+    recoveryState: "Fully Recovered", 
+    fullRecoveryDate: "2026.08.08", 
+    archivist: "LOMON", 
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1786283841/9_41_PM.mp3_exkc1w.mp3" 
+  },
+  { 
+    id: "10:00", 
+    name: "10:00 PM", 
+    timestamp: "10:00 PM", 
+    classification: "RECOVERY STATE", 
+    observation: "Tonal Signature: E♭ Major. Pulse: 100 BPM. Recovery State: Fully Recovered on 2025.07.14. Archivist: Lomon.", 
+    duration: "6:15", 
+    description: "A majestic, fully recovered 10:00 PM transmission carrying a pure E♭ Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.", 
+    isExclusive: false, 
+    frequency: 311.13, 
+    synthType: "keys", 
+    bpm: 100, 
+    status: "Published", 
+    plays: 1200, 
+    revenue: 200, 
+    tonalSignature: "E♭ Major", 
+    recoveryState: "Fully Recovered", 
+    fullRecoveryDate: "2025.07.14", 
+    archivist: "Lomon", 
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1784165475/10_00_PM.mp3_cbjsq6.mp3" 
+  },
+  { 
+    id: "11:11", 
+    name: "11:11 PM", 
+    timestamp: "11:11 PM", 
+    classification: "DEVIANT KEYS", 
+    observation: "Celestial tape reel fragment captured at 11:11 PM under rare alignment.", 
+    duration: "5:44", 
+    description: "Rare celestial fragments decaying inside vintage tape reels with hopeful harmonic decay vibrating at 125 BPM.", 
+    isExclusive: false, 
+    frequency: 440, 
+    synthType: "keys", 
+    bpm: 125, 
+    status: "Published", 
+    plays: 2450, 
+    revenue: 850, 
+    tonalSignature: "A Major", 
+    recoveryState: "Fully Recovered", 
+    fullRecoveryDate: "2026.08.01", 
+    archivist: "Lomon", 
+    mp3Preview: "https://res.cloudinary.com/dqg8pcmvz/video/upload/v1785646485/11_11_PM_With_Tag_2_b9hx24.mp3" 
+  }
 ];
 
 let dbInitPromise: Promise<void> | null = null;
@@ -1906,40 +2033,113 @@ app.delete("/api/admin/users", async (req, res) => {
 // --- Fragment CRUD APIs ---
 app.get("/api/fragments", async (req, res) => {
   try {
+    const { status, genre, mood, availability, page, limit } = req.query;
     let list: any[] = [];
     if (useMockDb) {
       list = mockFragments;
     } else {
       list = await db!.collection("fragments").find({}).toArray();
     }
-    res.json({ success: true, fragments: list });
+
+    // Filter by query parameters if provided
+    let filtered = list;
+    if (status && status !== "ALL") {
+      filtered = filtered.filter(f => (f.status || "published").toLowerCase() === String(status).toLowerCase());
+    }
+    if (availability && availability !== "ALL") {
+      filtered = filtered.filter(f => (f.availability || (f.isExclusive ? "sold" : "available")).toLowerCase() === String(availability).toLowerCase());
+    }
+    if (genre) {
+      const gLower = String(genre).toLowerCase();
+      filtered = filtered.filter(f => {
+        if (Array.isArray(f.genre)) return f.genre.some((g: string) => g.toLowerCase().includes(gLower));
+        return (f.classification || "").toLowerCase().includes(gLower);
+      });
+    }
+    if (mood) {
+      const mLower = String(mood).toLowerCase();
+      filtered = filtered.filter(f => {
+        if (Array.isArray(f.mood)) return f.mood.some((m: string) => m.toLowerCase().includes(mLower));
+        return false;
+      });
+    }
+
+    // Exclude soft-deleted records unless explicitly querying archived
+    if (status !== "archived") {
+      filtered = filtered.filter(f => !f.deletedAt);
+    }
+
+    // Optional pagination
+    const pageNum = parseInt(String(page || "1"), 10);
+    const limitNum = parseInt(String(limit || "100"), 10);
+    const total = filtered.length;
+    const paginated = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+    res.json({
+      success: true,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      fragments: paginated
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to retrieve fragments from database." });
+  }
+});
+
+app.get("/api/fragments/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let found: any = null;
+
+    if (useMockDb) {
+      found = mockFragments.find(f => f.id === id || (f as any).fragmentId === id);
+    } else {
+      found = await db!.collection("fragments").findOne({ $or: [{ id }, { fragmentId: id }] });
+    }
+
+    if (!found) {
+      return res.status(404).json({ error: `Fragment ${id} not found.` });
+    }
+
+    res.json({ success: true, fragment: found });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to get fragment." });
   }
 });
 
 app.post("/api/fragments", async (req, res) => {
   try {
     const fragment = req.body;
-    if (!fragment || !fragment.id || !fragment.name) {
-      return res.status(400).json({ error: "Fragment ID and Name are required fields." });
+    const cleanId = fragment.id || fragment.fragmentId;
+    if (!fragment || !cleanId) {
+      return res.status(400).json({ error: "Fragment ID / timestamp is required." });
     }
 
+    const newRecord = {
+      ...fragment,
+      id: cleanId,
+      name: fragment.name || fragment.fragmentTimestamp || cleanId,
+      status: fragment.status || "draft",
+      availability: fragment.availability || "available",
+      createdAt: fragment.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null
+    };
+
     if (useMockDb) {
-      const exists = mockFragments.some(f => f.id === fragment.id);
-      if (exists) {
-        return res.status(400).json({ error: `Fragment with ID ${fragment.id} already exists.` });
+      const existsIdx = mockFragments.findIndex(f => f.id === cleanId);
+      if (existsIdx >= 0) {
+        mockFragments[existsIdx] = { ...mockFragments[existsIdx], ...newRecord };
+      } else {
+        mockFragments.unshift(newRecord);
       }
-      mockFragments.push(fragment);
     } else {
       const col = db!.collection("fragments");
-      const exists = await col.findOne({ id: fragment.id });
-      if (exists) {
-        return res.status(400).json({ error: `Fragment with ID ${fragment.id} already exists.` });
-      }
-      await col.insertOne(fragment);
+      await col.updateOne({ id: cleanId }, { $set: newRecord }, { upsert: true });
     }
-    res.json({ success: true, fragment });
+
+    res.json({ success: true, fragment: newRecord });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to save fragment." });
   }
@@ -1953,23 +2153,29 @@ app.put("/api/fragments/:id", async (req, res) => {
       return res.status(400).json({ error: "Fragment ID and payload are required." });
     }
 
+    const updatedRecord = {
+      ...fragment,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+
     let updated = false;
     if (useMockDb) {
       const idx = mockFragments.findIndex(f => f.id === id);
       if (idx !== -1) {
-        mockFragments[idx] = { ...mockFragments[idx], ...fragment };
+        mockFragments[idx] = { ...mockFragments[idx], ...updatedRecord };
         updated = true;
       }
     } else {
       const result = await db!.collection("fragments").updateOne(
         { id },
-        { $set: fragment }
+        { $set: updatedRecord }
       );
       updated = result.matchedCount > 0;
     }
 
     if (updated) {
-      res.json({ success: true, message: `Fragment ${id} updated successfully.` });
+      res.json({ success: true, fragment: updatedRecord, message: `Fragment ${id} updated successfully.` });
     } else {
       res.status(404).json({ error: `Fragment ${id} not found.` });
     }
@@ -1978,27 +2184,92 @@ app.put("/api/fragments/:id", async (req, res) => {
   }
 });
 
+// Quick status change patch (draft/published/archived/scheduled)
+app.patch("/api/fragments/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!id || !status) {
+      return res.status(400).json({ error: "Fragment ID and status are required." });
+    }
+
+    const patch: any = { status, updatedAt: new Date().toISOString() };
+    if (status === "archived") {
+      patch.deletedAt = new Date().toISOString();
+    } else {
+      patch.deletedAt = null;
+    }
+
+    let updated = false;
+    if (useMockDb) {
+      const idx = mockFragments.findIndex(f => f.id === id);
+      if (idx !== -1) {
+        mockFragments[idx] = { ...mockFragments[idx], ...patch };
+        updated = true;
+      }
+    } else {
+      const result = await db!.collection("fragments").updateOne({ id }, { $set: patch });
+      updated = result.matchedCount > 0;
+    }
+
+    if (updated) {
+      res.json({ success: true, message: `Fragment ${id} status changed to ${status}.` });
+    } else {
+      res.status(404).json({ error: `Fragment ${id} not found.` });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to patch fragment status." });
+  }
+});
+
+// Soft Delete or Hard Delete (supports ?permanent=true)
 app.delete("/api/fragments/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const { permanent } = req.query;
     if (!id) {
       return res.status(400).json({ error: "Fragment ID is required for deletion." });
     }
+
+    if (permanent === "true") {
+      let deleted = false;
+      if (useMockDb) {
+        const idx = mockFragments.findIndex(f => f.id === id);
+        if (idx !== -1) {
+          mockFragments.splice(idx, 1);
+          deleted = true;
+        }
+      } else {
+        const result = await db!.collection("fragments").deleteOne({ id });
+        deleted = result.deletedCount > 0;
+      }
+      if (deleted) {
+        return res.json({ success: true, message: `Fragment ${id} permanently removed from database.` });
+      } else {
+        return res.status(404).json({ error: `Fragment ${id} not found.` });
+      }
+    }
+
+    const patch = {
+      status: "archived",
+      deletedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
     let deleted = false;
     if (useMockDb) {
       const idx = mockFragments.findIndex(f => f.id === id);
       if (idx !== -1) {
-        mockFragments.splice(idx, 1);
+        mockFragments[idx] = { ...mockFragments[idx], ...patch };
         deleted = true;
       }
     } else {
-      const result = await db!.collection("fragments").deleteOne({ id });
-      deleted = result.deletedCount > 0;
+      const result = await db!.collection("fragments").updateOne({ id }, { $set: patch });
+      deleted = result.matchedCount > 0;
     }
 
     if (deleted) {
-      res.json({ success: true, message: `Fragment ${id} deleted successfully.` });
+      res.json({ success: true, message: `Fragment ${id} marked as archived/soft-deleted.` });
     } else {
       res.status(404).json({ error: `Fragment ${id} not found.` });
     }
@@ -2007,12 +2278,138 @@ app.delete("/api/fragments/:id", async (req, res) => {
   }
 });
 
+// Duplicate Fragment Endpoint
+app.post("/api/fragments/:id/duplicate", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let original: any = null;
+
+    if (useMockDb) {
+      original = mockFragments.find(f => f.id === id);
+    } else {
+      original = await db!.collection("fragments").findOne({ id });
+    }
+
+    if (!original) {
+      return res.status(404).json({ error: `Original fragment ${id} not found.` });
+    }
+
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const newId = `${original.id}-COPY-${randomSuffix}`;
+    const cloned = {
+      ...original,
+      _id: undefined,
+      id: newId,
+      name: `${original.name || original.id} (Copy)`,
+      compositionTitle: `${original.compositionTitle || original.name || original.id} (Copy)`,
+      compositionId: `LOC-COMP-${newId.replace(/[^a-zA-Z0-9]/g, "")}`,
+      status: "draft",
+      syncStatus: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deletedAt: null
+    };
+
+    if (useMockDb) {
+      mockFragments.unshift(cloned);
+    } else {
+      await db!.collection("fragments").insertOne(cloned);
+    }
+
+    res.json({ success: true, fragment: cloned, message: `Fragment ${id} duplicated as ${newId}.` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to duplicate fragment." });
+  }
+});
+
+// Sync receiving endpoint (public catalog upsert)
+app.post("/api/catalog/sync", async (req, res) => {
+  try {
+    const { fragmentId, payload, action } = req.body;
+    if (!fragmentId) {
+      return res.status(400).json({ error: "fragmentId is required for catalog sync." });
+    }
+
+    if (action === "remove" || action === "unpublish") {
+      console.log(`[CATALOG SYNC] Removed fragment ${fragmentId} from public catalog.`);
+      return res.json({ success: true, action: "removed", fragmentId });
+    }
+
+    console.log(`[CATALOG SYNC] Upserted fragment ${fragmentId} to public clock catalog.`, payload?.key, payload?.bpm);
+    return res.json({ success: true, action: "upserted", fragmentId, syncedAt: new Date().toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Catalog sync failed." });
+  }
+});
+
 
 // --- Real Storage Setup & Endpoints ---
+import { 
+  generateCloudinarySignature,
+  getUploadThingDownloadUrl,
+  getCloudinaryClient
+} from "./storageService";
+import { uploadRouter } from "./uploadthingRouter";
+
+// Mount UploadThing Route Handler
+app.use(
+  "/api/uploadthing",
+  createRouteHandler({ router: uploadRouter })
+);
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB buffer limit for large stem archives and lossless audio
+});
+
+// 1. Cloudinary Signed Upload Signature Generator (Audio resource_type="video", Documents resource_type="raw")
+app.post("/api/storage/cloudinary/sign", async (req, res) => {
+  try {
+    const { folder, resourceType, tags, fragmentId } = req.body;
+    const cleanFolder = folder || (fragmentId ? `fragments/${fragmentId.replace(/[^a-zA-Z0-9]/g, "")}` : "lomon-archive");
+    const rType = (resourceType || "video") as "video" | "raw" | "image" | "auto";
+    const tagList = tags || "owl-clock-fragment";
+
+    const signatureData = generateCloudinarySignature(cleanFolder, rType, tagList);
+    if (!signatureData) {
+      return res.json({
+        success: false,
+        configured: false,
+        message: "Cloudinary credentials not configured in environment variables. Falling back to local/in-memory server storage."
+      });
+    }
+
+    res.json({
+      success: true,
+      configured: true,
+      ...signatureData
+    });
+  } catch (err: any) {
+    res.json({ 
+      success: false,
+      configured: false,
+      error: err.message || "Failed to generate Cloudinary upload signature."
+    });
+  }
+});
+
+// 2. UploadThing Stem ZIP Download URL Resolver
+app.post("/api/storage/uploadthing/download-url", async (req, res) => {
+  try {
+    const { fileKey, expiresIn } = req.body;
+    if (!fileKey) {
+      return res.status(400).json({ error: "fileKey is required." });
+    }
+    const expiry = parseInt(expiresIn || process.env.UPLOADTHING_URL_EXPIRY || "3600", 10);
+    const downloadData = await getUploadThingDownloadUrl(fileKey, expiry);
+    res.json({
+      success: true,
+      ...downloadData
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to resolve download URL." });
+  }
 });
 
 // Cloudinary configuration helper
@@ -2041,7 +2438,7 @@ function getUploadthing() {
   return new UTApi();
 }
 
-// 1. Cloudinary upload endpoint (for Artwork, PDF Documents, etc.)
+// 7. Cloudinary direct buffer upload endpoint (for Artwork, PDF Documents, etc.)
 app.post("/api/upload/cloudinary", upload.single("file") as any, async (req, res) => {
   try {
     const file = req.file;
@@ -2049,19 +2446,22 @@ app.post("/api/upload/cloudinary", upload.single("file") as any, async (req, res
       return res.status(400).json({ error: "No file was uploaded." });
     }
 
+    const folder = req.body.folder || "lomon-archive/artwork";
+    const resourceType = req.body.resourceType || "auto";
+
     const cloud = getCloudinary();
     if (cloud) {
       // Stream upload buffer directly to Cloudinary
-      const uploadPromise = new Promise<string>((resolve, reject) => {
+      const uploadPromise = new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
         const uploadStream = cloud.uploader.upload_stream(
           {
-            folder: "lomon-archive/artwork",
-            resource_type: "auto",
+            folder,
+            resource_type: resourceType,
           },
           (err, result) => {
             if (err) return reject(err);
             if (result && result.secure_url) {
-              resolve(result.secure_url);
+              resolve({ secure_url: result.secure_url, public_id: result.public_id });
             } else {
               reject(new Error("Failed to get secure URL from Cloudinary."));
             }
@@ -2070,19 +2470,34 @@ app.post("/api/upload/cloudinary", upload.single("file") as any, async (req, res
         uploadStream.end(file.buffer);
       });
 
-      const secureUrl = await uploadPromise;
-      return res.json({ success: true, url: secureUrl, provider: "cloudinary" });
+      const uploadResult = await uploadPromise;
+      return res.json({ 
+        success: true, 
+        url: uploadResult.secure_url, 
+        public_id: uploadResult.public_id,
+        provider: "cloudinary" 
+      });
     } else {
-      // Fallback: convert to beautiful base64 data URL so it renders immediately in UI
-      const base64Str = file.buffer.toString("base64");
-      const dataUrl = `data:${file.mimetype};base64,${base64Str}`;
-      console.log(`[STORAGE] Cloudinary keys missing. Fallback to base64 data url for: ${file.originalname}`);
+      // Fallback: save to in-memory file store and return streaming URL
+      const fileId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      inMemoryFileStore.set(fileId, {
+        id: fileId,
+        buffer: file.buffer,
+        mimetype: file.mimetype || "application/octet-stream",
+        originalname: file.originalname,
+        size: file.size,
+        createdAt: Date.now()
+      });
+
+      const fileUrl = `/api/storage/file/${fileId}`;
+      console.log(`[STORAGE] Stored ${file.originalname} (${file.size} bytes) in memory -> ${fileUrl}`);
       return res.json({
         success: true,
-        url: dataUrl,
+        url: fileUrl,
+        public_id: fileId,
         fallback: true,
-        provider: "local-base64",
-        message: "Cloudinary keys missing. Saved locally in-memory."
+        provider: "in-memory-server",
+        message: "Saved in runtime server storage."
       });
     }
   } catch (err: any) {
@@ -2091,7 +2506,7 @@ app.post("/api/upload/cloudinary", upload.single("file") as any, async (req, res
   }
 });
 
-// 2. Uploadthing upload endpoint (for Audio tracks: MP3, WAV, stems)
+// 8. Uploadthing upload endpoint (for Audio tracks: MP3, WAV, stems fallback)
 app.post("/api/upload/uploadthing", upload.single("file") as any, async (req, res) => {
   try {
     const file = req.file;
@@ -2127,16 +2542,26 @@ app.post("/api/upload/uploadthing", upload.single("file") as any, async (req, re
         throw new Error("Invalid response format received from Uploadthing API.");
       }
     } else {
-      // Fallback: convert to base64 data URL so that audio player plays it immediately
-      const base64Str = file.buffer.toString("base64");
-      const dataUrl = `data:${file.mimetype};base64,${base64Str}`;
-      console.log(`[STORAGE] Uploadthing token missing. Fallback to base64 audio url for: ${file.originalname}`);
+      // Fallback: save to in-memory file store and return streaming URL
+      const fileId = `audio-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      inMemoryFileStore.set(fileId, {
+        id: fileId,
+        buffer: file.buffer,
+        mimetype: file.mimetype || "audio/wav",
+        originalname: file.originalname,
+        size: file.size,
+        createdAt: Date.now()
+      });
+
+      const fileUrl = `/api/storage/file/${fileId}`;
+      console.log(`[STORAGE] Stored audio ${file.originalname} (${file.size} bytes) in memory -> ${fileUrl}`);
       return res.json({
         success: true,
-        url: dataUrl,
+        url: fileUrl,
+        key: fileId,
         fallback: true,
-        provider: "local-base64",
-        message: "Uploadthing token missing. Cached locally in-memory."
+        provider: "in-memory-server",
+        message: "Saved in runtime server storage."
       });
     }
   } catch (err: any) {
@@ -2144,7 +2569,6 @@ app.post("/api/upload/uploadthing", upload.single("file") as any, async (req, re
     res.status(500).json({ error: err?.message || "Failed to upload audio to Uploadthing." });
   }
 });
-
 
 // --- VITE MIDDLEWARE SETUP ---
 async function startServer() {
@@ -2159,7 +2583,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
 
-    app.use("*", async (req, res, next) => {
+    app.use(async (req, res, next) => {
       const url = req.originalUrl;
       if (url.startsWith("/api")) {
         return next();
@@ -2184,7 +2608,10 @@ async function startServer() {
     console.log("[SERVER] Mounting static asset serve for production...");
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.use((req, res, next) => {
+      if (req.originalUrl.startsWith("/api")) {
+        return next();
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

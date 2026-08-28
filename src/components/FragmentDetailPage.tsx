@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2 } from "lucide-react";
-import { Fragment, FRAGMENTS, getTimeCapsuleForFragment } from "../data";
+import { Fragment, getTimeCapsuleForFragment } from "../data";
+import { getAllActiveFragments } from "../lib/fragmentService";
 import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
 import { playFragment, stopAudio, pauseAudio, resumeAudio, isAudioPaused, getCurrentTime, getDuration, seekAudio, setMasterVolume, getMasterVolume, getGlobalAnalyser, registerAudioCallback, getActiveId } from "../audio";
 import { RadioactiveIcon } from "./WelcomeScreen";
@@ -266,15 +267,17 @@ export default function FragmentDetailPage({
   };
 
   const handleNextTrack = () => {
-    const currentIndex = FRAGMENTS.findIndex(f => f.id === activeFrag.id);
-    const nextIndex = (currentIndex + 1) % FRAGMENTS.length;
-    handleShiftMusic(FRAGMENTS[nextIndex]);
+    const list = getAllActiveFragments();
+    const currentIndex = list.findIndex(f => f.id === activeFrag.id);
+    const nextIndex = (currentIndex + 1) % list.length;
+    handleShiftMusic(list[nextIndex]);
   };
 
   const handlePrevTrack = () => {
-    const currentIndex = FRAGMENTS.findIndex(f => f.id === activeFrag.id);
-    const prevIndex = (currentIndex - 1 + FRAGMENTS.length) % FRAGMENTS.length;
-    handleShiftMusic(FRAGMENTS[prevIndex]);
+    const list = getAllActiveFragments();
+    const currentIndex = list.findIndex(f => f.id === activeFrag.id);
+    const prevIndex = (currentIndex - 1 + list.length) % list.length;
+    handleShiftMusic(list[prevIndex]);
   };
 
   const handleSeekTo = (seconds: number) => {
@@ -699,13 +702,44 @@ export default function FragmentDetailPage({
           <button
             type="button"
             onClick={() => setShowTimeCapsuleOverlay(true)}
-            className="bg-zinc-950/70 hover:bg-zinc-900/60 p-3 sm:p-4 flex flex-col justify-between text-left cursor-pointer transition-colors"
+            className="bg-zinc-950/70 hover:bg-zinc-900/60 p-3 sm:p-4 flex flex-col justify-between text-left cursor-pointer transition-colors group"
             title="Press to view Time Capsule metadata"
           >
             <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
-            <span className="text-[#39CD74] font-medium tracking-widest uppercase truncate">
-              {activeFrag.recoveryState || "Fully Recovered"}
-            </span>
+            <div className="flex items-center gap-1.5 min-h-[16px]">
+              <span className="relative inline-flex items-center justify-center w-2 h-2 shrink-0">
+                <motion.span
+                  animate={{
+                    scale: [1, 1.85, 1],
+                    opacity: [0.7, 0, 0.7],
+                  }}
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute inset-0 rounded-full bg-[#39CD74]"
+                />
+                <motion.span
+                  animate={{
+                    boxShadow: [
+                      "0 0 4px rgba(57, 205, 116, 0.5)",
+                      "0 0 12px rgba(57, 205, 116, 0.95)",
+                      "0 0 4px rgba(57, 205, 116, 0.5)"
+                    ]
+                  }}
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="relative w-1.5 h-1.5 rounded-full bg-[#39CD74]"
+                />
+              </span>
+              <span className="text-[#39CD74] font-medium tracking-widest uppercase truncate drop-shadow-[0_0_8px_rgba(57,205,116,0.6)] leading-none pt-[0.5px]">
+                {activeFrag.recoveryState || "Fully Recovered"}
+              </span>
+            </div>
           </button>
           <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
             <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST</span>
@@ -715,12 +749,13 @@ export default function FragmentDetailPage({
           </div>
         </div>
 
-        {/* RESTORED FULL-WIDTH REQUEST CLEARANCE ACTION BUTTON */}
-        <div className="w-full border border-zinc-900 bg-zinc-950/40 rounded-sm overflow-hidden flex shadow-[0_4px_12px_rgba(0,0,0,0.35)] mt-3 sm:mt-4">
+        {/* RESTORED FULL-WIDTH REQUEST CLEARANCE ACTION BUTTON WITH SOFT CTA OUTLINE GLOW */}
+        <div className="w-full relative rounded-sm group mt-3 sm:mt-4">
+          <div className="absolute -inset-[1px] bg-gradient-to-r from-zinc-700/30 via-white/25 to-zinc-700/30 rounded-sm blur-[2px] opacity-60 group-hover:opacity-100 group-hover:blur-[3px] transition-all duration-500 pointer-events-none" />
           <button
             id="request-clearance-btn"
             onClick={() => setShowLicensePanel(true)}
-            className="w-full p-4 bg-zinc-950/80 hover:bg-zinc-900/60 font-mono font-medium text-[9px] sm:text-[11px] tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-2 h-[52px] sm:h-[58px] border-0 outline-none"
+            className="relative w-full p-4 bg-zinc-950/90 hover:bg-zinc-900/80 font-mono font-medium text-[9px] sm:text-[11px] tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-2 h-[52px] sm:h-[58px] border border-zinc-700/60 hover:border-zinc-500/80 rounded-sm shadow-[0_0_15px_rgba(255,255,255,0.08)] hover:shadow-[0_0_24px_rgba(255,255,255,0.22)]"
           >
             <span>REQUEST CLEARANCE</span>
             <span className="font-mono text-[10px] sm:text-sm shrink-0 select-none">→</span>
