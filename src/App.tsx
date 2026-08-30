@@ -827,6 +827,10 @@ export default function App() {
         userLicenses={userLicenses}
         onClose={handleCloseDashboards}
         onOpenAdmin={handleOpenAdmin}
+        onSelectFragment={(frag) => {
+          setClientViewActive(false);
+          setSelectedFragment(frag);
+        }}
         onRefreshData={() => {
           if (authToken) {
             fetchUserData(authToken);

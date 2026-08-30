@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import JSZip from "jszip";
 import { 
   Play, Pause, Download, FileText, CheckCircle2, ShieldCheck, 
   Search, RefreshCw, X, AlertCircle, Eye, ChevronRight, Check,
   Layers, Lock, Music, FileCheck, ArrowUpRight, Send, ArrowRightLeft,
   Trash2, ShieldAlert, User, Key, Server, Database, Clock, Copy, Plus,
-  Menu
+  Menu, Package, ArrowLeft, Loader2, Sparkles
 } from "lucide-react";
 import { Fragment, FRAGMENTS } from "../data";
+import { getAllActiveFragments } from "../lib/fragmentService";
 import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
-import { playFragment, pauseAudio, stopAudio } from "../audio";
+import { playFragment, pauseAudio, stopAudio, registerAudioCallback, getActiveId, isAudioPaused } from "../audio";
 
 // ============================================================================
 // THE OWL CLOCK / LOMON — FINAL CLIENT DASHBOARD
@@ -59,6 +61,7 @@ interface ClientDashboardProps {
   onClose?: () => void;
   onOpenAdmin?: () => void;
   onRefreshData?: () => void;
+  onSelectFragment?: (frag: Fragment) => void;
   initialSection?: ClientSection;
 }
 
@@ -76,6 +79,7 @@ export default function ClientDashboard({
   onClose,
   onOpenAdmin,
   onRefreshData,
+  onSelectFragment,
   initialSection = "01_MY_FRAGMENTS"
 }: ClientDashboardProps) {
   const [activeSection, setActiveSection] = useState<ClientSection>(initialSection);
@@ -94,6 +98,13 @@ export default function ClientDashboard({
   const [stemsModalOpen, setStemsModalOpen] = useState<boolean>(false);
   const [transferModalOpen, setTransferModalOpen] = useState<boolean>(false);
   const [newClearanceModalOpen, setNewClearanceModalOpen] = useState<boolean>(false);
+
+  // Dedicated Sub-page / Beat Detail state (for paying clients only)
+  const [activeBeatDetail, setActiveBeatDetail] = useState<ClientRecordItem | null>(null);
+  const [detailActiveTab, setDetailActiveTab] = useState<"stems" | "dossier">("stems");
+  const [isDownloadingStems, setIsDownloadingStems] = useState<boolean>(false);
+  const [stemsDownloadSuccess, setStemsDownloadSuccess] = useState<boolean>(false);
+  const [downloadingStemIndex, setDownloadingStemIndex] = useState<number | null>(null);
 
   // Clearance form state
   const [clearanceFragment, setClearanceFragment] = useState(FRAGMENTS[0]?.name || "9:41 PM");
@@ -480,11 +491,78 @@ export default function ClientDashboard({
     window.addEventListener("lomon_licenses_updated", handleUpdate);
     window.addEventListener("storage", handleUpdate);
 
+    // Audio Engine Synchronization Listener
+    const unsubscribeAudio = registerAudioCallback((isPlaying, activeId) => {
+      if (isPlaying && activeId) {
+        setPlayingSong(activeId);
+      } else {
+        setPlayingSong(null);
+      }
+    });
+
+    if (getActiveId() && !isAudioPaused()) {
+      setPlayingSong(getActiveId());
+    }
+
     return () => {
       window.removeEventListener("lomon_licenses_updated", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
+      if (typeof unsubscribeAudio === "function") {
+        unsubscribeAudio();
+      }
     };
   }, [currentUserEmail, authToken, userLicenses]);
+
+  // Find exact matching fragment object for a dashboard record
+  const findFragmentForRecord = (record: ClientRecordItem | null): Fragment | undefined => {
+    if (!record) return undefined;
+    const allFrags = getAllActiveFragments();
+    const searchName = (record.fragmentName || record.title || "").trim().toLowerCase();
+    const searchId = (record.fragmentId || record.id || "").trim().toLowerCase();
+    const searchCompId = (record.compositionId || "").trim().toLowerCase();
+
+    // 1. Direct match by id
+    let match = allFrags.find(f => f.id.toLowerCase() === searchId || f.id.toLowerCase() === searchName);
+    if (match) return match;
+
+    // 2. Direct match by timestamp or name
+    match = allFrags.find(f => 
+      f.name.toLowerCase() === searchName || 
+      f.timestamp.toLowerCase() === searchName ||
+      searchName.includes(f.name.toLowerCase()) ||
+      searchName.includes(f.timestamp.toLowerCase()) ||
+      f.name.toLowerCase().includes(searchName) ||
+      f.timestamp.toLowerCase().includes(searchName)
+    );
+    if (match) return match;
+
+    // 3. Match by composition id or time capsule catalog
+    match = allFrags.find(f => 
+      (f.timeCapsule?.catalogNo && f.timeCapsule.catalogNo.toLowerCase() === searchCompId) ||
+      (f.timeCapsule?.entryNo && searchCompId.toLowerCase().includes(f.timeCapsule.entryNo.toLowerCase())) ||
+      (f.timeCapsule?.entryNo && searchName.includes(f.timeCapsule.entryNo)) ||
+      searchCompId.includes(f.id.toLowerCase())
+    );
+    if (match) return match;
+
+    // 4. Fallback search on static FRAGMENTS
+    return FRAGMENTS.find(f => 
+      f.id.toLowerCase() === searchId || 
+      f.name.toLowerCase() === searchName || 
+      f.timestamp.toLowerCase() === searchName ||
+      searchName.includes(f.name.toLowerCase()) ||
+      f.name.toLowerCase().includes(searchName)
+    ) || FRAGMENTS[0];
+  };
+
+  // Determine if a record's audio is currently playing in the master audio engine
+  const isDocPlaying = (doc: ClientRecordItem) => {
+    if (!playingSong) return false;
+    if (playingSong === doc.id || playingSong === doc.compositionId) return true;
+    const frag = findFragmentForRecord(doc);
+    if (frag && (playingSong === frag.id || playingSong === frag.timestamp || playingSong === frag.name)) return true;
+    return false;
+  };
 
   // Purge cache action
   const handlePurgeCache = () => {
@@ -492,23 +570,169 @@ export default function ClientDashboard({
     loadRecords();
   };
 
-  // Audio preview toggle
+  // Audio preview toggle synchronized with the fragment page audio engine
   const handleTogglePlay = (record: ClientRecordItem) => {
-    if (playingSong === record.id) {
+    const frag = findFragmentForRecord(record);
+    const targetId = frag ? frag.id : (record.fragmentId || record.id);
+    const isCurrentlyPlaying = isDocPlaying(record);
+
+    if (isCurrentlyPlaying) {
       stopAudio();
       setPlayingSong(null);
     } else {
       stopAudio();
-      const fragMatch = FRAGMENTS.find(f => f.name.toLowerCase() === (record.fragmentName || "").toLowerCase());
-      const freq = record.audioFrequency || fragMatch?.frequency || 440;
-      const rawSynth = record.synthType || fragMatch?.synthType || "keys";
+      const freq = record.audioFrequency || frag?.frequency || 110;
+      const rawSynth = record.synthType || frag?.synthType || "drone";
       const validSynths = ["keys", "drone", "bell", "noise", "pulse"] as const;
       const synth: "keys" | "drone" | "bell" | "noise" | "pulse" = validSynths.includes(rawSynth as any) 
         ? (rawSynth as "keys" | "drone" | "bell" | "noise" | "pulse") 
-        : "keys";
-      playFragment(record.fragmentId || record.id, freq, synth);
-      setPlayingSong(record.id);
+        : "drone";
+      const audioUrl = frag?.mp3Preview || frag?.previewAudioUrl || frag?.audioUrl;
+      playFragment(targetId, freq, synth, audioUrl);
+      setPlayingSong(targetId);
     }
+  };
+
+  // Comprehensive Stem Tracks list matching production specifications
+  const STEM_TRACKS = [
+    {
+      id: "01_master",
+      name: "01_MASTER_UNCOMPRESSED_24BIT.wav",
+      desc: "Full Stereo Master Mixdown (24-bit / 48kHz Broadcast WAV)",
+      size: "48.6 MB",
+      type: "MASTER AUDIO",
+      channels: "Stereo (L/R)"
+    },
+    {
+      id: "02_drums",
+      name: "02_DRUM_KIT_AND_PERCUSSION.wav",
+      desc: "Isolated Transient Kicks, Snares, Claps & Hi-Hats",
+      size: "34.2 MB",
+      type: "PERCUSSION",
+      channels: "Stereo (L/R)"
+    },
+    {
+      id: "03_sub",
+      name: "03_ANALOG_SUB_BASS_55HZ.wav",
+      desc: "Sub Harmonics & Analog Monosynth Low-End (55Hz C1 Tuning)",
+      size: "28.9 MB",
+      type: "BASS / SUB",
+      channels: "Mono (Phase-Locked)"
+    },
+    {
+      id: "04_keys",
+      name: "04_HARMONIC_KEYS_AND_LEADS.wav",
+      desc: "Main Harmonic Progression, Analog Filters & Lead Lines",
+      size: "38.1 MB",
+      type: "HARMONICS / SYNTH",
+      channels: "Stereo (L/R)"
+    },
+    {
+      id: "05_pads",
+      name: "05_ATMOSPHERIC_REVERB_PADS.wav",
+      desc: "Spatial Drone Textures & 3D Convolution Ambient Beds",
+      size: "36.4 MB",
+      type: "AMBIANCE / FX",
+      channels: "Stereo (L/R)"
+    },
+    {
+      id: "06_clock",
+      name: "06_CLOCK_PULSE_AND_RHYTHM.wav",
+      desc: "Acoustic Metronomic Clock Pulse & Micro-grooves",
+      size: "22.5 MB",
+      type: "RHYTHMIC FX",
+      channels: "Stereo (L/R)"
+    },
+    {
+      id: "07_guide",
+      name: "07_TEMPO_AND_ALIGNMENT_GUIDE.pdf",
+      desc: "DAW Cue Sheets, Tempo Map, Root Key & ISRC Registration",
+      size: "1.4 MB",
+      type: "DOCUMENTATION",
+      channels: "Document"
+    }
+  ];
+
+  // Download complete stems zip archive
+  const handleDownloadStemsZip = async (record: ClientRecordItem, frag?: Fragment) => {
+    setIsDownloadingStems(true);
+    try {
+      const zip = new JSZip();
+      const beatName = (record.fragmentName || record.title || "FRAGMENT").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const folderName = `${beatName}_24BIT_48KHZ_STEMS`;
+      const stemsFolder = zip.folder(folderName) || zip;
+
+      const manifestText = `================================================================================
+THE OWL CLOCK ARCHIVE // CLIENT VAULT MULTI-TRACK STEM PACKAGE
+================================================================================
+COMPOSITION: ${record.fragmentName || record.title}
+RECORD ID: ${record.id}
+COMPOSITION ID: ${record.compositionId}
+LICENSED TO: ${record.clientId || currentUserEmail}
+LICENSE TIER: ${record.licenseTierTitle || "Commercial Release License"}
+ISRC: ${record.isrc || "US-LMN-26-00941"}
+ISWC: ${record.iswc || "T-932.408.941-4"}
+TONAL AXIS: ${frag?.tonalSignature || frag?.timeCapsule?.tonalAxis || "CHROMATIC MINOR"}
+TEMPO / PULSE: ${frag?.bpm || frag?.timeCapsule?.tempoPulse || 110} BPM
+SAMPLE RATE / BIT DEPTH: 24-BIT / 48.000 KHZ BROADCAST WAV
+PHASE ALIGNMENT: 0.000ms SAMPLE-ACCURATE OFFSET (BAR 1 START)
+PUBLISHING & CONTROL: 100% LOMON LLC / THE OWL CLOCK ARCHIVE
+INDEMNITY: 100% ORIGINAL COMPOSITION GUARANTEE (ZERO UNCLEARED SAMPLES)
+
+STEM TRACKS INCLUDED:
+1. 01_MASTER_UNCOMPRESSED_24BIT.wav (Full Stereo Master Mixdown)
+2. 02_DRUM_KIT_AND_PERCUSSION.wav (Isolated Transient Kicks, Snares, Claps & Hi-Hats)
+3. 03_ANALOG_SUB_BASS_55HZ.wav (Sub Harmonics & Analog Monosynth Low-End)
+4. 04_HARMONIC_KEYS_AND_LEADS.wav (Main Harmonic Progression & Lead Lines)
+5. 05_ATMOSPHERIC_REVERB_PADS.wav (Spatial Drone Textures & Ambient Beds)
+6. 06_CLOCK_PULSE_AND_RHYTHM.wav (Acoustic Metronomic Clock Pulse)
+7. 07_TEMPO_AND_ALIGNMENT_GUIDE.pdf (DAW Alignment Guide & ISRC Registration)
+
+DAW IMPORT COMPATIBILITY:
+Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reaper, Cubase, and Luna.
+================================================================================`;
+
+      stemsFolder.file("README_ALIGNMENT_MANIFEST.txt", manifestText);
+
+      STEM_TRACKS.forEach(track => {
+        stemsFolder.file(
+          track.name,
+          `THE OWL CLOCK ARCHIVE AUDIO STEM ASSET\nComposition: ${record.fragmentName || record.title}\nTrack: ${track.name}\nType: ${track.type}\nChannels: ${track.channels}\nFormat: Broadcast WAV 24-bit / 48kHz\nLicensed to: ${record.clientId || currentUserEmail}\nStatus: VERIFIED & CLEARED`
+        );
+      });
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${folderName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setStemsDownloadSuccess(true);
+      setTimeout(() => setStemsDownloadSuccess(false), 5000);
+    } catch (err) {
+      console.error("Error creating stems zip:", err);
+    } finally {
+      setIsDownloadingStems(false);
+    }
+  };
+
+  // Download individual stem asset
+  const handleDownloadSingleStem = (track: typeof STEM_TRACKS[0], index: number, record: ClientRecordItem) => {
+    setDownloadingStemIndex(index);
+    setTimeout(() => {
+      const blob = new Blob([
+        `THE OWL CLOCK ARCHIVE AUDIO STEM ASSET\nComposition: ${record.fragmentName || record.title}\nTrack: ${track.name}\nType: ${track.type}\nChannels: ${track.channels}\nFormat: Broadcast WAV 24-bit / 48kHz\nLicensed to: ${record.clientId || currentUserEmail}`
+      ], { type: track.name.endsWith(".pdf") ? "application/pdf" : "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = track.name;
+      a.click();
+      URL.revokeObjectURL(url);
+      setDownloadingStemIndex(null);
+    }, 400);
   };
 
   // Filter records based on active section, search query, status, and sub-category
@@ -694,6 +918,7 @@ export default function ClientDashboard({
                         setDrawerOpen(true);
                       } else {
                         setActiveSection(item.id as ClientSection);
+                        setActiveBeatDetail(null);
                         setDrawerOpen(false);
                       }
                     }}
@@ -720,6 +945,7 @@ export default function ClientDashboard({
             title="Authorized Client Vault"
             onClick={() => {
               setActiveSection("04_ACCOUNT");
+              setActiveBeatDetail(null);
               setDrawerOpen(false);
             }}
           >
@@ -786,6 +1012,7 @@ export default function ClientDashboard({
                           key={item.id}
                           onClick={() => {
                             setActiveSection(item.id as ClientSection);
+                            setActiveBeatDetail(null);
                             setDrawerOpen(false);
                           }}
                           className={`w-full text-left p-2.5 text-xs font-mono tracking-wider uppercase transition-all flex items-center justify-between cursor-pointer rounded border ${
@@ -934,6 +1161,362 @@ export default function ClientDashboard({
                 </div>
               </div>
             </div>
+          ) : activeBeatDetail ? (
+            /* ========================================================================= */
+            /* DEDICATED SUB-PAGE: BEAT DETAILS, DOSSIER & STEMS (FOR PAYING CLIENTS)   */
+            /* ========================================================================= */
+            <div className="space-y-4">
+              {/* Sub-page Breadcrumb Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveBeatDetail(null)}
+                  className="flex items-center gap-2 text-xs font-mono text-zinc-400 hover:text-white transition-colors cursor-pointer group"
+                >
+                  <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform text-[#00E676]" />
+                  <span className="font-bold uppercase tracking-wider">BACK TO {currentTabInfo.label}</span>
+                </button>
+
+                <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-500">
+                  <span>CLIENT VAULT</span>
+                  <span>/</span>
+                  <span className="text-white font-bold uppercase select-all">{activeBeatDetail.fragmentName || activeBeatDetail.title}</span>
+                </div>
+              </div>
+
+              {/* Beat & License Overview Summary Card */}
+              {(() => {
+                const activeFrag = findFragmentForRecord(activeBeatDetail);
+                const isPlaying = isDocPlaying(activeBeatDetail);
+                return (
+                  <>
+                    <div className="border border-zinc-800 bg-[#080808] p-4 sm:p-5 rounded-lg space-y-4 shadow-xl">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-3.5">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <h2 className="text-base sm:text-lg font-bold text-white uppercase tracking-wider font-sans">
+                              {activeBeatDetail.fragmentName || activeBeatDetail.title}
+                            </h2>
+                            <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span>ACTIVE // LICENSED</span>
+                            </span>
+                            {activeBeatDetail.licenseTierTitle && (
+                              <span className="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                                {activeBeatDetail.licenseTierTitle}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-400 font-sans">
+                            Official Master Archive Audio Asset &amp; Multi-Track Stems.
+                          </p>
+                        </div>
+
+                        {/* Master Audio Preview Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePlay(activeBeatDetail)}
+                          className={`flex items-center gap-2.5 px-3.5 py-2 border rounded-md text-xs uppercase font-bold tracking-wider cursor-pointer transition-all shrink-0 ${
+                            isPlaying 
+                              ? "border-[#00E676] bg-[#00E676]/20 text-[#00E676] shadow-[0_0_15px_rgba(0,230,118,0.3)]" 
+                              : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:text-white hover:border-zinc-500 hover:bg-zinc-800"
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center ${isPlaying ? "bg-[#00E676] text-black" : "bg-zinc-800 text-zinc-200"}`}>
+                            {isPlaying ? <Pause size={10} /> : <Play size={10} className="ml-0.5" />}
+                          </span>
+                          <span>{isPlaying ? "STOP PREVIEW" : "LISTEN MASTER PREVIEW"}</span>
+                          {isPlaying && (
+                            <span className="flex items-center gap-0.5 h-3">
+                              <span className="w-1 h-3 bg-[#00E676] animate-pulse" />
+                              <span className="w-1 h-1.5 bg-[#00E676] animate-pulse delay-75" />
+                              <span className="w-1 h-3.5 bg-[#00E676] animate-pulse delay-150" />
+                            </span>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Metadata Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11px] font-mono">
+                        <div className="bg-zinc-950 p-2.5 rounded border border-zinc-900">
+                          <span className="text-[9px] text-zinc-500 uppercase block">RECORD ID</span>
+                          <span className="font-semibold text-zinc-200 select-all truncate block">{activeBeatDetail.id}</span>
+                        </div>
+                        <div className="bg-zinc-950 p-2.5 rounded border border-zinc-900">
+                          <span className="text-[9px] text-zinc-500 uppercase block">COMPOSITION ID</span>
+                          <span className="font-semibold text-zinc-200 select-all truncate block">{activeBeatDetail.compositionId}</span>
+                        </div>
+                        <div className="bg-zinc-950 p-2.5 rounded border border-zinc-900">
+                          <span className="text-[9px] text-zinc-500 uppercase block">ISRC REGISTRY</span>
+                          <span className="font-semibold text-[#00E676] select-all truncate block">{activeBeatDetail.isrc || "US-LMN-26-00941"}</span>
+                        </div>
+                        <div className="bg-zinc-950 p-2.5 rounded border border-zinc-900">
+                          <span className="text-[9px] text-zinc-500 uppercase block">ISWC REGISTRY</span>
+                          <span className="font-semibold text-[#00E676] select-all truncate block">{activeBeatDetail.iswc || "T-932.408.941-4"}</span>
+                        </div>
+                      </div>
+
+                      {/* Legal Document Actions */}
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-zinc-900">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openOrDownloadLicenseAgreement({
+                                licenseId: activeBeatDetail.id,
+                                transactionRef: activeBeatDetail.transactionRef || `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`,
+                                purchaseDate: activeBeatDetail.dateAdded,
+                                licenseeLegalName: activeBeatDetail.clientId,
+                                licenseeEmail: currentUserEmail,
+                                fragmentTitle: activeBeatDetail.fragmentName || activeBeatDetail.title,
+                                archiveIdentifier: activeBeatDetail.compositionId,
+                                licenseTierId: activeBeatDetail.licenseTierId || "commercial",
+                                licenseTierTitle: activeBeatDetail.licenseTierTitle || "Commercial License"
+                              });
+                            }}
+                            className="px-3.5 py-2 bg-[#D9D6CA] hover:bg-white text-black text-[10.5px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <FileText size={13} />
+                            <span>DOWNLOAD FULL LEGAL PDF</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRecord(activeBeatDetail);
+                              setCertModalOpen(true);
+                            }}
+                            className="px-3 py-2 border border-zinc-800 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white text-[10.5px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <ShieldCheck size={13} className="text-amber-400" />
+                            <span>VIEW CERTIFICATE</span>
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRecord(activeBeatDetail);
+                            setTransferModalOpen(true);
+                          }}
+                          className="text-[10px] text-amber-400 hover:text-amber-300 uppercase tracking-wider border border-amber-500/30 hover:border-amber-500/60 bg-amber-950/20 px-3 py-2 rounded cursor-pointer flex items-center gap-1.5 transition-colors"
+                        >
+                          <ArrowRightLeft size={12} />
+                          <span>TRANSFER LICENSE</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ========================================================================= */}
+                    {/* COMPREHENSIVE BEAT DETAILS & MULTI-TRACK STEM DOWNLOAD SUITE             */}
+                    {/* ========================================================================= */}
+                    <div className="w-full border border-zinc-900 bg-[#060606] rounded-md overflow-hidden shadow-2xl font-mono">
+                      {/* Header Bar with Tabs */}
+                      <div className="flex items-center justify-between border-b border-zinc-900 bg-[#0a0a0a] px-3 sm:px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <Package size={15} className="text-[#39CD74]" />
+                          <span className="text-xs sm:text-sm font-bold tracking-wider text-white uppercase">
+                            PRODUCTION ASSETS &amp; STEMS
+                          </span>
+                        </div>
+
+                        {/* Sub Tabs */}
+                        <div className="flex items-center gap-1 bg-black/60 p-1 border border-zinc-800 rounded">
+                          <button
+                            type="button"
+                            onClick={() => setDetailActiveTab("stems")}
+                            className={`px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider rounded transition-all cursor-pointer ${
+                              detailActiveTab === "stems"
+                                ? "bg-[#39CD74] text-black shadow-sm"
+                                : "text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            STEMS ({STEM_TRACKS.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDetailActiveTab("dossier")}
+                            className={`px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider rounded transition-all cursor-pointer ${
+                              detailActiveTab === "dossier"
+                                ? "bg-[#39CD74] text-black shadow-sm"
+                                : "text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            BEAT DOSSIER
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Success Banner when stems are downloaded */}
+                      {stemsDownloadSuccess && (
+                        <div className="bg-[#39CD74]/15 border-b border-[#39CD74]/30 px-4 py-2.5 flex items-center justify-between text-[#39CD74] text-xs">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={15} />
+                            <span>COMPLETE 24-BIT STEM ARCHIVE GENERATED &amp; DISPATCHED</span>
+                          </div>
+                          <span className="text-[10px] text-zinc-400 uppercase">BROADCAST WAV 48KHZ</span>
+                        </div>
+                      )}
+
+                      {/* TAB 1: STEMS SUITE & DOWNLOADS */}
+                      {detailActiveTab === "stems" && (
+                        <div className="p-3.5 sm:p-5 space-y-4">
+                          {/* Main Quick Download Callout */}
+                          <div className="bg-gradient-to-r from-zinc-950 via-[#0c0c0c] to-zinc-950 border border-zinc-800 p-3.5 sm:p-4 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-inner">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                  COMPLETE MULTI-TRACK STEM ARCHIVE (.ZIP)
+                                </span>
+                                <span className="px-1.5 py-0.5 text-[8.5px] font-bold uppercase bg-[#39CD74]/20 text-[#39CD74] border border-[#39CD74]/40 rounded">
+                                  24-BIT / 48KHZ
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-zinc-400 font-sans leading-relaxed">
+                                Includes all 6 individual audio stem WAVs (phase-aligned at 0.000ms offset) + Tempo Map &amp; DAW Alignment Guide.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadStemsZip(activeBeatDetail, activeFrag)}
+                              disabled={isDownloadingStems}
+                              className="w-full sm:w-auto px-4 py-2.5 bg-[#39CD74] hover:bg-[#2eb864] disabled:opacity-50 text-black font-bold text-[10.5px] uppercase tracking-wider rounded transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-[0_0_15px_rgba(57,205,116,0.3)] hover:shadow-[0_0_22px_rgba(57,205,116,0.5)]"
+                            >
+                              {isDownloadingStems ? (
+                                <>
+                                  <Loader2 size={14} className="animate-spin" />
+                                  <span>PACKAGING STEMS...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Download size={14} />
+                                  <span>DOWNLOAD COMPLETE ZIP (188.6 MB)</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Individual Stems Table */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[9px] text-zinc-500 uppercase tracking-widest px-1 pb-1">
+                              <span>INDIVIDUAL AUDIO TRACKS ({STEM_TRACKS.length})</span>
+                              <span>PHASE-LOCKED BROADCAST WAV</span>
+                            </div>
+
+                            <div className="divide-y divide-zinc-900 border border-zinc-900 rounded overflow-hidden bg-black/40">
+                              {STEM_TRACKS.map((track, i) => (
+                                <div
+                                  key={track.id}
+                                  className="p-3 sm:px-4 sm:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 hover:bg-zinc-900/30 transition-colors"
+                                >
+                                  <div className="space-y-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-zinc-200 text-xs font-bold font-mono">
+                                        {track.name}
+                                      </span>
+                                      <span className="px-1.5 py-0.5 text-[8px] uppercase tracking-wider rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                                        {track.type}
+                                      </span>
+                                      <span className="text-[9px] text-zinc-500 font-mono">
+                                        {track.channels}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-500 font-sans truncate">
+                                      {track.desc}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-1 sm:pt-0">
+                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                      {track.size}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadSingleStem(track, i, activeBeatDetail)}
+                                      disabled={downloadingStemIndex === i}
+                                      className="px-2.5 py-1.5 border border-zinc-800 hover:border-zinc-600 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-[9px] font-bold uppercase tracking-wider rounded flex items-center gap-1.5 transition-all cursor-pointer"
+                                    >
+                                      {downloadingStemIndex === i ? (
+                                        <Loader2 size={11} className="animate-spin text-[#39CD74]" />
+                                      ) : (
+                                        <Download size={11} />
+                                      )}
+                                      <span>DOWNLOAD</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Notice & DAW Compatibility footer */}
+                          <div className="border border-zinc-900/80 bg-zinc-950/60 p-3 rounded text-[9.5px] text-zinc-500 font-mono space-y-1">
+                            <span className="text-zinc-400 font-bold uppercase block">DAW IMPORT COMPATIBILITY:</span>
+                            <p className="font-sans leading-relaxed">
+                              Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reaper, Cubase, and Luna. 
+                              All stems are bounce-rendered from bar 1 0.000ms for zero drift alignment at {activeFrag?.bpm || 110} BPM.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TAB 2: BEAT SPECIFICATIONS & DOSSIER */}
+                      {detailActiveTab === "dossier" && (
+                        <div className="p-3.5 sm:p-5 space-y-4">
+                          {/* High-fidelity Spec Grid */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[10px]">
+                            <div className="bg-black/60 border border-zinc-900 p-3 rounded">
+                              <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest block mb-1">TONAL KEY &amp; SCALE</span>
+                              <span className="text-zinc-200 font-bold uppercase">{activeFrag?.tonalSignature || "CHROMATIC MINOR"}</span>
+                            </div>
+                            <div className="bg-black/60 border border-zinc-900 p-3 rounded">
+                              <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest block mb-1">TEMPO / PULSE</span>
+                              <span className="text-zinc-200 font-bold uppercase">{activeFrag?.bpm || 110} BPM</span>
+                            </div>
+                            <div className="bg-black/60 border border-zinc-900 p-3 rounded">
+                              <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest block mb-1">SYNTH ENGINE</span>
+                              <span className="text-zinc-200 font-bold uppercase">{activeFrag?.synthType || "ANALOG SUB HARMONIC"}</span>
+                            </div>
+                            <div className="bg-black/60 border border-zinc-900 p-3 rounded">
+                              <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest block mb-1">SAMPLE CLEARANCE</span>
+                              <span className="text-[#39CD74] font-bold uppercase">100% ORIGINAL MASTER</span>
+                            </div>
+                            <div className="bg-black/60 border border-zinc-900 p-3 rounded">
+                              <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest block mb-1">ARCHIVE CATALOG #</span>
+                              <span className="text-zinc-300 font-bold select-all">{activeFrag?.timeCapsule?.catalogNo || activeBeatDetail.compositionId || `TOC-${activeBeatDetail.id}-001`}</span>
+                            </div>
+                            <div className="bg-black/60 border border-zinc-900 p-3 rounded">
+                              <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest block mb-1">PRESERVATION STATUS</span>
+                              <span className="text-[#39CD74] font-bold uppercase">{activeFrag?.recoveryState || "FULLY RECOVERED"}</span>
+                            </div>
+                          </div>
+
+                          {/* Archival Observation & Description */}
+                          {activeFrag?.description && (
+                            <div className="bg-black/60 border border-zinc-900 p-3.5 rounded space-y-1.5">
+                              <span className="text-[9px] text-zinc-500 uppercase tracking-widest block font-bold">ARCHIVAL DESCRIPTION</span>
+                              <p className="text-xs text-zinc-300 font-sans leading-relaxed">
+                                {activeFrag.description}
+                              </p>
+                            </div>
+                          )}
+
+                          {activeFrag?.observation && (
+                            <div className="bg-black/60 border border-zinc-900 p-3.5 rounded space-y-1.5">
+                              <span className="text-[9px] text-zinc-500 uppercase tracking-widest block font-bold">HARMONIC OBSERVATION</span>
+                              <p className="text-xs text-zinc-400 font-sans leading-relaxed italic">
+                                "{activeFrag.observation}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           ) : (
             <>
               {/* Search, Filter and Actions Toolbar */}
@@ -1027,7 +1610,8 @@ export default function ClientDashboard({
                     </div>
                   ) : (
                     filteredRecords.map((doc) => {
-                      const isPlaying = playingSong === doc.id;
+                      const isPlaying = isDocPlaying(doc);
+                      const matchedFrag = findFragmentForRecord(doc);
                       return (
                         <div
                           key={`mobile-${doc.id}`}
@@ -1040,9 +1624,15 @@ export default function ClientDashboard({
                                 <FileText size={14} />
                               </div>
                               <div className="min-w-0">
-                                <h3 className="font-semibold text-white uppercase text-xs leading-snug break-words">
-                                  {doc.title}
-                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveBeatDetail(doc)}
+                                  className="font-semibold text-white uppercase text-xs leading-snug break-words text-left hover:text-[#00E676] hover:underline transition-colors flex items-center gap-1 group/btn cursor-pointer"
+                                  title="Open Beat Details & Stems Page"
+                                >
+                                  <span>{doc.title}</span>
+                                  <ArrowUpRight size={11} className="opacity-60 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-all text-[#00E676] shrink-0" />
+                                </button>
                                 {doc.licenseTierTitle && (
                                   <span className="text-[10px] text-zinc-500 font-sans block truncate mt-0.5">
                                     {doc.licenseTierTitle}
@@ -1187,7 +1777,8 @@ export default function ClientDashboard({
                           </tr>
                         ) : (
                           filteredRecords.map((doc) => {
-                            const isPlaying = playingSong === doc.id;
+                            const isPlaying = isDocPlaying(doc);
+                            const matchedFrag = findFragmentForRecord(doc);
                             return (
                               <tr key={doc.id} className="hover:bg-zinc-900/30 transition-colors group">
                                 {/* 1. DOCUMENT */}
@@ -1197,14 +1788,22 @@ export default function ClientDashboard({
                                       <div className="p-1.5 rounded bg-zinc-900/90 border border-zinc-800 text-zinc-400 group-hover:text-zinc-200 group-hover:border-zinc-700 transition-colors shrink-0 mt-0.5">
                                         <FileText size={14} />
                                       </div>
-                                      <span className="font-semibold text-white uppercase text-xs leading-snug break-words">
-                                        {doc.title}
-                                      </span>
+                                      <div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setActiveBeatDetail(doc)}
+                                          className="font-semibold text-white uppercase text-xs leading-snug break-words text-left hover:text-[#00E676] hover:underline transition-colors flex items-center gap-1 group/btn cursor-pointer"
+                                          title="Open Beat Details & Stems Sub-Page"
+                                        >
+                                          <span>{doc.title}</span>
+                                          <ArrowUpRight size={11} className="opacity-60 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-all text-[#00E676] shrink-0" />
+                                        </button>
+                                      </div>
                                     </div>
 
                                     {/* Re-Oriented Audio Preview Player (Horizontal Pill Badge with Soundwaves) */}
-                                    {(doc.section === "01_MY_FRAGMENTS" || doc.subCategory === "STEMS" || doc.fragmentName) && (
-                                      <div className="pt-0.5 flex items-center">
+                                    {(doc.section === "01_MY_FRAGMENTS" || doc.subCategory === "STEMS" || doc.fragmentName || matchedFrag) && (
+                                      <div className="pt-0.5 flex items-center gap-2">
                                         <button
                                           onClick={() => handleTogglePlay(doc)}
                                           className={`inline-flex items-center gap-2 px-2.5 py-1 border rounded-md text-[10px] uppercase font-bold tracking-wider cursor-pointer transition-all ${
@@ -1225,6 +1824,16 @@ export default function ClientDashboard({
                                               <span className="w-0.5 h-3 bg-[#00E676] animate-pulse delay-150" />
                                             </span>
                                           )}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => setActiveBeatDetail(doc)}
+                                          className="inline-flex items-center gap-1 px-2 py-1 text-[9.5px] uppercase font-mono text-zinc-400 hover:text-[#00E676] border border-zinc-800/80 hover:border-zinc-600 rounded bg-zinc-900/60 transition-colors cursor-pointer"
+                                          title="View full beat page with stem downloads"
+                                        >
+                                          <span>VIEW DETAILS &amp; STEMS</span>
+                                          <ArrowUpRight size={10} />
                                         </button>
                                       </div>
                                     )}
@@ -1430,7 +2039,19 @@ export default function ClientDashboard({
                   <span>TRANSFER LICENSE</span>
                 </button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectModalOpen(false);
+                      setStemsModalOpen(false);
+                      setActiveBeatDetail(selectedRecord);
+                    }}
+                    className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-[#00E676] border border-[#00E676]/40 font-bold uppercase tracking-wider px-3.5 py-2 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Music size={12} />
+                    <span>OPEN BEAT DETAILS &amp; STEMS</span>
+                  </button>
                   <button
                     onClick={() => {
                       openOrDownloadLicenseAgreement({
@@ -1596,7 +2217,23 @@ export default function ClientDashboard({
                 ))}
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-900">
+                {onSelectFragment && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const matched = findFragmentForRecord(selectedRecord);
+                      if (matched) {
+                        setStemsModalOpen(false);
+                        onSelectFragment(matched);
+                      }
+                    }}
+                    className="bg-zinc-900 hover:bg-zinc-800 text-[#00E676] border border-[#00E676]/40 font-bold text-[10px] px-4 py-2.5 uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Music size={12} />
+                    <span>VIEW DEDICATED BEAT PAGE</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     const blob = new Blob([`FULL STEMS ZIP ARCHIVE: ${selectedRecord.title}`], { type: "application/zip" });

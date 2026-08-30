@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume1, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2 } from "lucide-react";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume1, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2, CheckCircle2, Sparkles, FolderArchive } from "lucide-react";
 import { Fragment, getTimeCapsuleForFragment } from "../data";
 import { getAllActiveFragments } from "../lib/fragmentService";
 import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
@@ -826,24 +826,11 @@ export default function FragmentDetailPage({
           </div>
         </div>
 
-        {/* RESTORED FULL-WIDTH REQUEST CLEARANCE ACTION BUTTON WITH SOFT CTA OUTLINE GLOW */}
-        <div className="w-full relative rounded-sm group mt-3 sm:mt-4">
-          <div className="absolute -inset-[1px] bg-gradient-to-r from-zinc-700/30 via-white/25 to-zinc-700/30 rounded-sm blur-[2px] opacity-60 group-hover:opacity-100 group-hover:blur-[3px] transition-all duration-500 pointer-events-none" />
-          <button
-            id="request-clearance-btn"
-            onClick={() => setShowLicensePanel(true)}
-            className="relative w-full p-4 bg-zinc-950/90 hover:bg-zinc-900/80 font-mono font-medium text-[9px] sm:text-[11px] tracking-widest text-[#D9D6CA] hover:text-white flex items-center justify-center cursor-pointer transition-all uppercase whitespace-nowrap gap-2 h-[52px] sm:h-[58px] border border-zinc-700/60 hover:border-zinc-500/80 rounded-sm shadow-[0_0_15px_rgba(255,255,255,0.08)] hover:shadow-[0_0_24px_rgba(255,255,255,0.22)]"
-          >
-            <span>REQUEST CLEARANCE</span>
-            <span className="font-mono text-[10px] sm:text-sm shrink-0 select-none">→</span>
-          </button>
+        {/* Under-Grid small decoration line */}
+        <div className="w-full flex justify-center py-1 mt-1 z-10 font-mono text-zinc-700 text-[10px] select-none tracking-[0.3em]">
+          |||
         </div>
-
-          {/* Under-Grid small decoration line */}
-          <div className="w-full flex justify-center py-1 mt-1 z-10 font-mono text-zinc-700 text-[10px] select-none tracking-[0.3em]">
-            |||
-          </div>
-        </div>
+      </div>
 
       {/* TIME CAPSULE ARCHIVAL METADATA OVERLAY MODAL */}
       {showTimeCapsuleOverlay && (
