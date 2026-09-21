@@ -209,7 +209,7 @@ export default function LicenseVerificationPage({
                       ? "bg-[#D9D6CA]/15 border-[#D9D6CA] text-[#D9D6CA]"
                       : sample.type === "purchased" 
                       ? "bg-zinc-950 border-zinc-850 text-zinc-400 hover:text-white hover:border-zinc-700"
-                      : "bg-zinc-950 border-amber-900/40 text-amber-300/80 hover:text-amber-200 hover:border-amber-700"
+                      : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600"
                   }`}
                 >
                   <span className="font-bold text-white mr-1">{sample.number}</span>
@@ -477,21 +477,21 @@ export default function LicenseVerificationPage({
           <motion.div 
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="border-2 border-amber-500/40 bg-neutral-950 p-6 sm:p-8 space-y-6 text-left relative overflow-hidden rounded-sm shadow-2xl"
+            className="border-2 border-zinc-700 bg-neutral-950 p-6 sm:p-8 space-y-6 text-left relative overflow-hidden rounded-sm shadow-2xl"
           >
             {/* Top Master Archive Registry Status Badge */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900 pb-5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-500/15 border border-amber-500/60 text-amber-400 rounded-full flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 bg-zinc-900 border border-zinc-700 text-white rounded-full flex items-center justify-center shrink-0">
                   <Shield size={22} />
                 </div>
                 <div>
-                  <div className="text-xs text-amber-400/80 font-mono tracking-[0.25em] uppercase">
+                  <div className="text-xs text-zinc-400 font-mono tracking-[0.25em] uppercase">
                     MASTER ARCHIVE REGISTRY
                   </div>
-                  <div className="text-sm sm:text-base font-bold text-amber-400 tracking-wider uppercase font-mono flex items-center gap-2 mt-0.5">
+                  <div className="text-sm sm:text-base font-bold text-white tracking-wider uppercase font-mono flex items-center gap-2 mt-0.5">
                     <span>STATUS: UNLICENSED / AVAILABLE FOR CLEARANCE</span>
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse inline-block" />
                   </div>
                 </div>
               </div>
@@ -529,7 +529,7 @@ export default function LicenseVerificationPage({
 
               <div className="space-y-1 pt-2 md:pt-1">
                 <span className="text-[9px] text-zinc-500 uppercase tracking-widest block">AUTHENTICATED COMPOSITION:</span>
-                <span className="text-xs sm:text-sm font-bold text-amber-300 block uppercase font-sans">
+                <span className="text-xs sm:text-sm font-bold text-white block uppercase font-sans">
                   {searchResult.fragment || searchInput}
                 </span>
               </div>

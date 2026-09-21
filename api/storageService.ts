@@ -1,6 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
 import crypto from "crypto";
-import { getUTApi } from "./uploadthingRouter";
 
 // --- Cloudinary Setup ---
 export function getCloudinaryClient() {
@@ -68,23 +67,4 @@ export function generateCloudinarySignature(
     resourceType,
     uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
   };
-}
-
-// --- UploadThing Helper Utilities ---
-
-/**
- * Get signed / expiring URL for private UploadThing files if configured
- */
-export async function getUploadThingDownloadUrl(fileKey: string, expiresInSeconds: number = 3600) {
-  const utapi = getUTApi();
-  if (!utapi) {
-    return { url: fileKey.startsWith("http") ? fileKey : `https://utfs.io/f/${fileKey}` };
-  }
-
-  try {
-    const signed = await utapi.getSignedURL(fileKey, { expiresIn: expiresInSeconds });
-    return { url: signed.url };
-  } catch (err) {
-    return { url: fileKey.startsWith("http") ? fileKey : `https://utfs.io/f/${fileKey}` };
-  }
 }

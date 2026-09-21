@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Copy, Check, Download, ShieldCheck } from "lucide-react";
+import { X, Copy, Check, ShieldCheck, FileText, ChevronDown, Loader2 } from "lucide-react";
 import { TimeCapsuleData } from "../data";
+import { generateTimeCapsulePDF, generateTimeCapsuleDOCX } from "../lib/archivalDocumentGenerator";
 
 interface TimeCapsuleOverlayProps {
   data: TimeCapsuleData;
@@ -10,6 +11,11 @@ interface TimeCapsuleOverlayProps {
 
 export default function TimeCapsuleOverlay({ data, onClose }: TimeCapsuleOverlayProps) {
   const [copied, setCopied] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<"pdf" | "docx">("pdf");
+  const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [downloaded, setDownloaded] = useState<string | null>(null);
+  const formatMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -20,6 +26,16 @@ export default function TimeCapsuleOverlay({ data, onClose }: TimeCapsuleOverlay
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (formatMenuRef.current && !formatMenuRef.current.contains(event.target as Node)) {
+        setShowFormatMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Format deliverable assets as 01., 02., etc.
   const formattedDeliverables = data.deliverableAssets.map((asset, i) => {
@@ -59,14 +75,21 @@ ARCHIVIST            : ${data.archivist}`;
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
-    const element = document.createElement("a");
-    const file = new Blob([rawMetadataText], { type: "text/plain" });
-    element.href = URL.createObjectURL(file);
-    element.download = `ARCHIVE_LOG_ENTRY_${data.entryNo}_METADATA.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+  const handleDownloadDocument = async (format: "pdf" | "docx" = selectedFormat) => {
+    try {
+      setIsGenerating(true);
+      if (format === "pdf") {
+        generateTimeCapsulePDF(data);
+      } else {
+        await generateTimeCapsuleDOCX(data);
+      }
+      setDownloaded(format);
+      setTimeout(() => setDownloaded(null), 2500);
+    } catch (err) {
+      console.error("Failed to generate archival document:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -158,12 +181,12 @@ ARCHIVIST            : ${data.archivist}`;
           </div>
 
           {/* Footer Action Bar */}
-          <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 relative z-10">
-            <div className="flex items-center gap-2">
+          <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-1.5 sm:gap-2 relative z-10">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={handleCopy}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] sm:text-xs py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-zinc-700/60"
+                className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] sm:text-xs py-2 px-3 sm:px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-zinc-700/60 shrink-0"
               >
                 {copied ? (
                   <>
@@ -178,17 +201,85 @@ ARCHIVIST            : ${data.archivist}`;
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] sm:text-xs py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-zinc-700/60"
-              >
-                <Download size={13} className="text-zinc-400" />
-                <span>DOWNLOAD .TXT</span>
-              </button>
+              {/* Document Download Control (PDF / DOCX) */}
+              <div className="relative inline-flex items-center shrink-0" ref={formatMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadDocument(selectedFormat)}
+                  disabled={isGenerating}
+                  className="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-60 text-white text-[10px] sm:text-xs py-2 pl-3 pr-2.5 rounded-l-xl flex items-center gap-1.5 transition-all cursor-pointer border border-zinc-700/60 border-r-zinc-800"
+                  title={`Download archival dossier as ${selectedFormat.toUpperCase()} document`}
+                >
+                  {isGenerating ? (
+                    <Loader2 size={13} className="animate-spin text-emerald-400" />
+                  ) : downloaded ? (
+                    <Check size={13} className="text-emerald-400" />
+                  ) : (
+                    <FileText size={13} className="text-zinc-400" />
+                  )}
+                  <span className="font-semibold">
+                    {downloaded
+                      ? `SAVED .${downloaded.toUpperCase()}`
+                      : isGenerating
+                      ? "SAVING..."
+                      : `DOWNLOAD .${selectedFormat.toUpperCase()}`}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowFormatMenu((prev) => !prev)}
+                  className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] sm:text-xs py-2 px-2 rounded-r-xl transition-all cursor-pointer border border-zinc-700/60 hover:border-zinc-500"
+                  title="Choose Document Format (PDF or DOCX)"
+                >
+                  <ChevronDown
+                    size={12}
+                    className={`text-zinc-400 transition-transform duration-150 ${showFormatMenu ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {/* Format Dropdown Menu */}
+                {showFormatMenu && (
+                  <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#0e0e0e] border border-zinc-700/90 rounded-xl shadow-2xl p-1.5 w-52 font-mono text-[10.5px]">
+                    <div className="px-2 py-1 text-[8.5px] uppercase tracking-wider text-zinc-400 font-bold border-b border-zinc-800/80 mb-1">
+                      DOCUMENT FORMAT
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFormat("pdf");
+                        setShowFormatMenu(false);
+                        handleDownloadDocument("pdf");
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/90 text-zinc-200 hover:text-white flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileText size={13} className="text-emerald-400" />
+                        <span>PDF Document (.pdf)</span>
+                      </span>
+                      {selectedFormat === "pdf" && <Check size={12} className="text-emerald-400" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFormat("docx");
+                        setShowFormatMenu(false);
+                        handleDownloadDocument("docx");
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/90 text-zinc-200 hover:text-white flex items-center justify-between transition-colors cursor-pointer mt-0.5"
+                    >
+                      <span className="flex items-center gap-2">
+                        <FileText size={13} className="text-blue-400" />
+                        <span>Word Document (.docx)</span>
+                      </span>
+                      {selectedFormat === "docx" && <Check size={12} className="text-emerald-400" />}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-1 text-[10px] sm:text-xs text-zinc-400">
+            <div className="flex items-center gap-1 text-[10px] sm:text-xs text-zinc-400 shrink-0">
               <ShieldCheck size={14} className="text-emerald-400" />
               <span>VERIFIED</span>
             </div>

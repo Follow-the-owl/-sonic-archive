@@ -977,15 +977,15 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
         {!isLoggedIn && (
           <form 
             onSubmit={handleGlobalPasscodeSubmit}
-            className="border border-yellow-500/20 bg-yellow-500/5 p-3 rounded-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+            className="border border-zinc-800 bg-zinc-950 p-3 rounded-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
           >
             <div className="space-y-0.5">
-              <div className="text-[10px] text-yellow-500 font-bold uppercase flex items-center gap-1.5">
-                <Lock size={11} className="text-yellow-500 animate-pulse" />
+              <div className="text-[10px] text-white font-bold uppercase flex items-center gap-1.5">
+                <Lock size={11} className="text-white animate-pulse" />
                 SECURITY GATEWAY ACTIVE
               </div>
               <p className="text-[8.5px] text-zinc-500 uppercase leading-normal">
-                RESTRICTED DOCUMENTS ARE REDACTED BY DEFAULT. ENTER SECURE PASSCODE <code className="text-yellow-500 bg-yellow-500/10 px-1 py-0.2 font-mono">LOMON-SECURE-2026</code> TO DE-REDACT SESSION.
+                RESTRICTED DOCUMENTS ARE REDACTED BY DEFAULT. ENTER SECURE PASSCODE <code className="text-white bg-zinc-800 px-1 py-0.2 font-mono">LOMON-SECURE-2026</code> TO DE-REDACT SESSION.
               </p>
             </div>
             <div className="flex gap-2">
@@ -994,11 +994,11 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                 placeholder="ENTER GATEWAY PASSCODE..."
                 value={globalPasscode}
                 onChange={(e) => setGlobalPasscode(e.target.value)}
-                className="bg-black border border-zinc-900 focus:border-yellow-500/40 text-yellow-500 font-mono placeholder-zinc-800 text-[9px] px-3.5 py-2 rounded-none uppercase transition-colors outline-none max-w-[200px]"
+                className="bg-black border border-zinc-800 focus:border-zinc-500 text-white font-mono placeholder-zinc-800 text-[9px] px-3.5 py-2 rounded-none uppercase transition-colors outline-none max-w-[200px]"
               />
               <button
                 type="submit"
-                className="bg-yellow-500 hover:bg-yellow-400 text-black font-mono font-bold text-[9px] tracking-wider px-4 py-2 cursor-pointer transition-colors uppercase"
+                className="bg-white hover:bg-zinc-200 text-black font-mono font-bold text-[9px] tracking-wider px-4 py-2 cursor-pointer transition-colors uppercase"
               >
                 AUTHORIZE
               </button>
@@ -1089,12 +1089,12 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                   const statusColors: Record<string, string> = {
                     "Draft": "bg-zinc-900 text-zinc-400 border-zinc-800",
                     "Submitted": "bg-blue-500/10 text-blue-400 border-blue-500/20",
-                    "Under Review": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+                    "Under Review": "bg-zinc-800 text-zinc-300 border-zinc-700",
                     "Approved": "bg-[#00E676]/10 text-[#00E676] border-[#00E676]/20",
                     "Rejected": "bg-red-500/10 text-red-400 border-red-500/20",
                     "Pending Signature": "bg-purple-500/10 text-purple-400 border-purple-500/20",
                     "Signed": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                    "Active": "bg-amber-500/10 text-[#D9D6CA] border-[#D9D6CA]/20",
+                    "Active": "bg-zinc-800 text-white border-zinc-700",
                     "Expired": "bg-zinc-800/20 text-zinc-500 border-zinc-900",
                     "Revoked": "bg-red-950/20 text-red-600 border-red-900/30",
                     "Archived": "bg-slate-500/10 text-slate-400 border-slate-500/20"
@@ -1181,7 +1181,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                               {doc.name}
                             </span>
                             <div className="text-[8px] text-zinc-400 font-mono flex items-center gap-1.5 flex-wrap">
-                              <span className="text-yellow-500 bg-yellow-500/10 px-1 py-0.2 font-bold font-mono">{(doc.documentType || "").toUpperCase()}</span>
+                              <span className="text-zinc-300 bg-zinc-800 px-1 py-0.2 font-bold font-mono">{(doc.documentType || "").toUpperCase()}</span>
                               <span className="text-zinc-600">•</span>
                               <span className="text-zinc-500 font-mono">{doc.version}</span>
                               <span className="text-zinc-600">•</span>
@@ -1304,7 +1304,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
             <div className="grid grid-cols-2 gap-2 text-[9.5px] font-mono border border-zinc-900 bg-zinc-950/40 p-3 rounded-none">
               <div>
                 <span className="text-zinc-600 text-[7.5px] uppercase block tracking-wider">DOCUMENT TYPE:</span>
-                <span className="text-yellow-500 font-bold uppercase font-mono">{inspectingDoc.documentType}</span>
+                <span className="text-zinc-300 font-bold uppercase font-mono">{inspectingDoc.documentType}</span>
               </div>
               <div>
                 <span className="text-zinc-600 text-[7.5px] uppercase block tracking-wider">VERSION:</span>
@@ -1399,7 +1399,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
               </div>
               <div className="bg-zinc-950 border border-zinc-900 p-2 text-center rounded-none">
                 <span className="text-[7.5px] text-zinc-650 uppercase block tracking-wider mb-1">INTEGRITY</span>
-                <span className="text-[8.5px] text-yellow-500 font-bold uppercase">{inspectingDoc.verificationStatus}</span>
+                <span className="text-[8.5px] text-zinc-300 font-bold uppercase">{inspectingDoc.verificationStatus}</span>
               </div>
             </div>
 
@@ -1408,8 +1408,8 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
               {activeMenuMode === "ADMIN" ? (
                 // ADMIN MANAGEMENT FORM CONTROLS
                 <div className="space-y-3">
-                  <div className="space-y-1 bg-yellow-500/5 border border-yellow-500/20 p-2.5">
-                    <span className="text-[7.5px] tracking-[0.2em] font-bold text-yellow-500 block uppercase">
+                  <div className="space-y-1 bg-zinc-900 border border-zinc-800 p-2.5">
+                    <span className="text-[7.5px] tracking-[0.2em] font-bold text-zinc-300 block uppercase">
                       ⚠️ ADMIN CONSOLE PRIVILEGES ENABLED
                     </span>
                     <p className="text-zinc-400 text-[8px] uppercase font-sans tracking-wide">
@@ -1424,7 +1424,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       <select
                         value={editingStatus}
                         onChange={(e: any) => setEditingStatus(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400"
                       >
                         <option value="Draft">Draft</option>
                         <option value="Submitted">Submitted</option>
@@ -1446,7 +1446,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       <select
                         value={editingSigStatus}
                         onChange={(e: any) => setEditingSigStatus(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400"
                       >
                         <option value="Draft">Draft</option>
                         <option value="Pending Signature">Pending</option>
@@ -1462,7 +1462,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       <select
                         value={editingVerStatus}
                         onChange={(e: any) => setEditingVerStatus(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-black border border-zinc-855 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400"
                       >
                         <option value="Valid">Valid</option>
                         <option value="Under Review">Review</option>
@@ -1479,7 +1479,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       <select
                         value={editingDocType}
                         onChange={(e: any) => setEditingDocType(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400"
                       >
                         <option value="Ownership Document">Ownership Document</option>
                         <option value="Split Sheet">Split Sheet</option>
@@ -1500,7 +1500,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                         type="text"
                         value={editingVersion}
                         onChange={(e) => setEditingVersion(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500 font-mono"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400 font-mono"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1509,7 +1509,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                         type="text"
                         value={editingDateAdded}
                         onChange={(e) => setEditingDateAdded(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500 font-mono"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400 font-mono"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1517,7 +1517,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       <select
                         value={editingVisibility}
                         onChange={(e: any) => setEditingVisibility(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400"
                       >
                         <option value="Private">Private</option>
                         <option value="Authorized Only">Authorized Only</option>
@@ -1529,7 +1529,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       <select
                         value={editingIsSigned}
                         onChange={(e: any) => setEditingIsSigned(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400"
                       >
                         <option value="Signed">Signed</option>
                         <option value="Unsigned">Unsigned</option>
@@ -1541,7 +1541,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                         type="text"
                         value={editingExpirationDate}
                         onChange={(e) => setEditingExpirationDate(e.target.value)}
-                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-yellow-500 font-mono"
+                        className="w-full bg-black border border-zinc-850 text-white text-[9px] p-1.5 focus:outline-none focus:border-zinc-400 font-mono"
                       />
                     </div>
                   </div>
@@ -1553,7 +1553,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       rows={2}
                       value={editingNotes}
                       onChange={(e) => setEditingNotes(e.target.value)}
-                      className="w-full bg-black border border-zinc-850 focus:border-yellow-500 text-white font-mono p-2 text-[9px] uppercase resize-none outline-none"
+                      className="w-full bg-black border border-zinc-850 focus:border-zinc-400 text-white font-mono p-2 text-[9px] uppercase resize-none outline-none"
                     />
                   </div>
 
@@ -1565,13 +1565,13 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                       placeholder="e.g. Physical license copy dispatched to Atlanta."
                       value={customLogAction}
                       onChange={(e) => setCustomLogAction(e.target.value)}
-                      className="w-full bg-black border border-zinc-850 focus:border-yellow-500 text-white font-mono p-2 text-[9px] uppercase outline-none placeholder-zinc-800"
+                      className="w-full bg-black border border-zinc-850 focus:border-zinc-400 text-white font-mono p-2 text-[9px] uppercase outline-none placeholder-zinc-800"
                     />
                   </div>
 
                   <button
                     onClick={handleSaveAdminEdits}
-                    className="w-full bg-yellow-500 hover:bg-yellow-400 text-black text-[9px] font-bold tracking-widest uppercase py-2.5 transition-colors cursor-pointer rounded-none text-center"
+                    className="w-full bg-white hover:bg-zinc-200 text-black text-[9px] font-bold tracking-widest uppercase py-2.5 transition-colors cursor-pointer rounded-none text-center"
                   >
                     SAVE LEDGER UPDATES
                   </button>
@@ -1685,9 +1685,9 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
               </div>
             ) : (
               <form onSubmit={handleRequestClearanceSubmit} className="space-y-3.5">
-                <div className="space-y-1 bg-red-950/5 border border-red-900/20 p-2.5">
+                <div className="space-y-1 bg-zinc-900 border border-zinc-800 p-2.5">
                   <p className="text-zinc-400 text-[8px] uppercase leading-normal">
-                    This file is restricted to authorized clients and administrators. To request emergency access, provide your email and legal justification. Entering the gateway passcode <code className="text-yellow-500 font-bold">LOMON-SECURE-2026</code> approves instantly.
+                    This file is restricted to authorized clients and administrators. To request emergency access, provide your email and legal justification. Entering the gateway passcode <code className="text-white font-bold bg-zinc-800 px-1 py-0.2 font-mono">LOMON-SECURE-2026</code> approves instantly.
                   </p>
                 </div>
 
@@ -1699,7 +1699,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                     placeholder="e.g. licensing@lomon.llc"
                     value={clearanceEmail}
                     onChange={(e) => setClearanceEmail(e.target.value)}
-                    className="w-full bg-black border border-zinc-900 focus:border-red-500/50 text-white font-mono p-2.5 text-[9px] uppercase outline-none placeholder-zinc-800"
+                    className="w-full bg-black border border-zinc-900 focus:border-white text-white font-mono p-2.5 text-[9px] uppercase outline-none placeholder-zinc-800"
                   />
                 </div>
 
@@ -1711,7 +1711,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                     placeholder="e.g. Audit request for ownership validation split sheets..."
                     value={clearanceReason}
                     onChange={(e) => setClearanceReason(e.target.value)}
-                    className="w-full bg-black border border-zinc-900 focus:border-red-500/50 text-white font-mono p-2.5 text-[9px] uppercase resize-none outline-none placeholder-zinc-800"
+                    className="w-full bg-black border border-zinc-900 focus:border-white text-white font-mono p-2.5 text-[9px] uppercase resize-none outline-none placeholder-zinc-800"
                   />
                 </div>
 
@@ -1722,7 +1722,7 @@ ATLANTA, GEORGIA • CERTIFIED DOCUMENT SECURED UNDER 2026 REGISTER.
                     placeholder="ENTER GATEWAY PASSCODE..."
                     value={clearancePasscode}
                     onChange={(e) => setClearancePasscode(e.target.value)}
-                    className="w-full bg-black border border-zinc-900 focus:border-yellow-500/50 text-yellow-500 font-mono p-2.5 text-[9px] uppercase outline-none placeholder-zinc-800"
+                    className="w-full bg-black border border-zinc-900 focus:border-zinc-500 text-white font-mono p-2.5 text-[9px] uppercase outline-none placeholder-zinc-800"
                   />
                 </div>
 

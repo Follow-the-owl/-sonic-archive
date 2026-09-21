@@ -508,11 +508,11 @@ export default function NewFragmentWizardModal({
         {/* HEADER */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800/80 bg-zinc-950/60">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
+            <div className="w-8 h-8 rounded bg-zinc-900 border border-zinc-700 flex items-center justify-center text-white">
               <Sparkles size={16} />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">
                 ARCHIVE REGISTRATION PORTAL
               </span>
               <h2 className="text-sm sm:text-base font-bold text-white uppercase tracking-wider">
@@ -544,7 +544,7 @@ export default function NewFragmentWizardModal({
               onClick={() => { setErrorMsg(null); setCurrentStep(s.step); }}
               className={`px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
                 currentStep === s.step
-                  ? "bg-amber-400 text-black font-bold shadow-sm"
+                  ? "bg-white text-black font-bold shadow-sm"
                   : currentStep > s.step
                   ? "bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700"
                   : "text-zinc-500 hover:text-zinc-300"
@@ -579,7 +579,7 @@ export default function NewFragmentWizardModal({
                 {savedFragmentSummary?.name || "SONIC FRAGMENT REGISTERED"}
               </h3>
               <p className="text-zinc-400 text-xs leading-relaxed">
-                Fragment record <span className="text-amber-400 font-mono font-bold">[{savedFragmentSummary?.id}]</span> has been successfully saved, synchronized with the audio storage layers, and updated in the active archive catalog.
+                Fragment record <span className="text-white font-mono font-bold">[{savedFragmentSummary?.id}]</span> has been successfully saved, synchronized with the audio storage layers, and updated in the active archive catalog.
               </p>
             </div>
 
@@ -608,7 +608,7 @@ export default function NewFragmentWizardModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded uppercase tracking-wider text-xs shadow-lg cursor-pointer"
+                className="px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold rounded uppercase tracking-wider text-xs shadow-md cursor-pointer transition-colors"
               >
                 RETURN TO CATALOG
               </button>
@@ -640,7 +640,7 @@ export default function NewFragmentWizardModal({
           {currentStep === 1 && (
             <div className="space-y-5">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-amber-400 font-bold uppercase tracking-wider text-xs">
+                <span className="text-white font-bold uppercase tracking-wider text-xs">
                   STEP 1: METADATA &amp; TEMPORAL COORDINATES
                 </span>
                 <span className="text-zinc-500 text-[10px]">Required fields marked *</span>
@@ -657,7 +657,7 @@ export default function NewFragmentWizardModal({
                     value={fragmentTimestamp}
                     onChange={e => handleTimestampChange(e.target.value)}
                     placeholder="06:41 AM"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                   <span className="text-[9.5px] text-zinc-500 mt-1 block">Visible on Owl Clock dials</span>
                 </div>
@@ -672,7 +672,7 @@ export default function NewFragmentWizardModal({
                     value={fragmentId}
                     onChange={e => setFragmentId(e.target.value)}
                     placeholder="06:41"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                   <span className="text-[9.5px] text-zinc-500 mt-1 block">Unique URL &amp; lookup coordinate</span>
                 </div>
@@ -686,7 +686,7 @@ export default function NewFragmentWizardModal({
                     value={compositionId}
                     onChange={e => setCompositionId(e.target.value)}
                     placeholder="LOC-COMP-8821"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                   <span className="text-[9.5px] text-zinc-500 mt-1 block">ISRC / Catalog reference</span>
                 </div>
@@ -694,16 +694,16 @@ export default function NewFragmentWizardModal({
                 <div>
                   <label className="text-zinc-400 text-[10px] uppercase block mb-1 flex items-center gap-1">
                     <span>Internal Composition Title</span>
-                    <Lock size={10} className="text-amber-400" />
+                    <Lock size={10} className="text-zinc-400" />
                   </label>
                   <input
                     type="text"
                     value={compositionTitle}
                     onChange={e => setCompositionTitle(e.target.value)}
                     placeholder="Morning Resonance Phase 3"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
-                  <span className="text-[9.5px] text-amber-500/80 mt-1 block">Hidden from public API responses</span>
+                  <span className="text-[9.5px] text-zinc-500 mt-1 block">Hidden from public API responses</span>
                 </div>
 
                 <div>
@@ -715,7 +715,7 @@ export default function NewFragmentWizardModal({
                     required
                     value={bpm}
                     onChange={e => setBpm(Number(e.target.value) || 110)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                 </div>
 
@@ -726,7 +726,7 @@ export default function NewFragmentWizardModal({
                   <select
                     value={key}
                     onChange={e => setKey(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   >
                     {MUSICAL_KEYS.map(k => (
                       <option key={k} value={k}>{k}</option>
@@ -743,7 +743,7 @@ export default function NewFragmentWizardModal({
                     value={duration}
                     onChange={e => setDuration(e.target.value)}
                     placeholder="03:15"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                   <span className="text-[9.5px] text-zinc-500 mt-1 block">Auto-calculated from audio or manual</span>
                 </div>
@@ -755,7 +755,7 @@ export default function NewFragmentWizardModal({
                   <select
                     value={availability}
                     onChange={e => setAvailability(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   >
                     <option value="available">Available (Sync Ready)</option>
                     <option value="reserved">Reserved (Under Review)</option>
@@ -771,7 +771,7 @@ export default function NewFragmentWizardModal({
                     type="date"
                     value={releaseDate}
                     onChange={e => setReleaseDate(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                 </div>
               </div>
@@ -792,7 +792,7 @@ export default function NewFragmentWizardModal({
                           onClick={() => toggleGenre(g)}
                           className={`px-2 py-1 rounded text-[10px] transition-colors cursor-pointer ${
                             selected 
-                              ? "bg-amber-400/20 text-amber-300 border border-amber-400/40" 
+                              ? "bg-white text-black font-bold border border-white" 
                               : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white"
                           }`}
                         >
@@ -817,7 +817,7 @@ export default function NewFragmentWizardModal({
                           onClick={() => toggleMood(m)}
                           className={`px-2 py-1 rounded text-[10px] transition-colors cursor-pointer ${
                             selected 
-                              ? "bg-amber-400/20 text-amber-300 border border-amber-400/40" 
+                              ? "bg-white text-black font-bold border border-white" 
                               : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white"
                           }`}
                         >
@@ -840,21 +840,21 @@ export default function NewFragmentWizardModal({
                     value={archiveNote}
                     onChange={e => setArchiveNote(e.target.value)}
                     placeholder="Signal strength optimal. Minimal degradation observed..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                 </div>
 
                 <div>
                   <label className="text-zinc-400 text-[10px] uppercase block mb-1 flex items-center gap-1">
                     <span>Internal Archivist Notes</span>
-                    <Lock size={10} className="text-amber-400" />
+                    <Lock size={10} className="text-zinc-400" />
                   </label>
                   <textarea
                     rows={2}
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="Encumbrances, sample clearances, stems layout details..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:outline-none focus:border-zinc-400 text-xs"
                   />
                 </div>
               </div>
@@ -865,7 +865,7 @@ export default function NewFragmentWizardModal({
           {currentStep === 2 && (
             <div className="space-y-4">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-amber-400 font-bold uppercase tracking-wider text-xs">
+                <span className="text-white font-bold uppercase tracking-wider text-xs">
                   STEP 2: AUDIO ASSET VAULT
                 </span>
                 <span className="text-zinc-400 text-[10px]">
@@ -914,7 +914,7 @@ export default function NewFragmentWizardModal({
                             <button
                               type="button"
                               onClick={() => toggleAudioPlayback(item.key, uploaded.fileUrl)}
-                              className="w-6 h-6 rounded bg-amber-400 hover:bg-amber-300 text-black flex items-center justify-center shrink-0 cursor-pointer"
+                              className="w-6 h-6 rounded bg-white hover:bg-zinc-200 text-black flex items-center justify-center shrink-0 cursor-pointer shadow-sm transition-colors"
                             >
                               {isPlaying ? <Pause size={10} /> : <Play size={10} className="ml-0.5" />}
                             </button>
@@ -937,17 +937,17 @@ export default function NewFragmentWizardModal({
                       ) : (
                         <div>
                           {progress && progress < 100 ? (
-                            <div className="space-y-1.5 p-2 bg-zinc-900/80 border border-amber-400/30 rounded-lg">
+                            <div className="space-y-1.5 p-2 bg-zinc-900/80 border border-zinc-700 rounded-lg">
                               <div className="flex items-center justify-between text-[10px]">
-                                <span className="text-amber-400 font-mono font-bold flex items-center gap-1">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                                <span className="text-white font-mono font-bold flex items-center gap-1">
+                                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                                   UPLOADING AUDIO...
                                 </span>
-                                <span className="text-amber-300 font-mono font-bold">{progress}%</span>
+                                <span className="text-zinc-200 font-mono font-bold">{progress}%</span>
                               </div>
                               <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
                                 <div 
-                                  className="bg-gradient-to-r from-amber-500 to-amber-300 h-full transition-all duration-200 rounded-full" 
+                                  className="bg-white h-full transition-all duration-200 rounded-full" 
                                   style={{ width: `${progress}%` }} 
                                 />
                               </div>
@@ -977,15 +977,15 @@ export default function NewFragmentWizardModal({
           {currentStep === 3 && (
             <div className="space-y-4">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-amber-400 font-bold uppercase tracking-wider text-xs">
+                <span className="text-white font-bold uppercase tracking-wider text-xs">
                   STEP 3: MULTI-TRACK STEM ARCHIVES
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setStemUploadMode("zip")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase cursor-pointer ${
-                      stemUploadMode === "zip" ? "bg-amber-400 text-black" : "bg-zinc-900 text-zinc-400"
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase cursor-pointer transition-colors ${
+                      stemUploadMode === "zip" ? "bg-white text-black shadow-sm" : "bg-zinc-900 text-zinc-400 hover:text-white"
                     }`}
                   >
                     ZIP Archive Mode
@@ -993,8 +993,8 @@ export default function NewFragmentWizardModal({
                   <button
                     type="button"
                     onClick={() => setStemUploadMode("individual")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase cursor-pointer ${
-                      stemUploadMode === "individual" ? "bg-amber-400 text-black" : "bg-zinc-900 text-zinc-400"
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase cursor-pointer transition-colors ${
+                      stemUploadMode === "individual" ? "bg-white text-black shadow-sm" : "bg-zinc-900 text-zinc-400 hover:text-white"
                     }`}
                   >
                     Individual Stems
@@ -1005,7 +1005,7 @@ export default function NewFragmentWizardModal({
               {stemUploadMode === "zip" ? (
                 <div className="space-y-4">
                   <div className="p-6 border-2 border-dashed border-zinc-800 hover:border-zinc-600 rounded-xl bg-zinc-950/60 flex flex-col items-center justify-center text-center space-y-3">
-                    <FolderArchive size={32} className="text-amber-400" />
+                    <FolderArchive size={32} className="text-zinc-300" />
                     <div>
                       <h4 className="text-white font-bold text-xs uppercase tracking-wider">
                         UPLOAD MULTI-TRACK STEM ARCHIVE (.ZIP)
@@ -1016,24 +1016,24 @@ export default function NewFragmentWizardModal({
                     </div>
 
                     {isProcessingZip ? (
-                      <div className="w-full max-w-sm space-y-2 p-3 bg-zinc-900 border border-amber-400/30 rounded-lg text-center">
+                      <div className="w-full max-w-sm space-y-2 p-3 bg-zinc-900 border border-zinc-700 rounded-lg text-center">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-amber-400 font-mono font-bold flex items-center gap-1.5">
-                            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                          <span className="text-white font-mono font-bold flex items-center gap-1.5">
+                            <span className="inline-block w-2 h-2 rounded-full bg-white animate-ping" />
                             PROCESSING &amp; UPLOADING STEM ARCHIVE...
                           </span>
-                          <span className="text-amber-300 font-mono font-bold">{zipProgress}%</span>
+                          <span className="text-zinc-200 font-mono font-bold">{zipProgress}%</span>
                         </div>
                         <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
                           <div 
-                            className="bg-gradient-to-r from-amber-500 to-amber-300 h-full transition-all duration-200 rounded-full" 
+                            className="bg-white h-full transition-all duration-200 rounded-full" 
                             style={{ width: `${zipProgress}%` }} 
                           />
                         </div>
                         <p className="text-[10px] text-zinc-500 font-mono">Parsing stems manifest &amp; streaming direct to vault</p>
                       </div>
                     ) : (
-                      <label className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded uppercase tracking-wider text-[11px] cursor-pointer shadow-md">
+                      <label className="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-bold rounded uppercase tracking-wider text-[11px] cursor-pointer shadow-md transition-colors">
                         <input
                           type="file"
                           accept=".zip"
@@ -1134,7 +1134,7 @@ export default function NewFragmentWizardModal({
           {currentStep === 4 && (
             <div className="space-y-4">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-amber-400 font-bold uppercase tracking-wider text-xs">
+                <span className="text-white font-bold uppercase tracking-wider text-xs">
                   STEP 4: LEGAL DOCUMENTS &amp; CONTRACTS
                 </span>
                 <span className="text-zinc-500 text-[10px]">{documents.length} document(s) attached</span>
@@ -1149,7 +1149,7 @@ export default function NewFragmentWizardModal({
                     <select
                       value={selectedDocCategory}
                       onChange={e => setSelectedDocCategory(e.target.value as any)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:outline-none focus:border-zinc-400 text-xs"
                     >
                       {DOCUMENT_CATEGORIES.map(c => (
                         <option key={c} value={c}>{c}</option>
@@ -1158,7 +1158,7 @@ export default function NewFragmentWizardModal({
                   </div>
 
                   <div>
-                    <label className="w-full h-[38px] bg-amber-400 hover:bg-amber-300 text-black font-bold rounded flex items-center justify-center gap-2 cursor-pointer uppercase text-[11px] shadow-sm">
+                    <label className="w-full h-[38px] bg-white hover:bg-zinc-200 text-black font-bold rounded flex items-center justify-center gap-2 cursor-pointer uppercase text-[11px] shadow-sm transition-colors">
                       <input
                         type="file"
                         onChange={handleDocumentUpload}
@@ -1185,7 +1185,7 @@ export default function NewFragmentWizardModal({
                     {documents.map(doc => (
                       <div key={doc.id} className="p-3 bg-zinc-950 border border-zinc-800/80 rounded-lg flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2.5 truncate pr-2">
-                          <FileText size={16} className="text-amber-400 shrink-0" />
+                          <FileText size={16} className="text-zinc-300 shrink-0" />
                           <div className="truncate">
                             <span className="text-white font-medium block truncate">{doc.fileName}</span>
                             <span className="text-[9.5px] text-zinc-500">
@@ -1212,7 +1212,7 @@ export default function NewFragmentWizardModal({
           {currentStep === 5 && (
             <div className="space-y-4">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-amber-400 font-bold uppercase tracking-wider text-xs">
+                <span className="text-white font-bold uppercase tracking-wider text-xs">
                   STEP 5: SYNC LICENSING &amp; RATE CONFIGURATION
                 </span>
                 <span className="text-zinc-500 text-[10px]">Toggle tiers and configure USD pricing</span>
@@ -1232,7 +1232,7 @@ export default function NewFragmentWizardModal({
                       key={item.key}
                       className={`p-4 rounded-xl border transition-colors ${
                         tierConfig.enabled 
-                          ? "bg-zinc-950 border-amber-400/30" 
+                          ? "bg-zinc-950 border-zinc-700" 
                           : "bg-zinc-950/40 border-zinc-900 opacity-60"
                       }`}
                     >
@@ -1249,7 +1249,7 @@ export default function NewFragmentWizardModal({
                                 [item.key]: { ...prev[item.key as keyof LicensePricingConfig], enabled: checked }
                               }));
                             }}
-                            className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
+                            className="w-4 h-4 accent-white rounded cursor-pointer"
                           />
                           <div>
                             <label htmlFor={`lic-${item.key}`} className="font-bold text-white text-xs uppercase cursor-pointer">
@@ -1272,7 +1272,7 @@ export default function NewFragmentWizardModal({
                                   [item.key]: { ...prev[item.key as keyof LicensePricingConfig], price: val }
                                 }));
                               }}
-                              className="w-28 bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 text-white font-mono font-bold text-xs focus:outline-none focus:border-amber-400 text-right"
+                              className="w-28 bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 text-white font-mono font-bold text-xs focus:outline-none focus:border-zinc-400 text-right"
                             />
                             <span className="text-zinc-400 text-[10px] font-mono">USD</span>
                           </div>
@@ -1289,7 +1289,7 @@ export default function NewFragmentWizardModal({
           {currentStep === 6 && (
             <div className="space-y-5">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-amber-400 font-bold uppercase tracking-wider text-xs">
+                <span className="text-white font-bold uppercase tracking-wider text-xs">
                   STEP 6: SUMMARY &amp; PUBLISH CONTROLS
                 </span>
                 <span className="text-emerald-400 text-[10px] font-bold">READY FOR DISPATCH</span>
@@ -1351,7 +1351,7 @@ export default function NewFragmentWizardModal({
                 {/* 2. SCHEDULE RELEASE */}
                 <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col justify-between space-y-3">
                   <div>
-                    <h5 className="text-amber-300 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <h5 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
                       <Clock size={13} /> SCHEDULE RELEASE
                     </h5>
                     <p className="text-zinc-500 text-[10px] mt-1">
@@ -1361,22 +1361,22 @@ export default function NewFragmentWizardModal({
                       type="datetime-local"
                       value={scheduleTime}
                       onChange={e => setScheduleTime(e.target.value)}
-                      className="w-full mt-2 bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1 text-white text-[10px] focus:outline-none focus:border-amber-400"
+                      className="w-full mt-2 bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1 text-white text-[10px] focus:outline-none focus:border-zinc-400"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={handleSchedule}
-                    className="w-full py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold rounded uppercase text-[11px] tracking-wider cursor-pointer"
+                    className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 font-bold rounded uppercase text-[11px] tracking-wider cursor-pointer transition-colors"
                   >
                     SCHEDULE DISPATCH
                   </button>
                 </div>
 
                 {/* 3. PUBLISH IMMEDIATELY */}
-                <div className="p-4 bg-zinc-950 border border-amber-400/40 rounded-xl flex flex-col justify-between space-y-3 bg-gradient-to-b from-amber-400/5 to-transparent">
+                <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col justify-between space-y-3">
                   <div>
-                    <h5 className="text-amber-400 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <h5 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
                       <Send size={13} /> PUBLISH LIVE
                     </h5>
                     <p className="text-zinc-400 text-[10px] mt-1">
@@ -1386,7 +1386,7 @@ export default function NewFragmentWizardModal({
                   <button
                     type="button"
                     onClick={handlePublish}
-                    className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded uppercase text-[11px] tracking-wider cursor-pointer shadow-lg"
+                    className="w-full py-2.5 bg-white hover:bg-zinc-200 text-black font-bold rounded uppercase text-[11px] tracking-wider cursor-pointer shadow-lg transition-colors"
                   >
                     PUBLISH &amp; SYNC NOW
                   </button>
@@ -1424,7 +1424,7 @@ export default function NewFragmentWizardModal({
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => { setErrorMsg(null); setCurrentStep(prev => Math.min(6, prev + 1)); }}
-                className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                className="px-5 py-2 bg-white hover:bg-zinc-200 text-black font-bold rounded uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50 transition-colors"
               >
                 <span>NEXT STEP</span>
                 <ChevronRight size={14} />
@@ -1434,7 +1434,7 @@ export default function NewFragmentWizardModal({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handlePublish}
-                className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold rounded uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+                className="px-5 py-2 bg-white hover:bg-zinc-200 text-black font-bold rounded uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50 transition-colors"
               >
                 {isSubmitting ? (
                   <>

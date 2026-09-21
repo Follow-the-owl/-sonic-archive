@@ -20,6 +20,7 @@ import {
   patchFragmentStatusOnBackend
 } from "../lib/fragmentService";
 import NewFragmentWizardModal from "./NewFragmentWizardModal";
+import ScalewayUploader from "./ScalewayUploader";
 import { DEFAULT_LICENSE_TEMPLATES, LicenseTemplate } from "../licenses";
 import { 
   openOrDownloadLicenseAgreement,
@@ -625,7 +626,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionRecord | null>(null);
 
   // Sub-tabs for System section
-  const [systemSubTab, setSystemSubTab] = useState<"TEMPLATES" | "CONFIG" | "COMMUNICATIONS" | "ADMINISTRATION">("TEMPLATES");
+  const [systemSubTab, setSystemSubTab] = useState<"TEMPLATES" | "CONFIG" | "COMMUNICATIONS" | "ADMINISTRATION" | "STORAGE">("TEMPLATES");
 
   // Audio Playback Preview State for Master Records
   const [playingFragmentId, setPlayingFragmentId] = useState<string | null>(null);
@@ -831,7 +832,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
       <header className="w-full border-b border-zinc-900 bg-[#040404] px-4 sm:px-6 py-2.5 flex items-center justify-between z-30 shrink-0 select-none">
         <div className="flex items-center gap-3">
           <span className="text-[11px] sm:text-xs font-bold text-white font-mono tracking-widest uppercase flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
             THE OWL CLOCK • ARCHIVIST CONSOLE
           </span>
           <span className="hidden md:inline-block text-[10px] text-zinc-500 font-mono border-l border-zinc-800 pl-3">
@@ -878,7 +879,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
               title={drawerOpen ? "Close navigation menu" : "Open navigation menu"}
               className={`w-10 h-10 rounded-md flex items-center justify-center transition-all cursor-pointer border ${
                 drawerOpen
-                  ? "bg-amber-400/15 border-amber-400/50 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]"
+                  ? "bg-white text-black border-white shadow-sm"
                   : "bg-[#0c0c0c] border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 hover:bg-zinc-900"
               }`}
             >
@@ -908,13 +909,13 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     title={item.label}
                     className={`w-10 h-10 rounded-md flex items-center justify-center transition-all cursor-pointer relative border ${
                       isActive
-                        ? "bg-[#141414] border-zinc-700 text-amber-400 shadow-sm"
+                        ? "bg-white text-black border-white shadow-sm"
                         : "border-transparent text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/70"
                     }`}
                   >
                     <IconComponent size={17} />
                     {isActive && (
-                      <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-4 bg-amber-400 rounded-r" />
+                      <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-r" />
                     )}
                   </button>
                 );
@@ -924,14 +925,14 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
 
           {/* Bottom Admin Shield Icon */}
           <button 
-            className="w-10 h-10 rounded-md border border-zinc-900 bg-zinc-950/90 flex items-center justify-center text-zinc-500 hover:text-amber-400 hover:border-zinc-800 transition-all cursor-pointer"
+            className="w-10 h-10 rounded-md border border-zinc-900 bg-zinc-950/90 flex items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-700 transition-all cursor-pointer"
             title="Archivist Administration"
             onClick={() => {
               setActiveSection("06_SYSTEM");
               setDrawerOpen(false);
             }}
           >
-            <ShieldCheck size={15} className="text-amber-400" />
+            <ShieldCheck size={15} className="text-white" />
           </button>
         </aside>
 
@@ -989,11 +990,11 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                           }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-all cursor-pointer border ${
                             isActive
-                              ? "bg-zinc-900 border-zinc-700 text-white font-semibold shadow-inner"
+                              ? "bg-white text-black font-bold shadow-sm"
                               : "border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60"
                           }`}
                         >
-                          <IconComponent size={16} className={isActive ? "text-amber-400" : "text-zinc-500"} />
+                          <IconComponent size={16} className={isActive ? "text-black" : "text-zinc-500"} />
                           <div className="flex flex-col">
                             <span className="text-xs uppercase tracking-wider">{item.label}</span>
                             <span className="text-[9.5px] text-zinc-500 font-normal leading-tight line-clamp-1">{item.subtitle}</span>
@@ -1039,7 +1040,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
               {activeSection === "01_ARCHIVE" && (
                 <button
                   onClick={() => setShowCreateFragmentModal(true)}
-                  className="bg-amber-400 hover:bg-amber-300 text-black text-[10.5px] font-bold uppercase tracking-wider px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                  className="bg-white hover:bg-zinc-200 text-black text-[10.5px] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
                 >
                   <Plus size={13} />
                   <span>CREATE NEW FRAGMENT</span>
@@ -1048,7 +1049,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
               {activeSection === "02_CLEARANCE" && (
                 <button
                   onClick={() => setShowCreateClearanceModal(true)}
-                  className="bg-amber-400 hover:bg-amber-300 text-black text-[10.5px] font-bold uppercase tracking-wider px-3 py-1.5 rounded flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                  className="bg-white hover:bg-zinc-200 text-black text-[10.5px] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
                 >
                   <Plus size={13} />
                   <span>NEW CLEARANCE PETITION</span>
@@ -1069,7 +1070,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                 placeholder={`Filter ${currentTabInfo.label.toLowerCase()} by name, id, or client...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-400/50"
+                className="w-full pl-9 pr-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
               />
               {searchQuery && (
                 <button
@@ -1090,7 +1091,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     onClick={() => setArchiveFilterStatus(st)}
                     className={`px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider rounded transition-all cursor-pointer border ${
                       archiveFilterStatus === st 
-                        ? "bg-amber-400/15 border-amber-400 text-amber-400" 
+                        ? "bg-white border-white text-black font-bold shadow-sm" 
                         : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
                     }`}
                   >
@@ -1108,7 +1109,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     onClick={() => setStatusFilter(st)}
                     className={`px-2.5 py-1 text-[9.5px] uppercase font-bold tracking-wider rounded transition-all cursor-pointer border ${
                       statusFilter === st 
-                        ? "bg-amber-400/15 border-amber-400 text-amber-400" 
+                        ? "bg-white border-white text-black font-bold shadow-sm" 
                         : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
                     }`}
                   >
@@ -1160,10 +1161,10 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                               <span className="font-bold text-white text-sm sm:text-base uppercase tracking-wide">
                                 {getFragmentTimeName(fragRecord.fragmentTimestamp || fragRecord.id)}
                               </span>
-                              <span className="text-[10px] text-zinc-500 font-mono">
+                              <span className="text-[10px] text-zinc-400 font-mono">
                                 ({fragRecord.compositionId || `LOC-${fragRecord.id}`})
                               </span>
-                              <span className="text-[10px] text-amber-500/80 font-mono bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/20">
+                              <span className="text-[10px] text-zinc-300 font-mono bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
                                 {fragRecord.compositionTitle}
                               </span>
                             </div>
@@ -1199,10 +1200,10 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                               {/* Availability Badge */}
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider rounded border ${
                                 isExcl
-                                  ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                  ? "border-zinc-700 text-zinc-300 bg-zinc-900"
                                   : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                               }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${isExcl ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
+                                <span className={`w-1.5 h-1.5 rounded-full ${isExcl ? "bg-zinc-400" : "bg-emerald-400 animate-pulse"}`} />
                                 {fragRecord.availability.toUpperCase()}
                               </span>
 
@@ -1212,7 +1213,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                                   ? "text-emerald-400 border-emerald-500/20 bg-emerald-950/20"
                                   : fragRecord.syncStatus === "failed"
                                   ? "text-red-400 border-red-500/30 bg-red-950/30"
-                                  : "text-amber-300 border-amber-500/30 bg-amber-950/30"
+                                  : "text-zinc-300 border-zinc-700 bg-zinc-900"
                               }`}>
                                 <RefreshCw size={10} className={fragRecord.syncStatus === "pending" ? "animate-spin" : ""} />
                                 <span>SYNC: {fragRecord.syncStatus?.toUpperCase() || "SYNCED"}</span>
@@ -1296,7 +1297,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                               className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-3 py-1.5 rounded-md uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer shadow-sm"
                             >
                               <span>RECORD</span>
-                              <ArrowRight size={12} className="text-amber-400" />
+                              <ArrowRight size={12} className="text-zinc-300" />
                             </button>
                           </div>
                         </div>
@@ -1329,7 +1330,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                   if (clearanceRequests.length === 0) {
                     return (
                       <div className="p-8 sm:p-12 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-4 my-2">
-                        <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-amber-400">
+                        <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-white">
                           <Shield size={22} />
                         </div>
                         <div className="space-y-1.5 max-w-md mx-auto">
@@ -1343,7 +1344,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                           <button
                             onClick={() => setShowCreateClearanceModal(true)}
-                            className="bg-amber-400 hover:bg-amber-300 text-black text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-md cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                            className="bg-white hover:bg-zinc-200 text-black text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-md cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                           >
                             <Plus size={14} />
                             <span>CREATE CLEARANCE PETITION</span>
@@ -1356,7 +1357,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                   return (
                     <div className="p-8 text-center bg-[#080808] border border-zinc-800/80 rounded-xl space-y-3">
                       <p className="text-xs text-zinc-400">
-                        No clearance petitions match status "<span className="text-amber-400 font-bold">{statusFilter}</span>"{searchQuery ? ` or search "${searchQuery}"` : ""}.
+                        No clearance petitions match status "<span className="text-white font-bold">{statusFilter}</span>"{searchQuery ? ` or search "${searchQuery}"` : ""}.
                       </p>
                       <button
                         onClick={() => { setStatusFilter("ALL"); setSearchQuery(""); }}
@@ -1407,14 +1408,14 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                                   : req.status === "DECLINED"
                                   ? "border-red-500/30 text-red-400 bg-red-500/10"
                                   : req.status === "PAYMENT PENDING"
-                                  ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                  ? "border-zinc-700 text-zinc-300 bg-zinc-900"
                                   : "border-blue-500/30 text-blue-400 bg-blue-500/10"
                               }`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${
                                   req.status === "APPROVED" || req.status === "COMPLETED"
                                     ? "bg-emerald-400 animate-pulse"
                                     : req.status === "PAYMENT PENDING"
-                                    ? "bg-amber-400 animate-pulse"
+                                    ? "bg-zinc-400 animate-pulse"
                                     : req.status === "DECLINED"
                                     ? "bg-red-400"
                                     : "bg-blue-400"
@@ -1439,7 +1440,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                               className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
                             >
                               <span>OPEN REQUEST</span>
-                              <ArrowRight size={13} className="text-amber-400" />
+                              <ArrowRight size={13} className="text-zinc-300" />
                             </button>
                           </div>
                         </div>
@@ -1511,7 +1512,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
                           >
                             <span>OPEN CLIENT</span>
-                            <ArrowRight size={13} className="text-amber-400" />
+                            <ArrowRight size={13} className="text-zinc-300" />
                           </button>
                         </div>
                       </div>
@@ -1641,7 +1642,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
                           >
                             <span>OPEN LICENSE</span>
-                            <ArrowRight size={13} className="text-amber-400" />
+                            <ArrowRight size={13} className="text-zinc-300" />
                           </button>
                         </div>
                       </div>
@@ -1756,7 +1757,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 text-white font-bold text-[10.5px] px-4 py-2 rounded-md uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto"
                           >
                             <span>VIEW RECEIPT</span>
-                            <ArrowRight size={13} className="text-amber-400" />
+                            <ArrowRight size={13} className="text-zinc-300" />
                           </button>
                         </div>
                       </div>
@@ -1804,7 +1805,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
             <div className="space-y-5">
               {/* System Subtabs */}
               <div className="flex flex-wrap border-b border-zinc-800 bg-[#060606] p-1 gap-1 rounded-t-lg">
-                {(["TEMPLATES", "CONFIG", "COMMUNICATIONS", "ADMINISTRATION"] as const).map(tab => (
+                {(["TEMPLATES", "CONFIG", "COMMUNICATIONS", "ADMINISTRATION", "STORAGE"] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setSystemSubTab(tab)}
@@ -1814,7 +1815,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                         : "border-transparent text-zinc-500 hover:text-zinc-300"
                     }`}
                   >
-                    {tab === "TEMPLATES" ? "DOCUMENT TEMPLATES" : tab === "CONFIG" ? "LICENSING CONFIGURATION" : tab}
+                    {tab === "TEMPLATES" ? "DOCUMENT TEMPLATES" : tab === "CONFIG" ? "LICENSING CONFIGURATION" : tab === "STORAGE" ? "SCALEWAY S3 STORAGE" : tab}
                   </button>
                 ))}
               </div>
@@ -1831,7 +1832,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded space-y-2">
                       <div className="text-white font-bold text-xs flex items-center justify-between">
                         <span>01. COMMERCIAL SYNCHRONIZATION &amp; MASTER LICENSE</span>
-                        <span className="text-[9.5px] text-amber-400 font-mono">SCHEDULE A</span>
+                        <span className="text-[9.5px] text-zinc-400 font-mono">SCHEDULE A</span>
                       </div>
                       <p className="text-zinc-400 text-[10.5px] leading-relaxed">
                         Worldwide non-exclusive synchronization and master exploitation rights grant. Governs television, broadcast, OTT/streaming, podcast, advertising, and video game synchronization with complete stem warranties.
@@ -1845,7 +1846,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded space-y-2">
                       <div className="text-white font-bold text-xs flex items-center justify-between">
                         <span>02. EXCLUSIVE MASTER ACQUISITION &amp; ASSIGNMENT</span>
-                        <span className="text-[9.5px] text-amber-400 font-mono">SCHEDULE EX</span>
+                        <span className="text-[9.5px] text-zinc-400 font-mono">SCHEDULE EX</span>
                       </div>
                       <p className="text-zinc-400 text-[10.5px] leading-relaxed">
                         Full permanent assignment of sound recording copyright, uncompressed master multi-track stems, and co-publishing registration while permanently preserving historical archive chain of custody.
@@ -1908,8 +1909,8 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       </div>
 
                       <div className="bg-zinc-950 p-3.5 border border-zinc-800/80 rounded space-y-1">
-                        <span className="text-[9px] text-amber-400 uppercase font-bold block">TIER 4: EXCLUSIVE ACQUISITION</span>
-                        <div className="text-amber-400 font-bold text-sm">$5,000.00 USD</div>
+                        <span className="text-[9px] text-zinc-400 uppercase font-bold block">TIER 4: EXCLUSIVE ACQUISITION</span>
+                        <div className="text-white font-bold text-sm">$5,000.00 USD</div>
                         <p className="text-zinc-400 text-[10px]">Complete Master assignment + DAW Project files + Permanent public archive removal.</p>
                       </div>
                     </div>
@@ -1994,6 +1995,22 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                   </div>
                 </div>
               )}
+
+              {/* TAB 5: STORAGE (SCALEWAY S3 PIPELINE VERIFICATION) */}
+              {systemSubTab === "STORAGE" && (
+                <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-5 space-y-4 shadow-xl">
+                  <div className="text-white text-xs font-bold uppercase tracking-wider border-b border-zinc-800 pb-2.5 flex items-center justify-between">
+                    <span>SCALEWAY S3 OBJECT STORAGE — DIRECT PRESIGNED PIPELINE</span>
+                    <span className="text-[10px] text-emerald-400 font-mono">200MB PAYLOAD CAPABLE • ACTIVE</span>
+                  </div>
+
+                  <p className="text-zinc-400 text-xs leading-relaxed">
+                    Test the direct-to-storage architecture. Files uploaded here generate a temporary 300s presigned PUT ticket via <code className="text-zinc-300 bg-zinc-900 px-1.5 py-0.5 rounded">/api/upload-url</code> and stream raw binary payloads directly to Scaleway bucket <code className="text-zinc-300 bg-zinc-900 px-1.5 py-0.5 rounded">owl</code>, bypassing Vercel serverless function limits.
+                  </p>
+
+                  <ScalewayUploader />
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -2032,7 +2049,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
               {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
                 <div>
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">
                     MASTER FRAGMENT RECORD
                   </span>
                   <h2 className="text-lg sm:text-xl font-bold text-white uppercase mt-0.5">
@@ -2167,7 +2184,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                 <div className="bg-zinc-950 p-4 border border-zinc-800/80 rounded-lg space-y-2.5">
                   <div className="text-white font-bold text-xs uppercase tracking-wider border-b border-zinc-900 pb-1.5 flex items-center justify-between">
                     <span>CLEARANCE DATA &amp; AVAILABILITY</span>
-                    <span className={selectedFragmentMaster.isExclusive ? "text-amber-400" : "text-emerald-400"}>
+                    <span className={selectedFragmentMaster.isExclusive ? "text-white font-bold" : "text-emerald-400"}>
                       {selectedFragmentMaster.isExclusive ? "EXCLUSIVELY ACQUIRED" : "AVAILABLE FOR LICENSING"}
                     </span>
                   </div>
@@ -2184,7 +2201,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             handleAcquireExclusively(selectedFragmentMaster, buyer, email, 5000);
                           }
                         }}
-                        className="bg-amber-400 hover:bg-amber-300 text-black font-bold text-[10px] px-3.5 py-2 rounded uppercase tracking-wider cursor-pointer shrink-0"
+                        className="bg-white hover:bg-zinc-200 text-black font-bold text-[10px] px-3.5 py-2 rounded uppercase tracking-wider cursor-pointer shrink-0 shadow-sm"
                       >
                         EXECUTE EXCLUSIVE ACQUISITION ($5,000 USD)
                       </button>
@@ -2212,7 +2229,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             <div>
                               <strong className="text-white">{cr.ref}</strong> — <span className="text-zinc-300">{cr.clientName}</span> ({cr.requestedLicense})
                             </div>
-                            <span className="text-amber-400 font-bold text-[10px]">{cr.status}</span>
+                            <span className="text-zinc-300 font-bold text-[10px]">{cr.status}</span>
                           </div>
                         ))
                     )}
@@ -2284,7 +2301,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
             >
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
                 <div>
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">
                     CLEARANCE PETITION REVIEW
                   </span>
                   <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
@@ -2317,7 +2334,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     </div>
                     <div>
                       <span className="text-zinc-500 uppercase text-[9.5px] block">Current Status</span>
-                      <strong className="text-amber-400">{selectedClearanceRequest.status}</strong>
+                      <strong className="text-white font-bold">{selectedClearanceRequest.status}</strong>
                     </div>
                   </div>
                 </div>
@@ -2442,7 +2459,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
             >
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
                 <div>
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">
                     MANUAL CLEARANCE LOG
                   </span>
                   <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
@@ -2473,7 +2490,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                         fragmentName: selFrag ? selFrag.name : `${e.target.value} PM`
                       }));
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-zinc-400"
                   >
                     {fragments.map(f => (
                       <option key={f.id} value={f.id}>
@@ -2495,7 +2512,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       placeholder="e.g. Warner Bros / Sound Dept"
                       value={newPetitionForm.clientName}
                       onChange={(e) => setNewPetitionForm(prev => ({ ...prev, clientName: e.target.value }))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400 placeholder-zinc-700"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-zinc-400 placeholder-zinc-700"
                     />
                   </div>
                   <div>
@@ -2508,7 +2525,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       placeholder="e.g. licensing@studio.com"
                       value={newPetitionForm.clientEmail}
                       onChange={(e) => setNewPetitionForm(prev => ({ ...prev, clientEmail: e.target.value }))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400 placeholder-zinc-700"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-zinc-400 placeholder-zinc-700"
                     />
                   </div>
                 </div>
@@ -2542,7 +2559,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                           feeAmount: fee
                         }));
                       }}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-zinc-400"
                     >
                       <option value="archive">Archive Access ($150 USD)</option>
                       <option value="commercial_release">Commercial Release ($500 USD)</option>
@@ -2559,7 +2576,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                       type="number"
                       value={newPetitionForm.feeAmount}
                       onChange={(e) => setNewPetitionForm(prev => ({ ...prev, feeAmount: Number(e.target.value) }))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-zinc-400"
                     />
                   </div>
                 </div>
@@ -2574,7 +2591,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     placeholder="Describe the media production, distribution channels, and stem asset requirements..."
                     value={newPetitionForm.projectDescription}
                     onChange={(e) => setNewPetitionForm(prev => ({ ...prev, projectDescription: e.target.value }))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-amber-400 placeholder-zinc-700 resize-none"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-xs focus:outline-none focus:border-zinc-400 placeholder-zinc-700 resize-none"
                   />
                 </div>
 
@@ -2588,7 +2605,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                   </button>
                   <button
                     type="submit"
-                    className="bg-amber-400 hover:bg-amber-300 text-black font-bold px-5 py-2 rounded uppercase tracking-wider text-[10.5px] cursor-pointer transition-all shadow-md"
+                    className="bg-white hover:bg-zinc-200 text-black font-bold px-5 py-2 rounded uppercase tracking-wider text-[10.5px] cursor-pointer transition-all shadow-md"
                   >
                     LOG &amp; QUEUE PETITION
                   </button>
@@ -2611,7 +2628,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
             >
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
                 <div>
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">
                     CLIENT DOSSIER &amp; ACCOUNT RECORD
                   </span>
                   <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">
@@ -2689,7 +2706,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                             <div>
                               <strong className="text-white">{req.ref}</strong> — <span className="text-zinc-300">{req.fragmentName}</span> ({req.requestedLicense})
                             </div>
-                            <span className="text-amber-400 font-bold text-[10px]">{req.status}</span>
+                            <span className="text-zinc-300 font-bold text-[10px]">{req.status}</span>
                           </div>
                         ))
                     )}
@@ -2780,7 +2797,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                           <span className="text-[10px] font-mono font-bold tracking-widest text-[#00E676] uppercase bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-[2px]">
                             {schedA.licenseFee}
                           </span>
-                          <span className="text-[10px] text-amber-400 font-mono font-bold tracking-widest uppercase">
+                          <span className="text-[10px] text-zinc-300 font-mono font-bold tracking-widest uppercase">
                             {selectedLicense.status || "ACTIVE"}
                           </span>
                         </div>
@@ -3061,7 +3078,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
             >
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
                 <div>
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">
                     COMMERCIAL TRANSACTION RECEIPT
                   </span>
                   <h2 className="text-base sm:text-lg font-bold text-white uppercase mt-0.5">

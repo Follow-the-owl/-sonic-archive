@@ -434,7 +434,7 @@ export function sanitizeToPublicCatalog(record: FullFragmentRecord): Fragment {
       clearanceStatus: record.availability === "sold" ? "EXCLUSIVELY ACQUIRED" : "AVAILABLE",
       deliverableAssets: [
         "Lossless 24-bit 48kHz Master WAV",
-        "Multi-Track Stems Archive (Dry & Wet)",
+        "Multi-Track Stems Archive",
         "Sync Master Certificate (Cryptographically Signed)",
         "Complete Publishing & Writer Cue Sheets"
       ],
@@ -594,32 +594,52 @@ export async function uploadToCloudinarySigned(
 }
 
 /**
- * Upload Stem ZIP archive directly to UploadThing with server authorization
+ * Upload Stem ZIP archive directly to Scaleway S3 using presigned PUT URL
+ * Bypasses Vercel 4.5MB payload limit directly to Scaleway S3 bucket
  */
-export async function uploadStemZipToUploadThing(
+export async function uploadStemZipToScaleway(
   file: File,
   fragmentId: string,
   onProgress?: (percent: number) => void
 ): Promise<{ fileUrl: string; fileKey: string; sizeBytes: number }> {
   const cleanFragId = (fragmentId || "temp").replace(/[^a-zA-Z0-9]/g, "");
+  const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     try {
-      if (onProgress) onProgress(45);
+      if (onProgress) onProgress(10);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("fragmentId", cleanFragId);
+      // 1. Get presigned upload URL from backend
+      const presignRes = await fetch("/api/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename,
+          contentType: file.type || "application/zip",
+          objectKey: `fragments/${cleanFragId}/stems/${filename}`
+        })
+      });
 
+      if (!presignRes.ok) {
+        throw new Error("Failed to get presigned upload URL");
+      }
+
+      const presignData = await presignRes.json();
+      if (!presignData.uploadUrl) {
+        throw new Error("Invalid presigned URL response");
+      }
+
+      if (onProgress) onProgress(25);
+
+      // 2. Direct PUT upload to Scaleway S3
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/upload/uploadthing");
-      xhr.setRequestHeader("x-fragment-id", cleanFragId);
-      xhr.timeout = 45000; // 45s safety timeout
+      xhr.open("PUT", presignData.uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", file.type || "application/zip");
 
       if (onProgress && xhr.upload) {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
-            const percent = Math.min(95, Math.round(45 + (e.loaded / e.total) * 50));
+            const percent = Math.min(99, Math.round(25 + (e.loaded / e.total) * 74));
             onProgress(percent);
           }
         };
@@ -628,18 +648,14 @@ export async function uploadStemZipToUploadThing(
       xhr.onload = () => {
         if (onProgress) onProgress(100);
         if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            if (data.url) {
-              return resolve({
-                fileUrl: data.url,
-                fileKey: data.key || data.fileKey || `ut-${cleanFragId}-${file.name}`,
-                sizeBytes: file.size
-              });
-            }
-          } catch (_e) {}
+          const publicUrl = `https://${process.env.VITE_SCALEWAY_BUCKET_NAME || "owl"}.s3.fr-par.scw.cloud/${presignData.objectKey}`;
+          return resolve({
+            fileUrl: publicUrl,
+            fileKey: presignData.objectKey,
+            sizeBytes: file.size
+          });
         }
-        // Graceful fallback to client Object URL if server storage returns fallback or error
+        // Fallback
         resolve({
           fileUrl: URL.createObjectURL(file),
           fileKey: `local-${cleanFragId}-${file.name}`,
@@ -656,18 +672,9 @@ export async function uploadStemZipToUploadThing(
         });
       };
 
-      xhr.ontimeout = () => {
-        if (onProgress) onProgress(100);
-        resolve({
-          fileUrl: URL.createObjectURL(file),
-          fileKey: `local-${cleanFragId}-${file.name}`,
-          sizeBytes: file.size
-        });
-      };
-
-      xhr.send(formData);
+      xhr.send(file);
     } catch (err) {
-      console.warn("UploadThing direct upload fallback:", err);
+      console.warn("Scaleway direct upload fallback:", err);
       if (onProgress) onProgress(100);
       resolve({
         fileUrl: URL.createObjectURL(file),
@@ -677,6 +684,9 @@ export async function uploadStemZipToUploadThing(
     }
   });
 }
+
+// Backward compatibility alias for uploadStemZipToUploadThing
+export const uploadStemZipToUploadThing = uploadStemZipToScaleway;
 
 /**
  * Upload Stem ZIP archive directly to Cloudflare R2 using presigned PUT URL (zero backend bottleneck)

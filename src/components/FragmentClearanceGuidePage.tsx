@@ -313,7 +313,7 @@ export default function FragmentClearanceGuidePage({
 
           {/* IMPORTANT NOTICE BLOCK */}
           <section className="p-5 bg-zinc-950 border border-zinc-800 rounded-sm space-y-3 my-6">
-            <div className="flex items-center gap-2 text-amber-400 font-mono text-[11px] font-bold tracking-widest uppercase">
+            <div className="flex items-center gap-2 text-white font-mono text-[11px] font-bold tracking-widest uppercase">
               <AlertTriangle size={15} />
               <span>IMPORTANT NOTICE &amp; LEGAL REQUIREMENT</span>
             </div>

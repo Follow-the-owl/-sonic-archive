@@ -559,7 +559,7 @@ export default function FragmentDetailPage({
         innerCtx.lineWidth = barWidth;
         innerCtx.lineCap = "round";
 
-        // Progress coloring to mimic premium tracks (amber-gold on left, muted grey on right)
+        // Progress coloring to mimic premium tracks (bone white on left, muted grey on right)
         const barFraction = i / numBars;
 
         if (barFraction <= progressLimit) {

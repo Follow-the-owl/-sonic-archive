@@ -159,7 +159,7 @@ export default function ProposalPage({
           </button>
 
           <div className="flex items-center gap-2 text-[9.5px] text-zinc-500 uppercase tracking-widest text-left break-words">
-            <Radio size={14} className="text-amber-400 shrink-0" />
+            <Radio size={14} className="text-zinc-400 shrink-0" />
             <span className="break-words">LOMON LLC • COLLABORATION &amp; CUSTOM PROPOSAL PORTAL</span>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function ProposalPage({
         {/* Header Block */}
         <div className="space-y-4 border-b border-zinc-900/80 pb-8 text-left">
           <div className="space-y-1 text-left">
-            <span className="text-[10px] font-bold tracking-[0.2em] sm:tracking-[0.3em] text-amber-400 uppercase block text-left break-words">
+            <span className="text-[10px] font-bold tracking-[0.2em] sm:tracking-[0.3em] text-zinc-400 uppercase block text-left break-words">
               RIGHTS ADMINISTRATION &amp; ARTISTIC CO-CREATION
             </span>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-[0.12em] sm:tracking-[0.15em] uppercase leading-tight text-left break-words">
@@ -189,13 +189,13 @@ export default function ProposalPage({
 
         {/* MAIN FORM OR SUCCESS CONFIRMATION */}
         {isSubmitted ? (
-          <div className="p-8 sm:p-12 bg-zinc-950 border border-amber-500/40 rounded-sm space-y-6 text-center">
-            <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+          <div className="p-8 sm:p-12 bg-zinc-950 border border-zinc-700 rounded-sm space-y-6 text-center">
+            <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center mx-auto text-white">
               <CheckCircle2 size={28} />
             </div>
 
             <div className="space-y-2 max-w-md mx-auto">
-              <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-amber-400 block">
+              <span className="text-[10px] uppercase font-bold tracking-[0.3em] text-zinc-400 block">
                 TRANSMISSION DISPATCHED &amp; QUEUED
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white uppercase tracking-wider">
@@ -209,7 +209,7 @@ export default function ProposalPage({
             <div className="p-4 bg-black/60 border border-zinc-900 rounded text-[11px] text-left font-mono space-y-1.5 max-w-md mx-auto">
               <div className="flex justify-between border-b border-zinc-900 pb-1">
                 <span className="text-zinc-500">PROPOSAL REF:</span>
-                <span className="text-amber-400 font-bold">{proposalRef}</span>
+                <span className="text-white font-bold">{proposalRef}</span>
               </div>
               <div className="flex justify-between border-b border-zinc-900 pb-1">
                 <span className="text-zinc-500">APPLICANT:</span>
@@ -266,7 +266,7 @@ export default function ProposalPage({
             {/* SECTION 1: APPLICANT & PRODUCTION CO */}
             <div className="p-6 bg-zinc-950 border border-zinc-900 rounded-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-                <Briefcase size={15} className="text-amber-400" />
+                <Briefcase size={15} className="text-white" />
                 <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
                   01. APPLICANT &amp; ENTITY DETAILS
                 </h3>
@@ -283,7 +283,7 @@ export default function ProposalPage({
                     placeholder="e.g. Jordan Hayes"
                     value={formData.proposerName}
                     onChange={(e) => setFormData({ ...formData, proposerName: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
                   />
                 </div>
 
@@ -296,7 +296,7 @@ export default function ProposalPage({
                     placeholder="e.g. Paramount / Horizon Interactive"
                     value={formData.organization}
                     onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
                   />
                 </div>
 
@@ -310,7 +310,7 @@ export default function ProposalPage({
                     placeholder="e.g. j.hayes@production.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
                   />
                 </div>
 
@@ -323,7 +323,7 @@ export default function ProposalPage({
                     placeholder="e.g. +1 (404) 555-0199"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
                   />
                 </div>
               </div>
@@ -332,7 +332,7 @@ export default function ProposalPage({
             {/* SECTION 2: PROPOSAL TYPE & TARGET FRAGMENT */}
             <div className="p-6 bg-zinc-950 border border-zinc-900 rounded-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-                <Music size={15} className="text-amber-400" />
+                <Music size={15} className="text-white" />
                 <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
                   02. TARGET ARCHIVE FRAGMENT &amp; PROPOSAL TYPE
                 </h3>
@@ -346,7 +346,7 @@ export default function ProposalPage({
                   <select
                     value={formData.proposalType}
                     onChange={(e) => setFormData({ ...formData, proposalType: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
                   >
                     <option value="Custom Sync & Master License">Synchronization &amp; Master License (Custom Proposal)</option>
                     <option value="Producer Collaboration">Producer &amp; Writer Collaboration</option>
@@ -366,7 +366,7 @@ export default function ProposalPage({
                     placeholder="e.g. 10:00 PM (FRAGMENT 10:00 PM) or Full Catalog"
                     value={formData.targetFragment}
                     onChange={(e) => setFormData({ ...formData, targetFragment: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
                   />
                 </div>
               </div>
@@ -375,7 +375,7 @@ export default function ProposalPage({
             {/* SECTION 3: MEDIA SPECIFICATIONS & SCOPE */}
             <div className="p-6 bg-zinc-950 border border-zinc-900 rounded-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-                <Sliders size={15} className="text-amber-400" />
+                <Sliders size={15} className="text-white" />
                 <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
                   03. MEDIA SCOPE, TERRITORY &amp; BUDGET
                 </h3>
@@ -389,7 +389,7 @@ export default function ProposalPage({
                   <select
                     value={formData.mediaType}
                     onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
                   >
                     <option value="Film / Feature Production">Feature Film / Independent Cinema</option>
                     <option value="Television / Series Broadcast">Television Series / Documentary</option>
@@ -407,7 +407,7 @@ export default function ProposalPage({
                   <select
                     value={formData.territory}
                     onChange={(e) => setFormData({ ...formData, territory: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
                   >
                     <option value="Worldwide">Worldwide (All Territories)</option>
                     <option value="North America (US & Canada)">North America (US &amp; Canada)</option>
@@ -424,7 +424,7 @@ export default function ProposalPage({
                   <select
                     value={formData.term}
                     onChange={(e) => setFormData({ ...formData, term: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
                   >
                     <option value="Perpetual (In Perpetuity)">Perpetual (In Perpetuity)</option>
                     <option value="5 Years">5 Years</option>
@@ -441,7 +441,7 @@ export default function ProposalPage({
                   <select
                     value={formData.budgetRange}
                     onChange={(e) => setFormData({ ...formData, budgetRange: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2.5 text-zinc-100 focus:outline-none focus:border-zinc-400 transition-colors"
                   >
                     <option value="$1,000 – $5,000 USD">$1,000 – $5,000 USD (Standard Commercial / Indie Sync)</option>
                     <option value="$5,000 – $15,000 USD">$5,000 – $15,000 USD (Theatrical / Broad TV / AAA Game)</option>
@@ -456,7 +456,7 @@ export default function ProposalPage({
             {/* SECTION 4: PROJECT NARRATIVE & SPECIFICATIONS */}
             <div className="p-6 bg-zinc-950 border border-zinc-900 rounded-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-                <FileText size={15} className="text-amber-400" />
+                <FileText size={15} className="text-white" />
                 <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
                   04. PROJECT BRIEF &amp; COLLABORATION DETAILS
                 </h3>
@@ -472,7 +472,7 @@ export default function ProposalPage({
                     placeholder="e.g. Chronos Feature Film / Nightfall Commercial"
                     value={formData.projectTitle}
                     onChange={(e) => setFormData({ ...formData, projectTitle: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
                   />
                 </div>
 
@@ -486,7 +486,7 @@ export default function ProposalPage({
                     placeholder="Describe how the recovered audio fragment will be incorporated, scene cues, distribution channels, release timeline, and any custom stem requirements..."
                     value={formData.projectOverview}
                     onChange={(e) => setFormData({ ...formData, projectOverview: e.target.value })}
-                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-amber-400 transition-colors resize-none leading-relaxed font-mono"
+                    className="w-full bg-black border border-zinc-800 rounded px-3.5 py-2.5 text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors resize-none leading-relaxed font-mono"
                   />
                 </div>
 
@@ -497,7 +497,7 @@ export default function ProposalPage({
                       type="checkbox"
                       checked={formData.stemsRequired}
                       onChange={(e) => setFormData({ ...formData, stemsRequired: e.target.checked })}
-                      className="w-4 h-4 rounded border-zinc-800 bg-black accent-amber-400"
+                      className="w-4 h-4 rounded border-zinc-800 bg-black accent-white"
                     />
                     <span>Require individual multitrack stems (Drums, Bass, Synths, FX, Atmospheres)</span>
                   </label>
@@ -507,7 +507,7 @@ export default function ProposalPage({
                       type="checkbox"
                       checked={formData.customSoundDesign}
                       onChange={(e) => setFormData({ ...formData, customSoundDesign: e.target.checked })}
-                      className="w-4 h-4 rounded border-zinc-800 bg-black accent-amber-400"
+                      className="w-4 h-4 rounded border-zinc-800 bg-black accent-white"
                     />
                     <span>Request custom harmonic rearrangement or tailored sound design from LOMON</span>
                   </label>
@@ -532,7 +532,7 @@ export default function ProposalPage({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-2/3 sm:w-auto bg-amber-400 hover:bg-amber-300 text-black font-bold px-6 py-3 rounded-sm uppercase tracking-wider text-[11px] cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2"
+                  className="w-2/3 sm:w-auto bg-white hover:bg-zinc-200 text-black font-bold px-6 py-3 rounded-sm uppercase tracking-wider text-[11px] cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
                     <span>DISPATCHING PROPOSAL...</span>
@@ -561,7 +561,7 @@ export default function ProposalPage({
               <button
                 type="button"
                 onClick={onOpenClearanceGuide}
-                className="text-[10px] text-amber-400 hover:underline uppercase pt-1 font-bold block"
+                className="text-[10px] text-zinc-300 hover:text-white hover:underline uppercase pt-1 font-bold block"
               >
                 OPEN CLEARANCE GUIDE →
               </button>
@@ -579,7 +579,7 @@ export default function ProposalPage({
               <button
                 type="button"
                 onClick={onOpenLicensingSchedule}
-                className="text-[10px] text-amber-400 hover:underline uppercase pt-1 font-bold block"
+                className="text-[10px] text-zinc-300 hover:text-white hover:underline uppercase pt-1 font-bold block"
               >
                 VIEW LICENSING SCHEDULE →
               </button>

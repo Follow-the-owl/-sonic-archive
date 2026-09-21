@@ -1159,10 +1159,10 @@ export default function App() {
                   {((currentUserEmail || "").toLowerCase() === "evianaconcepts1@gmail.com" || (currentUserEmail || "").toLowerCase() === "admin@system.local" || !isLoggedIn) && (
                     <button
                       onClick={handleOpenAdmin}
-                      className="flex items-center gap-1 xl:gap-1.5 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-amber-500 hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
+                      className="flex items-center gap-1 xl:gap-1.5 border border-zinc-900 bg-neutral-950 text-[#D9D6CA] hover:border-white hover:text-white px-2 xl:px-3 py-1.5 text-[8.5px] xl:text-[9px] uppercase tracking-wider xl:tracking-widest transition-colors cursor-pointer rounded-none select-none whitespace-nowrap"
                       title="Open Master Administrative Dashboard"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
                       <span>ADMIN</span>
                     </button>
                   )}

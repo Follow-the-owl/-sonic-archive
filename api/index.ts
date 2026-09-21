@@ -6,8 +6,8 @@ import { MongoClient, Db } from "mongodb";
 import nodemailer from "nodemailer";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import { UTApi, createUploadthing, type FileRouter } from "uploadthing/server";
-import { createRouteHandler } from "uploadthing/express";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // --- Types ---
 interface User {
@@ -60,44 +60,18 @@ interface Payment {
 }
 
 
-const f = createUploadthing();
-
-export const ourFileRouter = {
-  podcastUploader: f({ 
-    audio: { 
-      maxFileSize: "512MB", // The max size PER individual file
-      maxFileCount: 4       // Allows the user to select 4 files at once
-    } 
-  })
-  .middleware(async () => {
-    return { userId: "admin" };
-  })
-  .onUploadComplete(async ({ metadata, file }) => {
-    console.log("[UPLOADTHING ROUTER] Audio file successfully uploaded!", file.url);
-  }),
-  audioUploader: f({ 
-    audio: { 
-      maxFileSize: "512MB", // The max size PER individual file
-      maxFileCount: 4       // Allows the user to select 4 files at once
-    } 
-  })
-  .middleware(async () => {
-    return { userId: "admin" };
-  })
-  .onUploadComplete(async ({ metadata, file }) => {
-    console.log("[UPLOADTHING ROUTER] Audio file successfully uploaded!", file.url);
-  }),
-} satisfies FileRouter;
+// Initialize a single S3 Client for Scaleway Object Storage
+const scalewayClient = new S3Client({
+  region: process.env.SCALEWAY_REGION || "fr-par",
+  endpoint: process.env.SCALEWAY_ENDPOINT || "https://s3.fr-par.scw.cloud",
+  credentials: {
+    accessKeyId: process.env.SCALEWAY_ACCESS_KEY || "",
+    secretAccessKey: process.env.SCALEWAY_SECRET_KEY || "",
+  },
+});
 
 const app = express();
 const PORT = 3000;
-
-app.use(
-  "/api/uploadthing",
-  createRouteHandler({
-    router: ourFileRouter,
-  })
-);
 
 app.use(express.json({ limit: "1000mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1000mb" }));
@@ -2346,21 +2320,80 @@ app.post("/api/catalog/sync", async (req, res) => {
 // --- Real Storage Setup & Endpoints ---
 import { 
   generateCloudinarySignature,
-  getUploadThingDownloadUrl,
   getCloudinaryClient
 } from "./storageService";
-import { uploadRouter } from "./uploadthingRouter";
-
-// Mount UploadThing Route Handler
-app.use(
-  "/api/uploadthing",
-  createRouteHandler({ router: uploadRouter })
-);
 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB buffer limit for large stem archives and lossless audio
+});
+
+/**
+ * Scaleway Presigned URL Generator for direct client S3 upload
+ * Generates a temporary PUT upload ticket valid for 300 seconds (5 minutes)
+ * Bypasses Vercel 4.5MB payload limits for 200MB+ music/zip files directly to Scaleway S3 bucket
+ */
+app.post(["/api/upload-url", "/api/storage/scaleway/presign-upload"], async (req, res) => {
+  try {
+    const { filename, contentType, fileType, objectKey: customKey } = req.body || {};
+    const mimeType = contentType || fileType || "application/zip";
+    const bucketName = process.env.SCALEWAY_BUCKET_NAME || "owl";
+
+    const cleanFilename = filename
+      ? String(filename).replace(/[^a-zA-Z0-9._-]/g, "_")
+      : `${Date.now()}-${crypto.randomUUID()}.zip`;
+
+    const objectKey = customKey || `music/${Date.now()}-${cleanFilename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: objectKey,
+      ContentType: mimeType,
+    });
+
+    // Generate a temporary PUT upload ticket valid for 300 seconds
+    const uploadUrl = await getSignedUrl(scalewayClient, command, { expiresIn: 300 });
+
+    return res.json({
+      uploadUrl,
+      objectKey,
+    });
+  } catch (err: any) {
+    console.error("[SCALEWAY PRESIGN ERROR]", err);
+    return res.status(500).json({
+      error: err?.message || "Failed to generate Scaleway presigned upload URL.",
+    });
+  }
+});
+
+app.get("/api/upload-url", async (req, res) => {
+  try {
+    const filename = (req.query.filename as string) || `${Date.now()}.zip`;
+    const contentType = (req.query.contentType as string) || "application/zip";
+    const bucketName = process.env.SCALEWAY_BUCKET_NAME || "owl";
+
+    const cleanFilename = String(filename).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const objectKey = `music/${Date.now()}-${cleanFilename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: objectKey,
+      ContentType: contentType,
+    });
+
+    const uploadUrl = await getSignedUrl(scalewayClient, command, { expiresIn: 300 });
+
+    return res.json({
+      uploadUrl,
+      objectKey,
+    });
+  } catch (err: any) {
+    console.error("[SCALEWAY PRESIGN ERROR]", err);
+    return res.status(500).json({
+      error: err?.message || "Failed to generate Scaleway presigned upload URL.",
+    });
+  }
 });
 
 // 1. Cloudinary Signed Upload Signature Generator (Audio resource_type="video", Documents resource_type="raw")
@@ -2394,24 +2427,6 @@ app.post("/api/storage/cloudinary/sign", async (req, res) => {
   }
 });
 
-// 2. UploadThing Stem ZIP Download URL Resolver
-app.post("/api/storage/uploadthing/download-url", async (req, res) => {
-  try {
-    const { fileKey, expiresIn } = req.body;
-    if (!fileKey) {
-      return res.status(400).json({ error: "fileKey is required." });
-    }
-    const expiry = parseInt(expiresIn || process.env.UPLOADTHING_URL_EXPIRY || "3600", 10);
-    const downloadData = await getUploadThingDownloadUrl(fileKey, expiry);
-    res.json({
-      success: true,
-      ...downloadData
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message || "Failed to resolve download URL." });
-  }
-});
-
 // Cloudinary configuration helper
 function getCloudinary() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -2429,13 +2444,6 @@ function getCloudinary() {
   });
 
   return cloudinary;
-}
-
-// Uploadthing configuration helper
-function getUploadthing() {
-  const token = process.env.UPLOADTHING_TOKEN;
-  if (!token) return null;
-  return new UTApi();
 }
 
 // 7. Cloudinary direct buffer upload endpoint (for Artwork, PDF Documents, etc.)
@@ -2503,70 +2511,6 @@ app.post("/api/upload/cloudinary", upload.single("file") as any, async (req, res
   } catch (err: any) {
     console.error("[CLOUDINARY ERROR]", err);
     res.status(500).json({ error: err?.message || "Failed to upload file to Cloudinary." });
-  }
-});
-
-// 8. Uploadthing upload endpoint (for Audio tracks: MP3, WAV, stems fallback)
-app.post("/api/upload/uploadthing", upload.single("file") as any, async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ error: "No file was uploaded." });
-    }
-
-    const ut = getUploadthing();
-    if (ut) {
-      let nodeFile: any;
-      if (typeof File !== "undefined") {
-        const blob = new Blob([file.buffer], { type: file.mimetype });
-        nodeFile = new File([blob], file.originalname, { type: file.mimetype });
-      } else {
-        try {
-          const { UTFile } = require("uploadthing/server");
-          nodeFile = new UTFile([file.buffer], file.originalname, { type: file.mimetype });
-        } catch (e) {
-          nodeFile = new Blob([file.buffer], { type: file.mimetype });
-        }
-      }
-
-      const response = await ut.uploadFiles(nodeFile);
-      const uploadResult = Array.isArray(response) ? response[0] : response;
-      
-      if (uploadResult && uploadResult.data && uploadResult.data.url) {
-        return res.json({ success: true, url: uploadResult.data.url, provider: "uploadthing" });
-      } else if (uploadResult && (uploadResult as any).url) {
-        return res.json({ success: true, url: (uploadResult as any).url, provider: "uploadthing" });
-      } else if (uploadResult && uploadResult.error) {
-        throw new Error(uploadResult.error.message || "Uploadthing upload rejected.");
-      } else {
-        throw new Error("Invalid response format received from Uploadthing API.");
-      }
-    } else {
-      // Fallback: save to in-memory file store and return streaming URL
-      const fileId = `audio-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      inMemoryFileStore.set(fileId, {
-        id: fileId,
-        buffer: file.buffer,
-        mimetype: file.mimetype || "audio/wav",
-        originalname: file.originalname,
-        size: file.size,
-        createdAt: Date.now()
-      });
-
-      const fileUrl = `/api/storage/file/${fileId}`;
-      console.log(`[STORAGE] Stored audio ${file.originalname} (${file.size} bytes) in memory -> ${fileUrl}`);
-      return res.json({
-        success: true,
-        url: fileUrl,
-        key: fileId,
-        fallback: true,
-        provider: "in-memory-server",
-        message: "Saved in runtime server storage."
-      });
-    }
-  } catch (err: any) {
-    console.error("[UPLOADTHING ERROR]", err);
-    res.status(500).json({ error: err?.message || "Failed to upload audio to Uploadthing." });
   }
 });
 

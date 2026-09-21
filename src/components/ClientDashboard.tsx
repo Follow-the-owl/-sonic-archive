@@ -145,11 +145,20 @@ export default function ClientDashboard({
       const savedLicensesRaw = localStorage.getItem("lomon_user_licenses");
       const localLicenses = savedLicensesRaw ? JSON.parse(savedLicensesRaw) : [];
       
-      // Combine all license sources and deduplicate
+      // Combine all license sources and deduplicate for current client
       const rawList = [...(userLicenses || []), ...apiLicenses, ...localLicenses];
       const licenseMap = new Map();
+      const clientEmailNorm = (currentUserEmail || "").toLowerCase().trim();
+
       rawList.forEach((lic: any) => {
         if (!lic) return;
+        // If license specifies an email, only include if matching client's account
+        if (lic.email && clientEmailNorm) {
+          const licEmail = String(lic.email).toLowerCase().trim();
+          if (licEmail !== clientEmailNorm && !licEmail.includes(clientEmailNorm) && !clientEmailNorm.includes(licEmail)) {
+            return;
+          }
+        }
         const key = lic.id || `${lic.song || lic.fragmentTitle || lic.name}_${lic.tierId || lic.type}`;
         if (!licenseMap.has(key)) {
           licenseMap.set(key, lic);
@@ -159,37 +168,8 @@ export default function ClientDashboard({
 
       const initialDocs: ClientRecordItem[] = [];
 
-      // If user has zero licenses, supply baseline demo record
-      if (allLicenses.length === 0) {
-        initialDocs.push({
-          id: "DOC-STEM-TOC-LIC-20260817-693",
-          title: "9:41 PM",
-          section: "01_MY_FRAGMENTS",
-          docTypeTag: "OWNERSHIP",
-          version: "v1.0",
-          dateAdded: "2026-08-17",
-          compositionId: "TOC-COMP-0941",
-          fragmentId: "09:41",
-          fragmentName: "9:41 PM",
-          clientId: displayEmail,
-          visibility: "PRIVATE",
-          signedStatus: "SIGNED",
-          expiration: "N/A",
-          status: "ACTIVE",
-          licenseTierTitle: "Commercial Master License",
-          licenseTierId: "commercial",
-          isrc: "US-LMN-26-00941",
-          iswc: "T-932.408.941-4",
-          hash: "e5a3f1c9d7b5e3a1f9d7b5e3a1f9d7b5e3a1f9d7b5e3a1f9d7b5e3a1f9d7b5e3",
-          transactionRef: "LMN-TX-941001",
-          audioFrequency: 493.88,
-          synthType: "sawtooth",
-          content: "Official delivery and verified archive record for 9:41 PM. B Major · 103 BPM · 03:06. 100% master control, 100% composition control."
-        });
-      }
-
       // =======================================================================
-      // 01 — MY FRAGMENTS & 03 — DOCUMENTS (Dynamic Records from Purchases)
+      // 01 — MY FRAGMENTS & 03 — DOCUMENTS (Dynamic Records from Client Purchases)
       // =======================================================================
       allLicenses.forEach((lic: any) => {
         const rawSong = lic.song || lic.fragmentTitle || lic.name || "Recovered Fragment";
@@ -204,7 +184,7 @@ export default function ClientDashboard({
         const fragId = fragMatch ? `FRAG-${fragMatch.id}` : `FRAG-${Math.floor(100 + Math.random() * 900)}`;
         const docId = lic.id ? (lic.id.startsWith("DOC-") ? lic.id : `DOC-LIC-${lic.id}`) : `DOC-LIC-${Math.floor(100000 + Math.random() * 900000)}`;
 
-        // 01 — My Fragments entry
+        // 01 — My Fragments entry (Client-Specific)
         initialDocs.push({
           id: docId,
           title: cleanSong.toUpperCase(),
@@ -593,74 +573,84 @@ export default function ClientDashboard({
     }
   };
 
-  // Comprehensive Stem Tracks list matching production specifications
-  const STEM_TRACKS = [
-    {
-      id: "01_master",
-      name: "01_MASTER_UNCOMPRESSED_24BIT.wav",
-      desc: "Full Stereo Master Mixdown (24-bit / 48kHz Broadcast WAV)",
-      size: "48.6 MB",
-      type: "MASTER AUDIO",
-      channels: "Stereo (L/R)"
-    },
-    {
-      id: "02_drums",
-      name: "02_DRUM_KIT_AND_PERCUSSION.wav",
-      desc: "Isolated Transient Kicks, Snares, Claps & Hi-Hats",
-      size: "34.2 MB",
-      type: "PERCUSSION",
-      channels: "Stereo (L/R)"
-    },
-    {
-      id: "03_sub",
-      name: "03_ANALOG_SUB_BASS_55HZ.wav",
-      desc: "Sub Harmonics & Analog Monosynth Low-End (55Hz C1 Tuning)",
-      size: "28.9 MB",
-      type: "BASS / SUB",
-      channels: "Mono (Phase-Locked)"
-    },
-    {
-      id: "04_keys",
-      name: "04_HARMONIC_KEYS_AND_LEADS.wav",
-      desc: "Main Harmonic Progression, Analog Filters & Lead Lines",
-      size: "38.1 MB",
-      type: "HARMONICS / SYNTH",
-      channels: "Stereo (L/R)"
-    },
-    {
-      id: "05_pads",
-      name: "05_ATMOSPHERIC_REVERB_PADS.wav",
-      desc: "Spatial Drone Textures & 3D Convolution Ambient Beds",
-      size: "36.4 MB",
-      type: "AMBIANCE / FX",
-      channels: "Stereo (L/R)"
-    },
-    {
-      id: "06_clock",
-      name: "06_CLOCK_PULSE_AND_RHYTHM.wav",
-      desc: "Acoustic Metronomic Clock Pulse & Micro-grooves",
-      size: "22.5 MB",
-      type: "RHYTHMIC FX",
-      channels: "Stereo (L/R)"
-    },
-    {
-      id: "07_guide",
-      name: "07_TEMPO_AND_ALIGNMENT_GUIDE.pdf",
-      desc: "DAW Cue Sheets, Tempo Map, Root Key & ISRC Registration",
-      size: "1.4 MB",
-      type: "DOCUMENTATION",
-      channels: "Document"
-    }
-  ];
+  // Helper to generate bespoke, composition-specific stem tracks
+  const getFragmentStems = (record: ClientRecordItem, frag?: Fragment) => {
+    const rawName = record.fragmentName || record.title || "FRAGMENT";
+    const cleanPrefix = rawName.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
+    const bpm = frag?.bpm || frag?.timeCapsule?.tempoPulse || 110;
+    const tonalKey = frag?.tonalSignature || frag?.timeCapsule?.tonalAxis || "ORIGINAL KEY";
+
+    return [
+      {
+        id: "01_master",
+        name: `${cleanPrefix}_01_MASTER_UNCOMPRESSED_24BIT_48KHZ.wav`,
+        desc: `Full Stereo Master Mixdown for ${rawName} (24-bit / 48kHz Broadcast WAV · ${tonalKey} · ${bpm} BPM)`,
+        size: "48.6 MB",
+        type: "MASTER AUDIO",
+        channels: "Stereo (L/R)"
+      },
+      {
+        id: "02_drums",
+        name: `${cleanPrefix}_02_DRUM_KIT_AND_PERCUSSION.wav`,
+        desc: `Isolated Transient Kicks, Snares, Claps & Hi-Hats (${bpm} BPM Phase-Aligned)`,
+        size: "34.2 MB",
+        type: "PERCUSSION",
+        channels: "Stereo (L/R)"
+      },
+      {
+        id: "03_sub",
+        name: `${cleanPrefix}_03_ANALOG_SUB_BASS.wav`,
+        desc: `Sub Harmonics & Analog Monosynth Low-End (${tonalKey} Tuning)`,
+        size: "28.9 MB",
+        type: "BASS / SUB",
+        channels: "Mono (Phase-Locked)"
+      },
+      {
+        id: "04_keys",
+        name: `${cleanPrefix}_04_HARMONIC_KEYS_AND_LEADS.wav`,
+        desc: `Main Harmonic Progression, Analog Filters & Lead Lines (${tonalKey})`,
+        size: "38.1 MB",
+        type: "HARMONICS / SYNTH",
+        channels: "Stereo (L/R)"
+      },
+      {
+        id: "05_pads",
+        name: `${cleanPrefix}_05_ATMOSPHERIC_REVERB_PADS.wav`,
+        desc: `Spatial Drone Textures & 3D Convolution Ambient Beds`,
+        size: "36.4 MB",
+        type: "AMBIANCE / FX",
+        channels: "Stereo (L/R)"
+      },
+      {
+        id: "06_clock",
+        name: `${cleanPrefix}_06_CLOCK_PULSE_AND_RHYTHM.wav`,
+        desc: `Acoustic Metronomic Clock Pulse & Micro-grooves (${bpm} BPM)`,
+        size: "22.5 MB",
+        type: "RHYTHMIC FX",
+        channels: "Stereo (L/R)"
+      },
+      {
+        id: "07_guide",
+        name: `${cleanPrefix}_07_TEMPO_AND_ALIGNMENT_GUIDE.pdf`,
+        desc: `DAW Cue Sheets, Tempo Map (${bpm} BPM), Root Key (${tonalKey}) & ISRC (${record.isrc || "REGISTERED"})`,
+        size: "1.4 MB",
+        type: "DOCUMENTATION",
+        channels: "Document"
+      }
+    ];
+  };
 
   // Download complete stems zip archive
   const handleDownloadStemsZip = async (record: ClientRecordItem, frag?: Fragment) => {
     setIsDownloadingStems(true);
     try {
       const zip = new JSZip();
-      const beatName = (record.fragmentName || record.title || "FRAGMENT").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const beatName = (record.fragmentName || record.title || "FRAGMENT").replace(/[^a-zA-Z0-9_-]/g, "_").toUpperCase();
       const folderName = `${beatName}_24BIT_48KHZ_STEMS`;
       const stemsFolder = zip.folder(folderName) || zip;
+      const stemTracks = getFragmentStems(record, frag);
+      const bpm = frag?.bpm || frag?.timeCapsule?.tempoPulse || 110;
+      const tonalKey = frag?.tonalSignature || frag?.timeCapsule?.tonalAxis || "CHROMATIC MINOR";
 
       const manifestText = `================================================================================
 THE OWL CLOCK ARCHIVE // CLIENT VAULT MULTI-TRACK STEM PACKAGE
@@ -672,21 +662,15 @@ LICENSED TO: ${record.clientId || currentUserEmail}
 LICENSE TIER: ${record.licenseTierTitle || "Commercial Release License"}
 ISRC: ${record.isrc || "US-LMN-26-00941"}
 ISWC: ${record.iswc || "T-932.408.941-4"}
-TONAL AXIS: ${frag?.tonalSignature || frag?.timeCapsule?.tonalAxis || "CHROMATIC MINOR"}
-TEMPO / PULSE: ${frag?.bpm || frag?.timeCapsule?.tempoPulse || 110} BPM
+TONAL AXIS: ${tonalKey}
+TEMPO / PULSE: ${bpm} BPM
 SAMPLE RATE / BIT DEPTH: 24-BIT / 48.000 KHZ BROADCAST WAV
 PHASE ALIGNMENT: 0.000ms SAMPLE-ACCURATE OFFSET (BAR 1 START)
 PUBLISHING & CONTROL: 100% LOMON LLC / THE OWL CLOCK ARCHIVE
 INDEMNITY: 100% ORIGINAL COMPOSITION GUARANTEE (ZERO UNCLEARED SAMPLES)
 
 STEM TRACKS INCLUDED:
-1. 01_MASTER_UNCOMPRESSED_24BIT.wav (Full Stereo Master Mixdown)
-2. 02_DRUM_KIT_AND_PERCUSSION.wav (Isolated Transient Kicks, Snares, Claps & Hi-Hats)
-3. 03_ANALOG_SUB_BASS_55HZ.wav (Sub Harmonics & Analog Monosynth Low-End)
-4. 04_HARMONIC_KEYS_AND_LEADS.wav (Main Harmonic Progression & Lead Lines)
-5. 05_ATMOSPHERIC_REVERB_PADS.wav (Spatial Drone Textures & Ambient Beds)
-6. 06_CLOCK_PULSE_AND_RHYTHM.wav (Acoustic Metronomic Clock Pulse)
-7. 07_TEMPO_AND_ALIGNMENT_GUIDE.pdf (DAW Alignment Guide & ISRC Registration)
+${stemTracks.map((t, idx) => `${idx + 1}. ${t.name} (${t.desc})`).join("\n")}
 
 DAW IMPORT COMPATIBILITY:
 Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reaper, Cubase, and Luna.
@@ -694,7 +678,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
 
       stemsFolder.file("README_ALIGNMENT_MANIFEST.txt", manifestText);
 
-      STEM_TRACKS.forEach(track => {
+      stemTracks.forEach(track => {
         stemsFolder.file(
           track.name,
           `THE OWL CLOCK ARCHIVE AUDIO STEM ASSET\nComposition: ${record.fragmentName || record.title}\nTrack: ${track.name}\nType: ${track.type}\nChannels: ${track.channels}\nFormat: Broadcast WAV 24-bit / 48kHz\nLicensed to: ${record.clientId || currentUserEmail}\nStatus: VERIFIED & CLEARED`
@@ -719,7 +703,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
   };
 
   // Download individual stem asset
-  const handleDownloadSingleStem = (track: typeof STEM_TRACKS[0], index: number, record: ClientRecordItem) => {
+  const handleDownloadSingleStem = (track: { name: string; type: string; channels: string; desc?: string }, index: number, record: ClientRecordItem) => {
     setDownloadingStemIndex(index);
     setTimeout(() => {
       const blob = new Blob([
@@ -733,6 +717,102 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
       URL.revokeObjectURL(url);
       setDownloadingStemIndex(null);
     }, 400);
+  };
+
+  // Helper to render authentic, high-fidelity empty states for client sections
+  const renderEmptyState = () => {
+    if (activeSection === "01_MY_FRAGMENTS") {
+      return (
+        <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-8 sm:p-12 text-center space-y-4 shadow-xl">
+          <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
+            <Lock size={20} className="text-zinc-400" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-mono">
+              NO LICENSED FRAGMENTS IN VAULT
+            </h3>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-sans leading-relaxed">
+              Your client terminal ({displayEmail}) has no purchased fragments yet. Only the specific fragments you license or obtain clearance for will be unlocked here.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-700 text-[10.5px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Music size={12} />
+                <span>BROWSE RECOVERED FRAGMENTS</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSection("02_CLEARANCE_REQUESTS");
+                setNewClearanceModalOpen(true);
+              }}
+              className="px-4 py-2 bg-[#00E676] hover:bg-[#00c853] text-black text-[10.5px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <ShieldCheck size={12} />
+              <span>REQUEST CLEARANCE</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeSection === "02_CLEARANCE_REQUESTS") {
+      return (
+        <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-8 sm:p-12 text-center space-y-4 shadow-xl">
+          <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-[#00E676]">
+            <ShieldCheck size={20} />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-mono">
+              NO CLEARANCE INQUIRIES ON FILE
+            </h3>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-sans leading-relaxed">
+              Submit a clearance petition to request bespoke master licensing, sync rights, or non-standard exploitation terms.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setNewClearanceModalOpen(true)}
+              className="px-4 py-2 bg-[#00E676] hover:bg-[#00c853] text-black text-[10.5px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer flex items-center gap-1.5 mx-auto"
+            >
+              <Plus size={13} />
+              <span>INITIATE CLEARANCE PETITION</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeSection === "03_DOCUMENTS") {
+      return (
+        <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-8 sm:p-12 text-center space-y-4 shadow-xl">
+          <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-500">
+            <FileText size={20} className="text-zinc-400" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-mono">
+              NO EXECUTED DOCUMENTS AVAILABLE
+            </h3>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-sans leading-relaxed">
+              Master license agreements, certificates of authenticity, split sheets, and metadata registries will automatically appear here once you acquire a fragment.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-8 text-center text-zinc-500 uppercase tracking-widest text-xs font-medium">
+        No documents found matching your filter criteria
+      </div>
+    );
   };
 
   // Filter records based on active section, search query, status, and sub-category
@@ -863,7 +943,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
               className="text-[10px] sm:text-xs text-zinc-300 hover:text-white uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 px-2.5 sm:px-3 py-1.5 rounded"
               title="Open Admin Dashboard"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
               <span>ADMIN CONSOLE</span>
             </button>
           )}
@@ -1088,7 +1168,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
 
                 <div className="border border-zinc-800 bg-[#060606] p-4 rounded space-y-2.5">
                   <div className="flex items-center gap-2 text-white text-xs font-bold uppercase tracking-wider border-b border-zinc-800 pb-2">
-                    <Key size={14} className="text-amber-400" />
+                    <Key size={14} className="text-zinc-300" />
                     <span>SECURITY &amp; VERIFICATION</span>
                   </div>
                   <div className="space-y-1.5 text-xs">
@@ -1138,7 +1218,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                     className="border border-zinc-800 hover:border-zinc-600 bg-zinc-950 p-3 text-left space-y-1 cursor-pointer transition-colors rounded"
                   >
                     <div className="flex items-center gap-2 text-white text-xs font-bold uppercase">
-                      <Download size={12} className="text-amber-400" />
+                      <Download size={12} className="text-white" />
                       <span>EXPORT DIGEST</span>
                     </div>
                     <p className="text-zinc-400 text-[10.5px]">
@@ -1288,7 +1368,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                             }}
                             className="px-3 py-2 border border-zinc-800 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white text-[10.5px] font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center gap-1.5"
                           >
-                            <ShieldCheck size={13} className="text-amber-400" />
+                            <ShieldCheck size={13} className="text-zinc-300" />
                             <span>VIEW CERTIFICATE</span>
                           </button>
                         </div>
@@ -1299,7 +1379,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                             setSelectedRecord(activeBeatDetail);
                             setTransferModalOpen(true);
                           }}
-                          className="text-[10px] text-amber-400 hover:text-amber-300 uppercase tracking-wider border border-amber-500/30 hover:border-amber-500/60 bg-amber-950/20 px-3 py-2 rounded cursor-pointer flex items-center gap-1.5 transition-colors"
+                          className="text-[10px] text-zinc-300 hover:text-white uppercase tracking-wider border border-zinc-700 hover:border-zinc-400 bg-zinc-900 hover:bg-zinc-800 px-3 py-2 rounded cursor-pointer flex items-center gap-1.5 transition-colors"
                         >
                           <ArrowRightLeft size={12} />
                           <span>TRANSFER LICENSE</span>
@@ -1331,7 +1411,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                                 : "text-zinc-400 hover:text-white"
                             }`}
                           >
-                            STEMS ({STEM_TRACKS.length})
+                            STEMS ({getFragmentStems(activeBeatDetail, activeFrag).length})
                           </button>
                           <button
                             type="button"
@@ -1359,7 +1439,9 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                       )}
 
                       {/* TAB 1: STEMS SUITE & DOWNLOADS */}
-                      {detailActiveTab === "stems" && (
+                      {detailActiveTab === "stems" && (() => {
+                        const activeStemTracks = getFragmentStems(activeBeatDetail, activeFrag);
+                        return (
                         <div className="p-3.5 sm:p-5 space-y-4">
                           {/* Main Quick Download Callout */}
                           <div className="bg-gradient-to-r from-zinc-950 via-[#0c0c0c] to-zinc-950 border border-zinc-800 p-3.5 sm:p-4 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-inner">
@@ -1373,7 +1455,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                                 </span>
                               </div>
                               <p className="text-[10px] text-zinc-400 font-sans leading-relaxed">
-                                Includes all 6 individual audio stem WAVs (phase-aligned at 0.000ms offset) + Tempo Map &amp; DAW Alignment Guide.
+                                Includes all {activeStemTracks.length} bespoke audio stem tracks (phase-aligned at 0.000ms offset) + Tempo Map &amp; DAW Alignment Guide.
                               </p>
                             </div>
 
@@ -1400,12 +1482,12 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                           {/* Individual Stems Table */}
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-[9px] text-zinc-500 uppercase tracking-widest px-1 pb-1">
-                              <span>INDIVIDUAL AUDIO TRACKS ({STEM_TRACKS.length})</span>
+                              <span>INDIVIDUAL AUDIO TRACKS ({activeStemTracks.length})</span>
                               <span>PHASE-LOCKED BROADCAST WAV</span>
                             </div>
 
                             <div className="divide-y divide-zinc-900 border border-zinc-900 rounded overflow-hidden bg-black/40">
-                              {STEM_TRACKS.map((track, i) => (
+                              {activeStemTracks.map((track, i) => (
                                 <div
                                   key={track.id}
                                   className="p-3 sm:px-4 sm:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 hover:bg-zinc-900/30 transition-colors"
@@ -1459,7 +1541,8 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                             </p>
                           </div>
                         </div>
-                      )}
+                        );
+                      })()}
 
                       {/* TAB 2: BEAT SPECIFICATIONS & DOSSIER */}
                       {detailActiveTab === "dossier" && (
@@ -1605,9 +1688,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                 {/* 1. MOBILE / SMALL TABLET VIEW (< md): Responsive Cards */}
                 <div className="block md:hidden space-y-3">
                   {filteredRecords.length === 0 ? (
-                    <div className="border border-zinc-800/80 rounded-lg bg-[#070707] p-8 text-center text-zinc-500 uppercase tracking-widest text-xs font-medium">
-                      No documents found in this section
-                    </div>
+                    renderEmptyState()
                   ) : (
                     filteredRecords.map((doc) => {
                       const isPlaying = isDocPlaying(doc);
@@ -1645,14 +1726,14 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                                 ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" 
                                 : doc.status === "SIGNED" || doc.status === "VERIFIED" || doc.status === "APPROVED"
                                 ? "border-cyan-500/30 text-cyan-400 bg-cyan-500/10"
-                                : "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                : "border-zinc-700 text-zinc-300 bg-zinc-900"
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${
                                 doc.status === "ACTIVE" 
                                   ? "bg-emerald-400 animate-pulse" 
                                   : doc.status === "SIGNED" || doc.status === "VERIFIED" || doc.status === "APPROVED"
                                   ? "bg-cyan-400"
-                                  : "bg-amber-400"
+                                  : "bg-zinc-400"
                               }`} />
                               {doc.status}
                             </span>
@@ -1771,8 +1852,8 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                       <tbody className="divide-y divide-zinc-900/80 text-zinc-300">
                         {filteredRecords.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="py-14 text-center text-zinc-500 uppercase tracking-widest text-xs font-medium">
-                              No documents found in this section
+                            <td colSpan={5} className="p-0">
+                              {renderEmptyState()}
                             </td>
                           </tr>
                         ) : (
@@ -1868,14 +1949,14 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                                       ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10" 
                                       : doc.status === "SIGNED" || doc.status === "VERIFIED" || doc.status === "APPROVED"
                                       ? "border-cyan-500/30 text-cyan-400 bg-cyan-500/10"
-                                      : "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                                      : "border-zinc-700 text-zinc-300 bg-zinc-900"
                                   }`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${
                                       doc.status === "ACTIVE" 
                                         ? "bg-emerald-400 animate-pulse" 
                                         : doc.status === "SIGNED" || doc.status === "VERIFIED" || doc.status === "APPROVED"
                                         ? "bg-cyan-400"
-                                        : "bg-amber-400"
+                                        : "bg-zinc-400"
                                     }`} />
                                     {doc.status}
                                   </span>
@@ -2033,7 +2114,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                     setInspectModalOpen(false);
                     setTransferModalOpen(true);
                   }}
-                  className="text-[10px] text-amber-400 hover:text-amber-300 uppercase tracking-wider border border-amber-500/30 px-3 py-2 cursor-pointer flex items-center gap-1.5"
+                  className="text-[10px] text-zinc-300 hover:text-black hover:bg-white uppercase tracking-wider border border-zinc-700 bg-zinc-900 px-3 py-2 cursor-pointer flex items-center gap-1.5 transition-colors"
                 >
                   <ArrowRightLeft size={12} />
                   <span>TRANSFER LICENSE</span>
@@ -2085,10 +2166,10 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="w-full max-w-xl bg-[#090909] border border-amber-500/40 p-6 sm:p-8 shadow-2xl flex flex-col gap-5 text-left max-h-[85vh] overflow-y-auto relative"
+              className="w-full max-w-xl bg-[#090909] border border-zinc-800 p-6 sm:p-8 shadow-2xl flex flex-col gap-5 text-left max-h-[85vh] overflow-y-auto relative"
             >
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-white text-xs font-bold uppercase tracking-widest">
                   <ShieldCheck size={16} />
                   <span>CERTIFICATE OF AUTHENTICITY</span>
                 </div>
@@ -2186,35 +2267,27 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
 
               <div className="space-y-2 text-[10.5px]">
                 <span className="text-[9px] text-zinc-500 uppercase font-bold block">INDIVIDUAL STEM TRACKS</span>
-                {[
-                  { name: "01_MASTER_UNCOMPRESSED.wav", size: "48.2 MB", desc: "Full Stereo Mixdown" },
-                  { name: "02_LEAD_SYNTH_ANALOG.wav", size: "32.1 MB", desc: "Core Harmonic Lead" },
-                  { name: "03_SUB_BASS_ANALOG.wav", size: "28.4 MB", desc: "Analog Low End" },
-                  { name: "04_CLOCK_PULSE_TEXTURE.wav", size: "22.8 MB", desc: "Rhythmic Metronome" },
-                  { name: "05_PADS_AMBIENCE.wav", size: "35.0 MB", desc: "Spatial Reverb Array" },
-                  { name: "06_ALIGNMENT_MANIFEST.pdf", size: "1.2 MB", desc: "Tempo & DAW Alignment Guide" },
-                ].map((track, i) => (
-                  <div key={i} className="flex items-center justify-between bg-[#060606] border border-zinc-900 p-2.5">
-                    <div>
-                      <div className="text-zinc-200 font-bold">{track.name}</div>
-                      <div className="text-zinc-500 text-[9px]">{track.desc} ({track.size})</div>
+                {(() => {
+                  const modalStems = getFragmentStems(selectedRecord, findFragmentForRecord(selectedRecord));
+                  return (
+                    <div className="space-y-2">
+                      {modalStems.map((track, i) => (
+                        <div key={track.id} className="flex items-center justify-between bg-[#060606] border border-zinc-900 p-2.5">
+                          <div className="space-y-0.5">
+                            <div className="text-zinc-200 font-bold font-mono">{track.name}</div>
+                            <div className="text-zinc-500 text-[9px]">{track.desc} ({track.size})</div>
+                          </div>
+                          <button
+                            onClick={() => handleDownloadSingleStem(track, i, selectedRecord)}
+                            className="border border-zinc-800 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white px-2.5 py-1 text-[9px] font-bold uppercase transition-colors cursor-pointer shrink-0"
+                          >
+                            DOWNLOAD
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      onClick={() => {
-                        const blob = new Blob([`AUDIO STEM ASSET: ${track.name}\n${selectedRecord.title}`], { type: "audio/wav" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = track.name;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                      className="border border-zinc-800 hover:border-zinc-600 bg-zinc-900 text-zinc-300 hover:text-white px-2.5 py-1 text-[9px] font-bold uppercase transition-colors cursor-pointer"
-                    >
-                      DOWNLOAD
-                    </button>
-                  </div>
-                ))}
+                  );
+                })()}
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-900">
@@ -2235,18 +2308,12 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    const blob = new Blob([`FULL STEMS ZIP ARCHIVE: ${selectedRecord.title}`], { type: "application/zip" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `${selectedRecord.id}-STEMS-COMPLETE.zip`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="bg-[#00E676] hover:bg-[#00c853] text-black font-bold text-[10.5px] px-5 py-2.5 uppercase tracking-wider transition-colors cursor-pointer"
+                  onClick={() => handleDownloadStemsZip(selectedRecord, findFragmentForRecord(selectedRecord))}
+                  disabled={isDownloadingStems}
+                  className="bg-[#00E676] hover:bg-[#00c853] disabled:opacity-50 text-black font-bold text-[10.5px] px-5 py-2.5 uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-2"
                 >
-                  DOWNLOAD COMPLETE ZIP (167.7 MB)
+                  {isDownloadingStems ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                  <span>DOWNLOAD COMPLETE ZIP (188.6 MB)</span>
                 </button>
               </div>
             </motion.div>
@@ -2357,7 +2424,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
             >
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <span className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-1.5">
-                  <ArrowRightLeft size={14} className="text-amber-400" />
+                  <ArrowRightLeft size={14} className="text-white" />
                   <span>TRANSFER LICENSE OWNERSHIP</span>
                 </span>
                 <button
@@ -2411,7 +2478,7 @@ Compatible with Pro Tools, Logic Pro, Ableton Live, FL Studio, Studio One, Reape
                     <button
                       type="submit"
                       disabled={transferSubmitting}
-                      className="bg-amber-400 hover:bg-amber-300 text-black font-bold text-[10.5px] px-5 py-2 uppercase tracking-wider cursor-pointer"
+                      className="bg-white hover:bg-zinc-200 text-black font-bold text-[10.5px] px-5 py-2 uppercase tracking-wider cursor-pointer shadow-md transition-colors"
                     >
                       {transferSubmitting ? "REASSIGNING..." : "CONFIRM TRANSFER"}
                     </button>

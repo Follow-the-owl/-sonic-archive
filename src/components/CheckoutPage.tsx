@@ -802,11 +802,11 @@ export default function CheckoutPage({
                     exit={{ opacity: 0, scale: 0.98 }}
                     className="w-full max-w-[540px] mx-auto bg-[#040404] border border-zinc-900 rounded-md p-8 sm:p-10 flex flex-col items-center justify-center text-center shadow-2xl font-mono text-[#D9D6CA]"
                   >
-                    {/* PayPal Gold pulsating indicator */}
+                    {/* Secure connection indicator */}
                     <div className="relative w-16 h-16 flex items-center justify-center mb-6">
-                      <div className="absolute inset-0 bg-[#F7C552]/10 rounded-full animate-ping duration-1000" />
-                      <div className="w-10 h-10 bg-[#F7C552]/20 border border-[#F7C552]/40 text-[#F7C552] rounded-full flex items-center justify-center relative">
-                        <span className="w-3.5 h-3.5 bg-[#F7C552] rounded-full" />
+                      <div className="absolute inset-0 bg-white/10 rounded-full animate-ping duration-1000" />
+                      <div className="w-10 h-10 bg-zinc-900 border border-zinc-700 text-white rounded-full flex items-center justify-center relative">
+                        <span className="w-3.5 h-3.5 bg-white rounded-full" />
                       </div>
                     </div>
 
@@ -819,12 +819,12 @@ export default function CheckoutPage({
                     </p>
 
                     {paypalError ? (
-                      <div className="bg-amber-950/20 border border-amber-900/40 text-amber-300 text-[11px] p-4 rounded-sm w-full mb-6 font-sans leading-relaxed">
+                      <div className="bg-zinc-900 border border-zinc-700 text-zinc-300 text-[11px] p-4 rounded-sm w-full mb-6 font-sans leading-relaxed">
                         {paypalError}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2.5 text-[10.5px] text-zinc-500 font-bold uppercase tracking-widest mb-6 select-none font-mono">
-                        <span className="w-2 h-2 rounded-full bg-[#F7C552] inline-block animate-pulse" />
+                        <span className="w-2 h-2 rounded-full bg-white inline-block animate-pulse" />
                         <span>ESTABLISHING SECURE PAYPAL HANDSHAKE...</span>
                       </div>
                     )}

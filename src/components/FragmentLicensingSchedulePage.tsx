@@ -112,7 +112,7 @@ export default function FragmentLicensingSchedulePage({
                   key={tpl.id}
                   className={`p-6 bg-zinc-950 border rounded-sm flex flex-col justify-between gap-6 transition-all ${
                     isExclusive 
-                      ? "border-amber-500/40 bg-gradient-to-b from-amber-950/20 to-zinc-950" 
+                      ? "border-zinc-500 bg-zinc-900/40" 
                       : isSync
                       ? "border-zinc-700 bg-zinc-950"
                       : "border-zinc-900 hover:border-zinc-700"
@@ -126,7 +126,7 @@ export default function FragmentLicensingSchedulePage({
                       </span>
                       <span className={`text-[9.5px] font-mono font-bold px-2 py-0.5 rounded-xs uppercase tracking-wider ${
                         isExclusive 
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                          ? "bg-white/10 text-white border border-white/30"
                           : "bg-zinc-900 text-zinc-300 border border-zinc-800"
                       }`}>
                         {tpl.exclusivity || "Non-Exclusive"}
@@ -186,11 +186,7 @@ export default function FragmentLicensingSchedulePage({
                   <div className="pt-2">
                     <button
                       onClick={() => onRequestClearance && onRequestClearance(tpl.id)}
-                      className={`w-full py-2.5 px-4 rounded-sm font-mono text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors ${
-                        isExclusive
-                          ? "bg-amber-400 text-black hover:bg-amber-300"
-                          : "bg-white text-black hover:bg-zinc-200"
-                      }`}
+                      className="w-full py-2.5 px-4 rounded-sm font-mono text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors bg-white text-black hover:bg-zinc-200"
                     >
                       <span>{tpl.buttonText || "REQUEST CLEARANCE"}</span>
                       <Send size={12} />
@@ -222,7 +218,7 @@ export default function FragmentLicensingSchedulePage({
                   <th className="p-3.5 font-bold">Commercial Release ($500)</th>
                   <th className="p-3.5 font-bold">Commercial Exploitation ($1,000)</th>
                   <th className="p-3.5 font-bold">Sync / Media (Proposal)</th>
-                  <th className="p-3.5 font-bold text-amber-400">Exclusive ($5,000)</th>
+                  <th className="p-3.5 font-bold text-white">Exclusive ($5,000)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-900/80 text-zinc-300">
@@ -232,7 +228,7 @@ export default function FragmentLicensingSchedulePage({
                   <td className="p-3.5">Indie Releases</td>
                   <td className="p-3.5">Commercial Artists</td>
                   <td className="p-3.5">Film / TV / Ads</td>
-                  <td className="p-3.5 font-bold text-amber-300">Exclusive Owners</td>
+                  <td className="p-3.5 font-bold text-white">Exclusive Owners</td>
                 </tr>
                 <tr>
                   <td className="p-3.5 font-bold text-white bg-zinc-900/30">Delivered Audio</td>
@@ -240,7 +236,7 @@ export default function FragmentLicensingSchedulePage({
                   <td className="p-3.5">Hi-Res WAV + MP3</td>
                   <td className="p-3.5 font-bold text-white">Hi-Res WAV + Stems</td>
                   <td className="p-3.5">Custom Package</td>
-                  <td className="p-3.5 font-bold text-amber-300">Full Production Stems</td>
+                  <td className="p-3.5 font-bold text-white">Full Production Stems</td>
                 </tr>
                 <tr>
                   <td className="p-3.5 font-bold text-white bg-zinc-900/30">Streaming Release</td>
@@ -256,7 +252,7 @@ export default function FragmentLicensingSchedulePage({
                   <td className="p-3.5 text-zinc-500">No</td>
                   <td className="p-3.5 text-emerald-400 font-bold">Yes (Full Stems)</td>
                   <td className="p-3.5 text-emerald-400 font-bold">Yes</td>
-                  <td className="p-3.5 text-amber-400 font-bold">Yes (Complete Stems)</td>
+                  <td className="p-3.5 text-white font-bold">Yes (Complete Stems)</td>
                 </tr>
                 <tr>
                   <td className="p-3.5 font-bold text-white bg-zinc-900/30">Publishing Split</td>
@@ -264,7 +260,7 @@ export default function FragmentLicensingSchedulePage({
                   <td className="p-3.5">50% Writer / 50% Pub</td>
                   <td className="p-3.5">50% Writer / 50% Pub</td>
                   <td className="p-3.5">Negotiated Schedule</td>
-                  <td className="p-3.5 font-bold text-amber-300">Ownership Transfer (as agreed)</td>
+                  <td className="p-3.5 font-bold text-white">Ownership Transfer (as agreed)</td>
                 </tr>
                 <tr>
                   <td className="p-3.5 font-bold text-white bg-zinc-900/30">Monetized Video</td>
@@ -280,7 +276,7 @@ export default function FragmentLicensingSchedulePage({
                   <td className="p-3.5">Non-Exclusive</td>
                   <td className="p-3.5">Non-Exclusive</td>
                   <td className="p-3.5">Project Specific</td>
-                  <td className="p-3.5 font-bold text-amber-400">100% Exclusive (Removed from Archive)</td>
+                  <td className="p-3.5 font-bold text-white">100% Exclusive (Removed from Archive)</td>
                 </tr>
               </tbody>
             </table>

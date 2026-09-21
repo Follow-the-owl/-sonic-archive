@@ -598,7 +598,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
               setAdminError("");
               setAdminSuccessMsg("");
             }}
-            className={`flex-1 py-2 text-center text-[10px] font-mono tracking-wider uppercase font-bold transition-all cursor-pointer ${adminActiveTab === "users" ? "text-yellow-500 border-b-2 border-yellow-500 bg-yellow-500/5" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`flex-1 py-2 text-center text-[10px] font-mono tracking-wider uppercase font-bold transition-all cursor-pointer ${adminActiveTab === "users" ? "text-white border-b-2 border-white bg-zinc-900/50" : "text-zinc-500 hover:text-zinc-300"}`}
           >
             Terminal Registry ({adminUsers.length})
           </button>
@@ -700,7 +700,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                       <div className="font-mono">
                         <span className="text-zinc-500 uppercase">REF:</span> <span className="text-[#00E676] font-bold">{pay.id}</span>
                       </div>
-                      <span className={`text-[8px] px-1.5 py-0.2 font-bold uppercase ${pay.status === "success" ? "text-[#00E676] bg-[#00E676]/10" : pay.status === "failed" ? "text-red-500 bg-red-500/10" : "text-yellow-500 bg-yellow-500/10"}`}>
+                      <span className={`text-[8px] px-1.5 py-0.2 font-bold uppercase ${pay.status === "success" ? "text-[#00E676] bg-[#00E676]/10" : pay.status === "failed" ? "text-red-500 bg-red-500/10" : "text-zinc-300 bg-zinc-800"}`}>
                         {pay.status}
                       </span>
                     </div>
@@ -754,7 +754,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                   setShowUserForm(!showUserForm);
                   setShowPaymentForm(false);
                 }}
-                className="bg-yellow-500 text-black font-mono font-bold text-[8.5px] px-2 py-1 hover:bg-white transition-colors cursor-pointer"
+                className="bg-white hover:bg-zinc-200 text-black font-mono font-bold text-[8.5px] px-2 py-1 transition-colors cursor-pointer"
               >
                 {showUserForm ? "Close Form ✕" : "+ Ingest User"}
               </button>
@@ -794,7 +794,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
 
                 <button
                   type="submit"
-                  className="w-full bg-yellow-500 text-black font-mono font-bold text-[9px] py-2 hover:bg-white transition-colors cursor-pointer uppercase"
+                  className="w-full bg-white hover:bg-zinc-200 text-black font-mono font-bold text-[9px] py-2 transition-colors cursor-pointer uppercase"
                 >
                   {userFormIsEdit ? "Save Cipher Code" : "Provision Terminal Network"}
                 </button>
@@ -812,7 +812,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                   <div key={usr.email} className="border border-zinc-900 bg-black p-2.5 rounded-[2px] text-[10px] space-y-1.5 flex flex-col">
                     <div className="flex justify-between items-center">
                       <span className="font-mono text-zinc-200 uppercase font-semibold">{usr.email}</span>
-                      <span className="text-[8px] px-1.5 py-0.2 text-yellow-500 bg-yellow-500/10 font-mono font-bold uppercase truncate">
+                      <span className="text-[8px] px-1.5 py-0.2 text-zinc-300 bg-zinc-800 font-mono font-bold uppercase truncate">
                         {usr.status || "VERIFIED"}
                       </span>
                     </div>
@@ -1598,7 +1598,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                       >
                         <div className="border-b border-zinc-900 pb-1.5 flex justify-between items-center text-[8px] tracking-wider text-[#D9D6CA] font-bold uppercase">
                           <span>ZIP DISPATCH SPECIFICATION INDEX</span>
-                          <span className="text-yellow-500">MANIFEST APPROVED</span>
+                          <span className="text-zinc-300">MANIFEST APPROVED</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 uppercase">
                           <div>
@@ -1669,7 +1669,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                 <div key={req.ref} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm font-mono space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-white text-[10px] font-bold uppercase">{req.type}</span>
-                    <span className="text-[8px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 font-bold uppercase">{req.status}</span>
+                    <span className="text-[8px] text-zinc-300 bg-zinc-800 px-1.5 py-0.5 font-bold uppercase">{req.status}</span>
                   </div>
                   <div className="grid grid-cols-2 text-[8.5px] text-zinc-500 font-bold">
                     <div>TARGET: {req.target}</div>
@@ -2334,7 +2334,7 @@ LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
                   </div>
                   <div className="flex justify-between items-center py-1 border-b border-zinc-950">
                     <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> TEMP_EVALUATION_ACCESS_38.PDF</span>
-                    <span className="text-yellow-600 bg-yellow-600/10 px-1.5 py-0.5 text-[8.5px]">[ EXPIRED ]</span>
+                    <span className="text-zinc-500 bg-zinc-900 px-1.5 py-0.5 text-[8.5px]">[ EXPIRED ]</span>
                   </div>
                   <div className="flex justify-between items-center py-1">
                     <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> REVOKED_LICENSE_SAMPLE_92.PDF</span>
