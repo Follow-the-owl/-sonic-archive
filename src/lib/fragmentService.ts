@@ -491,107 +491,152 @@ export async function parseStemZipFile(file: File): Promise<StemManifest> {
 }
 
 /**
- * Upload Audio / Video or Raw Document file via Cloudinary signed upload
+ * Upload Audio, Stems, Documents or Media files directly to Scaleway Object Storage S3
+ * Supports direct presigned PUT S3 upload with automatic fallback to server multipart Scaleway upload
  */
-export async function uploadToCloudinarySigned(
+export async function uploadToScaleway(
   file: File,
-  folder: string,
-  resourceType: "video" | "raw" | "image" | "auto" = "video",
-  onProgress?: (percent: number) => void
-): Promise<{ url: string; publicId: string }> {
-  // 1. Get signature from backend
-  try {
-    const signRes = await fetch("/api/storage/cloudinary/sign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        folder,
-        resourceType,
-        tags: "owl-clock-fragment"
-      })
-    });
+  folder: string = "audio",
+  arg3?: ("video" | "raw" | "image" | "auto") | ((percent: number) => void),
+  arg4?: (percent: number) => void
+): Promise<{ url: string; publicId: string; objectKey: string }> {
+  const onProgress = typeof arg3 === "function" ? arg3 : arg4;
+  const cleanFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const cleanFolder = (folder || "audio").replace(/^\/+|\/+$/g, "");
+  const targetObjectKey = `${cleanFolder}/${Date.now()}-${cleanFilename}`;
 
-    const signData = await signRes.json().catch(() => ({}));
-
-    // If server keys are missing or signature generation skipped, fallback cleanly to server upload endpoint
-    if (!signRes.ok || !signData.signature || signData.success === false) {
+  return new Promise(async (resolve) => {
+    // Helper to upload via server endpoint /api/upload/scaleway if direct presigned PUT fails
+    const fallbackServerUpload = () => {
+      if (onProgress) onProgress(35);
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("folder", folder);
-      formData.append("resourceType", resourceType);
+      formData.append("folder", cleanFolder);
+      formData.append("objectKey", targetObjectKey);
 
-      const fallbackRes = await fetch("/api/upload/cloudinary", {
-        method: "POST",
-        body: formData
-      });
-      const fallbackData = await fallbackRes.json().catch(() => ({}));
-      if (fallbackRes.ok && fallbackData.url) {
-        return { url: fallbackData.url, publicId: fallbackData.public_id || `loc-${Date.now()}` };
-      }
-      return { url: URL.createObjectURL(file), publicId: `local-${Date.now()}` };
-    }
-
-    // 2. Upload directly to Cloudinary
-    return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", signData.uploadUrl);
+      xhr.open("POST", "/api/upload/scaleway", true);
 
       if (onProgress && xhr.upload) {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
+            const percent = Math.min(99, Math.round(35 + (e.loaded / e.total) * 64));
             onProgress(percent);
           }
         };
       }
 
       xhr.onload = () => {
+        if (onProgress) onProgress(100);
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
-            const response = JSON.parse(xhr.responseText);
-            resolve({
-              url: response.secure_url || response.url,
-              publicId: response.public_id
-            });
+            const data = JSON.parse(xhr.responseText);
+            if (data.url || data.fileUrl) {
+              return resolve({
+                url: data.url || data.fileUrl,
+                publicId: data.objectKey || targetObjectKey,
+                objectKey: data.objectKey || targetObjectKey,
+              });
+            }
           } catch {
-            resolve({ url: URL.createObjectURL(file), publicId: `local-${Date.now()}` });
+            // ignore
           }
-        } else {
-          // Fallback to local server endpoint if Cloudinary network rejects
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("folder", folder);
-          formData.append("resourceType", resourceType);
-
-          fetch("/api/upload/cloudinary", { method: "POST", body: formData })
-            .then(r => r.json())
-            .then(d => {
-              if (d.url) resolve({ url: d.url, publicId: d.public_id || `loc-${Date.now()}` });
-              else resolve({ url: URL.createObjectURL(file), publicId: `local-${Date.now()}` });
-            })
-            .catch(() => resolve({ url: URL.createObjectURL(file), publicId: `local-${Date.now()}` }));
         }
+        // Local ObjectURL fallback so UI is never stuck
+        const localUrl = URL.createObjectURL(file);
+        resolve({
+          url: localUrl,
+          publicId: `local-${targetObjectKey}`,
+          objectKey: targetObjectKey,
+        });
       };
 
       xhr.onerror = () => {
-        // Fallback on network failure
-        resolve({ url: URL.createObjectURL(file), publicId: `local-${Date.now()}` });
+        if (onProgress) onProgress(100);
+        const localUrl = URL.createObjectURL(file);
+        resolve({
+          url: localUrl,
+          publicId: `local-${targetObjectKey}`,
+          objectKey: targetObjectKey,
+        });
       };
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("api_key", signData.apiKey);
-      formData.append("timestamp", String(signData.timestamp));
-      formData.append("signature", signData.signature);
-      formData.append("folder", signData.folder);
-      formData.append("tags", signData.tags);
-
       xhr.send(formData);
-    });
-  } catch (_e) {
-    return { url: URL.createObjectURL(file), publicId: `local-${Date.now()}` };
-  }
+    };
+
+    try {
+      if (onProgress) onProgress(15);
+
+      // 1. Request presigned upload URL from backend
+      const presignRes = await fetch("/api/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: cleanFilename,
+          contentType: file.type || "application/octet-stream",
+          folder: cleanFolder,
+          objectKey: targetObjectKey,
+        }),
+      });
+
+      if (presignRes.ok) {
+        const presignData = await presignRes.json().catch(() => ({}));
+        if (presignData.uploadUrl) {
+          if (onProgress) onProgress(30);
+
+          // 2. Direct PUT upload to Scaleway S3 bucket
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", presignData.uploadUrl, true);
+          if (file.type) {
+            xhr.setRequestHeader("Content-Type", file.type);
+          }
+
+          if (onProgress && xhr.upload) {
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const percent = Math.min(99, Math.round(30 + (e.loaded / e.total) * 69));
+                onProgress(percent);
+              }
+            };
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (onProgress) onProgress(100);
+              const bucketName = presignData.bucket || "owl";
+              const publicUrl = presignData.publicUrl || `https://${bucketName}.s3.fr-par.scw.cloud/${presignData.objectKey || targetObjectKey}`;
+              return resolve({
+                url: publicUrl,
+                publicId: presignData.objectKey || targetObjectKey,
+                objectKey: presignData.objectKey || targetObjectKey,
+              });
+            }
+
+            // Direct PUT failed (e.g., CORS in preview iframe) -> fallback to server endpoint
+            fallbackServerUpload();
+          };
+
+          xhr.onerror = () => {
+            // Direct network failure/CORS -> fallback to server endpoint
+            fallbackServerUpload();
+          };
+
+          xhr.send(file);
+          return;
+        }
+      }
+
+      // If presign endpoint fails or returns no URL, fallback to server upload
+      fallbackServerUpload();
+    } catch (err) {
+      console.warn("Direct Scaleway presigned upload failed, switching to server proxy:", err);
+      fallbackServerUpload();
+    }
+  });
 }
+
+// Backward compatibility alias for Cloudinary - now routed entirely via Scaleway Object Storage
+export const uploadToCloudinarySigned = uploadToScaleway;
 
 /**
  * Upload Stem ZIP archive directly to Scaleway S3 using presigned PUT URL

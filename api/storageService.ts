@@ -1,7 +1,62 @@
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v2 as cloudinary } from "cloudinary";
 import crypto from "crypto";
 
-// --- Cloudinary Setup ---
+// --- Scaleway Object Storage Setup ---
+let scalewayClientInstance: S3Client | null = null;
+
+export function getScalewayClient(): S3Client {
+  if (!scalewayClientInstance) {
+    scalewayClientInstance = new S3Client({
+      region: process.env.SCALEWAY_REGION || "fr-par",
+      endpoint: process.env.SCALEWAY_ENDPOINT || "https://s3.fr-par.scw.cloud",
+      credentials: {
+        accessKeyId: process.env.SCALEWAY_ACCESS_KEY || "SCWH705M0YY16XCH6PH4",
+        secretAccessKey: process.env.SCALEWAY_SECRET_KEY || "08539153-f0d2-4865-8df8-40d04e346fb8",
+      },
+    });
+  }
+  return scalewayClientInstance;
+}
+
+export async function generateScalewayPresignedUpload(params: {
+  filename: string;
+  contentType?: string;
+  folder?: string;
+  customKey?: string;
+  expiresInSeconds?: number;
+}) {
+  const client = getScalewayClient();
+  const bucketName = process.env.SCALEWAY_BUCKET_NAME || "owl";
+  const region = process.env.SCALEWAY_REGION || "fr-par";
+  const cleanFolder = (params.folder || "audio").replace(/^\/+|\/+$/g, "");
+  const cleanFilename = params.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const objectKey = params.customKey || `${cleanFolder}/${Date.now()}-${cleanFilename}`;
+  const contentType = params.contentType || "application/octet-stream";
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: objectKey,
+    ContentType: contentType,
+    ACL: "public-read",
+  });
+
+  const uploadUrl = await getSignedUrl(client, command, {
+    expiresIn: params.expiresInSeconds || 600,
+  });
+
+  const publicUrl = `https://${bucketName}.s3.${region}.scw.cloud/${objectKey}`;
+
+  return {
+    uploadUrl,
+    objectKey,
+    publicUrl,
+    bucket: bucketName,
+  };
+}
+
+// --- Cloudinary Setup (Deprecated - Migrated to Scaleway) ---
 export function getCloudinaryClient() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;

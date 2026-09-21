@@ -12,8 +12,8 @@ import {
   FragmentDocument, 
   LicensePricingConfig, 
   parseStemZipFile,
-  uploadToCloudinarySigned,
-  uploadStemZipToUploadThing 
+  uploadToScaleway,
+  uploadStemZipToScaleway 
 } from "../lib/fragmentService";
 
 const MUSICAL_KEYS = [
@@ -156,7 +156,7 @@ export default function NewFragmentWizardModal({
     setFragmentId(cleaned);
   };
 
-  // Audio Upload using Cloudinary Signed Upload with duration calculation & preview
+  // Audio Upload using Scaleway Object Storage with duration calculation & preview
   const handleAudioUpload = async (fileType: AudioUploadRecord["fileType"], e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -184,10 +184,9 @@ export default function NewFragmentWizardModal({
 
     try {
       const cleanFrag = fragmentId ? fragmentId.replace(/[^a-zA-Z0-9]/g, "") : "temp";
-      const { url: uploadedUrl } = await uploadToCloudinarySigned(
+      const { url: uploadedUrl } = await uploadToScaleway(
         file,
         `fragments/${cleanFrag}/audio`,
-        "video",
         (percent) => {
           setUploadProgress(prev => ({ ...prev, [fileType]: Math.max(15, percent) }));
         }
@@ -209,7 +208,7 @@ export default function NewFragmentWizardModal({
         ];
       });
     } catch (err: any) {
-      console.warn("Cloudinary direct signed upload failed or keys unconfigured. Using local cache fallback:", err);
+      console.warn("Scaleway upload failed, using local cache fallback:", err);
       setUploadProgress(prev => ({ ...prev, [fileType]: 100 }));
       setAudioFiles(prev => {
         const filtered = prev.filter(a => a.fileType !== fileType);
@@ -289,9 +288,9 @@ export default function NewFragmentWizardModal({
       }
       setZipProgress(45);
 
-      // 2. Direct upload to storage with server authorization
+      // 2. Direct upload to Scaleway S3 storage with presigned ticket
       const cleanFrag = fragmentId ? fragmentId.replace(/[^a-zA-Z0-9]/g, "") : "temp";
-      await uploadStemZipToUploadThing(file, cleanFrag, (percent) => {
+      await uploadStemZipToScaleway(file, cleanFrag, (percent) => {
         setZipProgress(percent);
       });
       setZipProgress(100);
@@ -305,24 +304,42 @@ export default function NewFragmentWizardModal({
     }
   };
 
-  // Individual Stem Upload via Cloudflare R2
+  // Individual Stem Upload via Scaleway Object Storage
   const handleIndividualStemUpload = async (category: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const localUrl = URL.createObjectURL(file);
-    
-    setIndividualStems(prev => [
-      ...prev.filter(s => s.type !== category),
-      {
-        type: category,
-        fileName: file.name,
-        fileUrl: localUrl,
-        size: file.size
-      }
-    ]);
+    const cleanFrag = fragmentId ? fragmentId.replace(/[^a-zA-Z0-9]/g, "") : "temp";
+
+    try {
+      const { url: uploadedUrl } = await uploadToScaleway(
+        file,
+        `fragments/${cleanFrag}/stems/${category}`
+      );
+      setIndividualStems(prev => [
+        ...prev.filter(s => s.type !== category),
+        {
+          type: category,
+          fileName: file.name,
+          fileUrl: uploadedUrl || localUrl,
+          size: file.size
+        }
+      ]);
+    } catch (err) {
+      console.warn("Stem upload fallback:", err);
+      setIndividualStems(prev => [
+        ...prev.filter(s => s.type !== category),
+        {
+          type: category,
+          fileName: file.name,
+          fileUrl: localUrl,
+          size: file.size
+        }
+      ]);
+    }
   };
 
-  // Document Upload via Cloudinary Signed Upload (resource_type="raw")
+  // Document Upload via Scaleway Object Storage
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -331,10 +348,9 @@ export default function NewFragmentWizardModal({
 
     try {
       const cleanFrag = fragmentId ? fragmentId.replace(/[^a-zA-Z0-9]/g, "") : "temp";
-      const { url: uploadedUrl } = await uploadToCloudinarySigned(
+      const { url: uploadedUrl } = await uploadToScaleway(
         file,
-        `fragments/${cleanFrag}/documents`,
-        "raw"
+        `fragments/${cleanFrag}/documents`
       );
 
       setDocuments(prev => [
@@ -349,7 +365,7 @@ export default function NewFragmentWizardModal({
         }
       ]);
     } catch (err) {
-      console.warn("Document signed upload fallback to local URL", err);
+      console.warn("Document Scaleway upload fallback to local URL", err);
       setDocuments(prev => [
         ...prev,
         {
@@ -865,9 +881,14 @@ export default function NewFragmentWizardModal({
           {currentStep === 2 && (
             <div className="space-y-4">
               <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
-                <span className="text-white font-bold uppercase tracking-wider text-xs">
-                  STEP 2: AUDIO ASSET VAULT
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-bold uppercase tracking-wider text-xs">
+                    STEP 2: AUDIO ASSET VAULT
+                  </span>
+                  <span className="px-1.5 py-0.5 bg-zinc-800/90 text-zinc-300 border border-zinc-700/80 rounded text-[9px] uppercase font-mono tracking-wider">
+                    SCALEWAY S3
+                  </span>
+                </div>
                 <span className="text-zinc-400 text-[10px]">
                   {audioFiles.length} file(s) registered • At least 1 required
                 </span>
@@ -941,7 +962,7 @@ export default function NewFragmentWizardModal({
                               <div className="flex items-center justify-between text-[10px]">
                                 <span className="text-white font-mono font-bold flex items-center gap-1">
                                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                                  UPLOADING AUDIO...
+                                  UPLOADING TO SCALEWAY S3...
                                 </span>
                                 <span className="text-zinc-200 font-mono font-bold">{progress}%</span>
                               </div>

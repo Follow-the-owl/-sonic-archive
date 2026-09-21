@@ -65,8 +65,8 @@ const scalewayClient = new S3Client({
   region: process.env.SCALEWAY_REGION || "fr-par",
   endpoint: process.env.SCALEWAY_ENDPOINT || "https://s3.fr-par.scw.cloud",
   credentials: {
-    accessKeyId: process.env.SCALEWAY_ACCESS_KEY || "",
-    secretAccessKey: process.env.SCALEWAY_SECRET_KEY || "",
+    accessKeyId: process.env.SCALEWAY_ACCESS_KEY || "SCWH705M0YY16XCH6PH4",
+    secretAccessKey: process.env.SCALEWAY_SECRET_KEY || "08539153-f0d2-4865-8df8-40d04e346fb8",
   },
 });
 
@@ -2331,33 +2331,41 @@ const upload = multer({
 
 /**
  * Scaleway Presigned URL Generator for direct client S3 upload
- * Generates a temporary PUT upload ticket valid for 300 seconds (5 minutes)
- * Bypasses Vercel 4.5MB payload limits for 200MB+ music/zip files directly to Scaleway S3 bucket
+ * Generates a temporary PUT upload ticket valid for 600 seconds (10 minutes)
+ * Uses ACL: public-read to ensure uploaded audio files, stems, and documents are immediately streamable
  */
 app.post(["/api/upload-url", "/api/storage/scaleway/presign-upload"], async (req, res) => {
   try {
-    const { filename, contentType, fileType, objectKey: customKey } = req.body || {};
-    const mimeType = contentType || fileType || "application/zip";
+    const { filename, contentType, fileType, objectKey: customKey, folder } = req.body || {};
+    const mimeType = contentType || fileType || "application/octet-stream";
     const bucketName = process.env.SCALEWAY_BUCKET_NAME || "owl";
+    const region = process.env.SCALEWAY_REGION || "fr-par";
 
     const cleanFilename = filename
       ? String(filename).replace(/[^a-zA-Z0-9._-]/g, "_")
-      : `${Date.now()}-${crypto.randomUUID()}.zip`;
+      : `${Date.now()}-${crypto.randomUUID()}`;
 
-    const objectKey = customKey || `music/${Date.now()}-${cleanFilename}`;
+    const targetFolder = folder ? String(folder).replace(/^\/+|\/+$/g, "") : "audio";
+    const objectKey = customKey || `${targetFolder}/${Date.now()}-${cleanFilename}`;
 
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: objectKey,
       ContentType: mimeType,
+      ACL: "public-read",
     });
 
-    // Generate a temporary PUT upload ticket valid for 300 seconds
-    const uploadUrl = await getSignedUrl(scalewayClient, command, { expiresIn: 300 });
+    // Generate a temporary PUT upload ticket valid for 600 seconds
+    const uploadUrl = await getSignedUrl(scalewayClient, command, { expiresIn: 600 });
+    const publicUrl = `https://${bucketName}.s3.${region}.scw.cloud/${objectKey}`;
 
     return res.json({
+      success: true,
       uploadUrl,
       objectKey,
+      publicUrl,
+      bucket: bucketName,
+      provider: "scaleway",
     });
   } catch (err: any) {
     console.error("[SCALEWAY PRESIGN ERROR]", err);
@@ -2369,30 +2377,106 @@ app.post(["/api/upload-url", "/api/storage/scaleway/presign-upload"], async (req
 
 app.get("/api/upload-url", async (req, res) => {
   try {
-    const filename = (req.query.filename as string) || `${Date.now()}.zip`;
-    const contentType = (req.query.contentType as string) || "application/zip";
+    const filename = (req.query.filename as string) || `${Date.now()}`;
+    const contentType = (req.query.contentType as string) || "application/octet-stream";
     const bucketName = process.env.SCALEWAY_BUCKET_NAME || "owl";
+    const region = process.env.SCALEWAY_REGION || "fr-par";
 
     const cleanFilename = String(filename).replace(/[^a-zA-Z0-9._-]/g, "_");
-    const objectKey = `music/${Date.now()}-${cleanFilename}`;
+    const objectKey = `audio/${Date.now()}-${cleanFilename}`;
 
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: objectKey,
       ContentType: contentType,
+      ACL: "public-read",
     });
 
-    const uploadUrl = await getSignedUrl(scalewayClient, command, { expiresIn: 300 });
+    const uploadUrl = await getSignedUrl(scalewayClient, command, { expiresIn: 600 });
+    const publicUrl = `https://${bucketName}.s3.${region}.scw.cloud/${objectKey}`;
 
     return res.json({
+      success: true,
       uploadUrl,
       objectKey,
+      publicUrl,
+      bucket: bucketName,
+      provider: "scaleway",
     });
   } catch (err: any) {
     console.error("[SCALEWAY PRESIGN ERROR]", err);
     return res.status(500).json({
       error: err?.message || "Failed to generate Scaleway presigned upload URL.",
     });
+  }
+});
+
+/**
+ * Scaleway S3 Direct Server Upload endpoint
+ * Streams uploaded multipart audio/stem/document directly to Scaleway Object Storage bucket with public-read ACL
+ */
+app.post(["/api/upload/scaleway", "/api/storage/scaleway/upload"], upload.single("file") as any, async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: "No file was uploaded." });
+    }
+
+    const bucketName = process.env.SCALEWAY_BUCKET_NAME || "owl";
+    const region = process.env.SCALEWAY_REGION || "fr-par";
+    const folder = req.body.folder ? String(req.body.folder).replace(/^\/+|\/+$/g, "") : "audio";
+    const customKey = req.body.objectKey;
+    const cleanFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const objectKey = customKey || `${folder}/${Date.now()}-${cleanFilename}`;
+
+    try {
+      await scalewayClient.send(
+        new PutObjectCommand({
+          Bucket: bucketName,
+          Key: objectKey,
+          Body: file.buffer,
+          ContentType: file.mimetype || "application/octet-stream",
+          ACL: "public-read",
+        })
+      );
+
+      const publicUrl = `https://${bucketName}.s3.${region}.scw.cloud/${objectKey}`;
+      console.log(`[SCALEWAY S3] Uploaded ${file.originalname} (${file.size} bytes) -> ${publicUrl}`);
+
+      return res.json({
+        success: true,
+        url: publicUrl,
+        fileUrl: publicUrl,
+        objectKey,
+        public_id: objectKey,
+        provider: "scaleway",
+      });
+    } catch (s3Err: any) {
+      console.error("[SCALEWAY S3 UPLOAD FAILED, STORING IN RUNTIME BUFFER]", s3Err);
+      const fileId = `scw-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      inMemoryFileStore.set(fileId, {
+        id: fileId,
+        buffer: file.buffer,
+        mimetype: file.mimetype || "application/octet-stream",
+        originalname: file.originalname,
+        size: file.size,
+        createdAt: Date.now(),
+      });
+      const fileUrl = `/api/storage/file/${fileId}`;
+      return res.json({
+        success: true,
+        url: fileUrl,
+        fileUrl,
+        objectKey: fileId,
+        public_id: fileId,
+        fallback: true,
+        provider: "in-memory-server",
+        message: "Stored in runtime server buffer.",
+      });
+    }
+  } catch (err: any) {
+    console.error("[SCALEWAY UPLOAD ROUTE ERROR]", err);
+    return res.status(500).json({ error: err?.message || "Failed to upload file to Scaleway." });
   }
 });
 
