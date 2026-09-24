@@ -21,12 +21,30 @@ export interface FragmentDocument {
 }
 
 export interface LicensePricingConfig {
-  mp3: { enabled: boolean; price: number };
-  wav: { enabled: boolean; price: number };
-  trackouts: { enabled: boolean; price: number };
-  unlimited: { enabled: boolean; price: number };
+  access: { enabled: boolean; price: number };
+  release: { enabled: boolean; price: number };
+  commercial: { enabled: boolean; price: number };
   exclusive: { enabled: boolean; price: number };
+  collaboration?: { enabled: boolean; price: number };
+  sync?: { enabled: boolean; price: number };
+  mp3?: { enabled: boolean; price: number };
+  wav?: { enabled: boolean; price: number };
+  trackouts?: { enabled: boolean; price: number };
+  unlimited?: { enabled: boolean; price: number };
 }
+
+export const DEFAULT_LICENSE_PRICING: LicensePricingConfig = {
+  access: { enabled: true, price: 150 },
+  release: { enabled: true, price: 500 },
+  commercial: { enabled: true, price: 1000 },
+  exclusive: { enabled: true, price: 5000 },
+  collaboration: { enabled: true, price: 0 },
+  sync: { enabled: true, price: 0 },
+  mp3: { enabled: true, price: 150 },
+  wav: { enabled: true, price: 500 },
+  trackouts: { enabled: true, price: 1000 },
+  unlimited: { enabled: true, price: 1000 }
+};
 
 export interface AudioUploadRecord {
   fileType: "publicPreviewMp3" | "licensedMp3" | "masterWav" | "instrumental" | "taggedPreview" | "untaggedPreview" | "alternateVersion";
@@ -59,6 +77,7 @@ export interface FullFragmentRecord {
   individualStems?: { type: string; fileName: string; fileUrl: string; size: number }[];
   documents: FragmentDocument[];
   licenses: LicensePricingConfig;
+  customAgreements?: any[];
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -161,11 +180,16 @@ export function getStoredFullFragments(): FullFragmentRecord[] {
       }
     ],
     licenses: {
+      access: { enabled: true, price: 150 },
+      release: { enabled: true, price: 500 },
+      commercial: { enabled: true, price: 1000 },
+      exclusive: { enabled: !f.isExclusive, price: 5000 },
+      collaboration: { enabled: true, price: 0 },
+      sync: { enabled: true, price: 0 },
       mp3: { enabled: true, price: 150 },
-      wav: { enabled: true, price: 350 },
-      trackouts: { enabled: true, price: 650 },
-      unlimited: { enabled: true, price: 1200 },
-      exclusive: { enabled: !f.isExclusive, price: 4500 }
+      wav: { enabled: true, price: 500 },
+      trackouts: { enabled: true, price: 1000 },
+      unlimited: { enabled: true, price: 1000 }
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -278,7 +302,7 @@ export function parseFragmentTimeDetails(timestampStr: string): ParsedTimeDetail
 
   const clean = String(timestampStr).trim().toUpperCase();
   
-  // 1. Try standard colon format e.g. "07:15 AM", "9:41 PM", "10:00", "07:15"
+  // 1. Try standard colon format e.g. "07:15 AM", "9:41 PM", "10:00", "07:15", "12:00 PM"
   const colonMatch = clean.match(/(0?[0-9]|1[0-9]|2[0-3]):([0-5]\d)\s*(AM|PM)?/i);
   
   let rawH = 10;
@@ -306,38 +330,61 @@ export function parseFragmentTimeDetails(timestampStr: string): ParsedTimeDetail
   if (isNaN(rawH)) rawH = 10;
   if (isNaN(rawM)) rawM = 0;
 
-  // Determine AM/PM if not explicitly given
+  // Enforce strict 12-hour clock bounds: 1 through 12
+  let hour12: number;
   let ampm: "AM" | "PM" = "AM";
+
   if (explicitAMPM) {
     ampm = explicitAMPM;
+    if (rawH === 0) {
+      hour12 = 12;
+    } else if (rawH > 12) {
+      hour12 = rawH % 12 === 0 ? 12 : rawH % 12;
+    } else {
+      hour12 = rawH;
+    }
   } else if (clean.includes("PM")) {
     ampm = "PM";
+    if (rawH === 0) hour12 = 12;
+    else if (rawH > 12) hour12 = rawH % 12 === 0 ? 12 : rawH % 12;
+    else hour12 = rawH;
   } else if (clean.includes("AM")) {
     ampm = "AM";
-  } else if (rawH >= 12) {
+    if (rawH === 0) hour12 = 12;
+    else if (rawH > 12) hour12 = rawH % 12 === 0 ? 12 : rawH % 12;
+    else hour12 = rawH;
+  } else if (rawH === 0) {
+    // 00:xx in 12-hour clock is 12:xx AM
+    hour12 = 12;
+    ampm = "AM";
+  } else if (rawH === 12) {
+    // 12:xx without modifier defaults to noon PM
+    hour12 = 12;
+    ampm = "PM";
+  } else if (rawH > 12) {
+    // 13..23 converted to 12-hour PM
+    hour12 = rawH % 12 === 0 ? 12 : rawH % 12;
     ampm = "PM";
   } else if (rawH >= 9 && rawH <= 11) {
-    // Canonical 9:41, 10:00, 11:11 PM defaults
+    // Canonical 9:41, 10:00, 11:11 defaults to PM
+    hour12 = rawH;
     ampm = "PM";
   } else {
+    hour12 = rawH;
     ampm = "AM";
   }
 
-  const displayH = rawH % 12; // 0..11 where 0 is 12 o'clock
-
-  let h24 = displayH;
+  // Calculate 24-hour totalMinutes for chronological sorting
+  let totalHours24 = hour12 % 12; // 12 becomes 0, 1..11 remain 1..11
   if (ampm === "PM") {
-    h24 = (displayH === 0 ? 12 : displayH + 12);
-  } else {
-    h24 = (displayH === 0 ? 0 : displayH);
+    totalHours24 += 12;
   }
-  const totalMinutes = h24 * 60 + rawM;
+  const totalMinutes = totalHours24 * 60 + rawM;
 
-  const displayH12 = displayH === 0 ? 12 : displayH;
-  const formatted = `${String(displayH12).padStart(2, "0")}:${String(rawM).padStart(2, "0")} ${ampm}`;
+  const formatted = `${String(hour12).padStart(2, "0")}:${String(rawM).padStart(2, "0")} ${ampm}`;
 
   return {
-    hour: displayH,
+    hour: hour12,
     minute: rawM,
     ampm,
     totalMinutes,
@@ -416,7 +463,25 @@ export function sanitizeToPublicCatalog(record: FullFragmentRecord): Fragment {
     audioUrl: publicAudio,
     previewAudioUrl: publicAudio,
     mp3Preview: publicAudio,
-    isExclusive: record.availability === "sold" || !record.licenses.exclusive.enabled,
+    isExclusive: record.availability === "sold" || (record.licenses?.exclusive ? !record.licenses.exclusive.enabled : false),
+    licenseOverrides: {
+      access: {
+        enabled: record.licenses?.access?.enabled ?? record.licenses?.mp3?.enabled ?? true,
+        priceOverride: record.licenses?.access?.price ?? record.licenses?.mp3?.price ?? 150
+      },
+      release: {
+        enabled: record.licenses?.release?.enabled ?? record.licenses?.wav?.enabled ?? true,
+        priceOverride: record.licenses?.release?.price ?? record.licenses?.wav?.price ?? 500
+      },
+      commercial: {
+        enabled: record.licenses?.commercial?.enabled ?? record.licenses?.trackouts?.enabled ?? true,
+        priceOverride: record.licenses?.commercial?.price ?? record.licenses?.trackouts?.price ?? 1000
+      },
+      exclusive: {
+        enabled: record.availability !== "sold" && (record.licenses?.exclusive ? record.licenses.exclusive.enabled : true),
+        priceOverride: record.licenses?.exclusive?.price ?? 5000
+      }
+    },
     timeCapsule: {
       entryNo: `TC-${record.id.replace(/[^a-zA-Z0-9]/g, "")}`,
       catalogNo: record.compositionId || `LOC-${record.id.replace(/[^a-zA-Z0-9]/g, "")}`,

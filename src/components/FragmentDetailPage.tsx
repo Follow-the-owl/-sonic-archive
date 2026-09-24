@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume1, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2, CheckCircle2, Sparkles, FolderArchive } from "lucide-react";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume1, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2, CheckCircle2, FolderArchive } from "lucide-react";
 import { Fragment, getTimeCapsuleForFragment } from "../data";
 import { getAllActiveFragments } from "../lib/fragmentService";
 import TimeCapsuleOverlay from "./TimeCapsuleOverlay";

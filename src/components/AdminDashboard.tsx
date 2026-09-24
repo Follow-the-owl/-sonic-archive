@@ -6,7 +6,7 @@ import {
   ShoppingBag, Database, ArrowUpRight, BarChart3, Upload, Loader2, Play, 
   Pause, X, Search, Filter, ShieldCheck, Mail, RefreshCw, Layers, CheckCircle2,
   AlertCircle, Clock, DollarSign, FileCheck, Landmark, Lock, ArrowRight, ChevronRight,
-  Eye, User, Key, Server, ArrowRightLeft, Send, Menu, Music, Sparkles, Sliders,
+  Eye, User, Key, Server, ArrowRightLeft, Send, Menu, Music, Sliders,
   HelpCircle, Shield, Award, Terminal, Cpu, FileSignature, CheckSquare, Hash
 } from "lucide-react";
 import { Fragment, FRAGMENTS, CLOCK_MEANINGS, getFragmentTimeName } from "../data";
@@ -831,12 +831,8 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
       {/* ========================================================================= */}
       <header className="w-full border-b border-zinc-900 bg-[#040404] px-4 sm:px-6 py-2.5 flex items-center justify-between z-30 shrink-0 select-none">
         <div className="flex items-center gap-3">
-          <span className="text-[11px] sm:text-xs font-bold text-white font-mono tracking-widest uppercase flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            THE OWL CLOCK • ARCHIVIST CONSOLE
-          </span>
-          <span className="hidden md:inline-block text-[10px] text-zinc-500 font-mono border-l border-zinc-800 pl-3">
-            01–06 MASTER RECOVERY DB
+          <span className="text-xs sm:text-sm font-bold text-white font-mono tracking-widest uppercase">
+            THE OWL CLOCK
           </span>
         </div>
 
@@ -1055,9 +1051,6 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                   <span>NEW CLEARANCE PETITION</span>
                 </button>
               )}
-              <span className="border border-zinc-800 bg-[#0c0c0c] text-zinc-400 text-[10px] font-mono px-2.5 py-1 rounded">
-                SEC: <strong className="text-white">{activeSection.replace("_", " ")}</strong>
-              </span>
             </div>
           </div>
 
@@ -3037,17 +3030,7 @@ export default function AdminDashboard({ onClose, onOpenClient, currentUserEmail
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-zinc-800">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handleCopyContract}
-                          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 hover:text-white font-bold text-xs px-3.5 py-2 rounded uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
-                        >
-                          {copiedAdminContract ? <CheckCircle2 size={13} className="text-[#00E676]" /> : <Copy size={13} />}
-                          <span>{copiedAdminContract ? "COPIED CONTRACT" : "COPY FULL TEXT"}</span>
-                        </button>
-                      </div>
-
+                    <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-zinc-800">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleDownloadPdf}

@@ -1,3 +1,5 @@
+import { jsPDF } from "jspdf";
+
 // ============================================================================
 // THE OWL CLOCK / LOMON LLC — OFFICIAL LEGAL LICENSE AGREEMENT ENGINE
 // Exact Legal Contracts for $150, $500, $1,000, $5,000, Sync, and Collab Tiers
@@ -33,6 +35,13 @@ export interface LicenseAgreementData {
   contentIdRegistration?: string;
   exclusivity?: string;
   contractVersion?: string;
+
+  // Custom Clauses, Scope & Package Overrides (CRUD Support)
+  customScope?: string[] | string;
+  customCredit?: string;
+  customRestrictions?: string;
+  customClauses?: string;
+  customDeliveryPackage?: string;
 }
 
 export interface ScheduleAData {
@@ -97,14 +106,15 @@ export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
   
   let tierTitle = "Archive Access License ($150.00 USD)";
   let feeStr = "USD $150.00";
-  let deliveryPackage = "Tagged Reference MP3, Watermarked WAV, Archive Access Certificate";
-  let catalogStatus = "Active in Public Archive (Non-Exclusive Access)";
+  let deliveryPackage = "High-Resolution WAV Master, Tagged Reference MP3, Clearance Certificate, Executed Agreement";
+  let catalogStatus = "Active in Public Archive (Non-Exclusive Licensing)";
   let scope: string[] = [
     "1 Licensed Project",
-    "Private creative development, demo creation, songwriting, and rehearsals",
-    "0 Commercial Streams (No public release permitted)",
-    "0 Commercial Physical or Digital Units",
-    "No commercial monetization or public distribution"
+    "Digital Audio Streams: Up to 100,000 cumulative streams",
+    "Physical & Digital Sales: Up to 2,000 units sold",
+    "Master Ownership: 100% Retained by LOMON LLC",
+    "Publishing Split: 50% LOMON LLC / 50% Licensee",
+    "Exceeding caps requires upgrading to Commercial Release or Commercial Exploitation"
   ];
 
   if (tierId === "release") {
@@ -179,6 +189,14 @@ export function getScheduleAData(data: LicenseAgreementData): ScheduleAData {
     } else if (String(data.price).startsWith("$")) {
       feeStr = `USD ${data.price}`;
     }
+  }
+
+  // Allow custom scope & delivery overrides from CRUD editor
+  if (data.customScope) {
+    scope = Array.isArray(data.customScope) ? data.customScope : [String(data.customScope)];
+  }
+  if (data.customDeliveryPackage) {
+    deliveryPackage = data.customDeliveryPackage;
   }
 
   // Derive Archive Identifier if not formatted
@@ -289,9 +307,9 @@ export function getScheduleBData(data: LicenseAgreementData): ScheduleBData {
   // Tier 1: Archive Access License ($150) — Default
   return {
     ...basePro,
-    masterOwnership: data.masterOwnership || "Retained by LOMON LLC (100%)",
-    publishingShare: data.publishingShare || "100% LOMON LLC / 0% Licensee",
-    writerShare: data.writerShare || "100% LOMON LLC / 0% Licensee",
+    masterOwnership: data.masterOwnership || "100% LOMON LLC",
+    publishingShare: data.publishingShare || "50% LOMON LLC | 50% Licensee",
+    writerShare: data.writerShare || "50% LOMON LLC | 50% Licensee",
     contentIdRegistration: data.contentIdRegistration || "Strictly Prohibited",
     exclusivity: data.exclusivity || "Non-Exclusive",
     contractVersion: data.contractVersion || "v1.0-2026"
@@ -809,9 +827,9 @@ export function getLegalArticlesForTier(tierIdOrPrice: string | number): {
     agreementTitle: "ARCHIVE ACCESS LICENSE AGREEMENT",
     contractVersion: "v1.0-2026",
     importantNotice: [
-      "This Agreement grants non-exclusive, internal development rights to incorporate the identified Archived Fragment into private songwriting, demo creation, rehearsals, and creative exploration.",
-      "This Agreement does NOT grant commercial release, public streaming monetization, broadcast synchronization, or commercial distribution rights. Master ownership and publishing remain 100% with Lomon LLC.",
-      "The Licensed Fragment may remain available for licensing to other parties unless subsequently acquired under an exclusive agreement."
+      "This Agreement grants limited, non-exclusive commercial rights to incorporate the identified Archived Fragment into one original musical release.",
+      "This Agreement does not sell or transfer ownership of the Archived Fragment, its underlying musical composition, its original master recording, The Owl Clock archive entry, or any related intellectual property.",
+      "The Licensed Fragment may remain available for licensing to other parties unless it is subsequently removed from the Archive or acquired under a separate exclusive agreement."
     ],
     articles: [
       {
@@ -823,46 +841,97 @@ export function getLegalArticlesForTier(tierIdOrPrice: string | number): {
           },
           {
             heading: "1.2 Licensed Transaction",
-            text: "This Agreement governs the Licensee's purchase of an Archive Access License for the Archived Fragment identified in Schedule A. The license fee for this tier is one hundred fifty United States dollars (USD $150.00). The license becomes effective upon confirmation of payment and acceptance of this Agreement."
+            text: "This Agreement governs the Licensee's purchase of an Archive Access License for the Archived Fragment identified in Schedule A. The license fee for this tier is one hundred fifty United States dollars (USD $150.00), excluding applicable taxes or processing charges. The license becomes effective only upon:\na. successful completion and confirmation of payment;\nb. provision of accurate Licensee legal information;\nc. formal identification of the Licensed Fragment; and\nd. acceptance of this Agreement by the Licensee."
           },
           {
-            heading: "1.3 Purpose & Non-Commercial Scope",
-            text: "The purpose of this Agreement is to provide Licensee access to reference master materials for internal artistic development, demo composition, and rehearsals only."
+            heading: "1.3 Acceptance & Electronic Execution",
+            text: "The Licensee accepts and agrees to be bound by this Agreement by completing the purchase transaction, selecting an electronic acceptance checkbox, applying a digital signature, downloading the Licensed Materials, or commercially exploiting the Licensed Fragment."
           }
         ]
       },
       {
-        title: "ARTICLE 2: DEFINITIONS & DELIVERABLES",
+        title: "ARTICLE 2: DEFINITIONS",
         sections: [
           {
-            heading: "2.1 Deliverables",
-            text: "\"Licensed Materials\" under this tier include Tagged Reference MP3, Watermarked WAV, and Archive Access Certificate."
+            heading: "2.1 \"Archive\"",
+            text: "\"Archive\" means The Owl Clock system, timestamps, metadata, and files."
           },
           {
-            heading: "2.2 Master & Composition",
-            text: "Licensor retains 100% full master ownership and 100% writer/publisher share in the Archived Fragment."
+            heading: "2.2 \"Archived Fragment\"",
+            text: "\"Archived Fragment\" means the specific audio fragment identified in Schedule A."
+          },
+          {
+            heading: "2.3 \"Composition\"",
+            text: "\"Composition\" means the underlying musical work embodied in the Archived Fragment."
+          },
+          {
+            heading: "2.4 \"Original Master\"",
+            text: "\"Original Master\" means the sound recording owned exclusively by Licensor."
+          },
+          {
+            heading: "2.5 \"Licensed Materials\"",
+            text: "\"Licensed Materials\" means the high-resolution WAV file, Tagged Reference MP3, Clearance Certificate, and Executed Agreement delivered under this tier."
+          },
+          {
+            heading: "2.6 \"Licensed Project\"",
+            text: "\"Licensed Project\" means one new original song created by Licensee incorporating the Archived Fragment (\"New Song\")."
           }
         ]
       },
       {
-        title: "ARTICLE 3: RESTRICTIONS & PROHIBITIONS",
+        title: "ARTICLE 3: GRANT OF LICENSE & LIMITS",
         sections: [
           {
-            heading: "3.1 No Commercial Release",
-            text: "Licensee shall not distribute, monetize, or publicly stream any work incorporating the Archived Fragment without upgrading to a Commercial Release or Commercial Exploitation License."
+            heading: "3.1 Conditional Grant",
+            text: "Subject to full payment, Licensor grants Licensee a worldwide, non-exclusive, non-transferable license to incorporate the Archived Fragment into one Licensed Project."
           },
           {
-            heading: "3.2 Content ID & AI Training Prohibition",
-            text: "Licensee shall not upload or fingerprint the Licensed Materials into Content ID systems or public AI generative training models."
+            heading: "3.2 Commercial Scope & Streaming Caps",
+            text: "Commercial distribution under this Archive Access License is capped strictly at:\n• Digital Audio Streams: Up to 100,000 cumulative streams.\n• Physical & Digital Sales: Up to 2,000 units sold.\nExceeding these thresholds requires upgrading to a higher license tier (Commercial Release or Commercial Exploitation) prior to continued distribution."
           }
         ]
       },
       {
-        title: "ARTICLE 4: GOVERNING LAW",
+        title: "ARTICLE 4: PUBLISHING SPLITS AND MASTER OWNERSHIP",
         sections: [
           {
-            heading: "4.1 Jurisdiction",
-            text: "This Agreement is governed by the laws of the State of Georgia, USA."
+            heading: "4.1 Master Ownership",
+            text: "LOMON LLC retains 100% Master Ownership of the sound recording embodied in the Archived Fragment. Licensee acquires no master ownership."
+          },
+          {
+            heading: "4.2 Publishing & Composition Splits",
+            text: "The underlying Composition of the Archived Fragment shall be allocated as follows for registration and royalty administration purposes:\n• Writer Share: 50% LOMON LLC / 50% Licensee (or Licensee's writers).\n• Publisher Share: 50% LOMON LLC / 50% Licensee's publisher."
+          }
+        ]
+      },
+      {
+        title: "ARTICLE 5: RESTRICTIONS",
+        sections: [
+          {
+            heading: "5.1 Content ID Prohibition",
+            text: "Licensee shall not register or upload the Licensed Project or Archived Fragment into YouTube Content ID, Meta Rights Manager, SoundExchange, or any automated copyright fingerprinting platform."
+          },
+          {
+            heading: "5.2 AI Dataset & Voice Cloning Prohibition",
+            text: "Licensee shall not upload or feed the Archived Fragment into any Artificial Intelligence System, generative model, voice-cloning tool, or training dataset."
+          }
+        ]
+      },
+      {
+        title: "ARTICLE 6: METADATA & CREDITS",
+        sections: [
+          {
+            heading: "6.1 Mandatory Credit",
+            text: "Credit must appear in all metadata, digital liner notes, and streaming descriptions as:\n\"Contains elements of '[Fragment Title]' provided by The Owl Clock / LOMON LLC.\" or \"Produced by CHRISTOPHER\""
+          }
+        ]
+      },
+      {
+        title: "ARTICLE 7: GOVERNING LAW",
+        sections: [
+          {
+            heading: "7.1 Governing Law & Jurisdiction",
+            text: "This Agreement is governed by the laws of the State of Georgia, USA, without regard to conflict of law principles. Exclusive jurisdiction lies within state or federal courts in Georgia."
           }
         ]
       }
@@ -1365,23 +1434,850 @@ export function generateAgreementHTML(data: LicenseAgreementData): string {
 }
 
 /**
- * Triggers browser download or popup print window for the license agreement.
+ * Generates an official, publication-grade multi-page PDF license agreement.
+ */
+export function generateLicenseAgreementPDF(data: LicenseAgreementData): jsPDF {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const margin = 16;
+  const contentWidth = pageWidth - margin * 2;
+  let y = margin;
+  let pageNumber = 1;
+
+  const tier = normalizeTierId(data.licenseTierId);
+  const legalData = getLegalArticlesForTier(tier);
+  const scheduleA = getScheduleAData(data);
+  const scheduleB = getScheduleBData(data);
+
+  const drawPageHeader = () => {
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(margin, 12, margin + contentWidth, 12);
+
+    doc.setFont("courier", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text("THE OWL CLOCK ARCHIVE • LOMON LLC", margin, 10);
+
+    const rightText = `ARCHIVE ID: ${data.archiveIdentifier || "TOC-001"} • LICENSE ID: ${data.licenseId || "TOC-LIC"}`;
+    doc.text(rightText, pageWidth - margin, 10, { align: "right" });
+  };
+
+  const drawPageFooter = (num: number) => {
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(margin, pageHeight - 12, margin + contentWidth, pageHeight - 12);
+
+    doc.setFont("courier", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(110, 110, 110);
+    doc.text(
+      "LOMON LLC • RIGHTS MANAGEMENT & PUBLISHING • ATLANTA, GA • EXECUTABLE LEGAL CONTRACT",
+      margin,
+      pageHeight - 8.5
+    );
+    doc.text(`Page ${num}`, pageWidth - margin, pageHeight - 8.5, { align: "right" });
+  };
+
+  const checkPageBreak = (neededHeight: number) => {
+    if (y + neededHeight > pageHeight - 18) {
+      drawPageFooter(pageNumber);
+      doc.addPage();
+      pageNumber++;
+      y = 16;
+      drawPageHeader();
+    }
+  };
+
+  // Header Banner
+  doc.setFillColor(12, 12, 12);
+  doc.rect(margin, y, contentWidth, 22, "F");
+
+  doc.setTextColor(245, 245, 240);
+  doc.setFont("courier", "bold");
+  doc.setFontSize(13);
+  doc.text("THE OWL CLOCK ARCHIVE", margin + 6, y + 8);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(180, 180, 180);
+  doc.text("LOMON LLC • PUBLISHING & RIGHTS MANAGEMENT • ATLANTA, GEORGIA", margin + 6, y + 14);
+
+  // Status Badge
+  doc.setFillColor(0, 150, 80);
+  doc.rect(margin + contentWidth - 36, y + 6, 30, 6.5, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.text("OFFICIAL LICENSE", margin + contentWidth - 34, y + 10.5);
+
+  y += 28;
+
+  // Document Title & Metadata
+  doc.setTextColor(20, 20, 20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text(data.licenseTierTitle || legalData.agreementTitle, margin, y);
+
+  y += 5.5;
+  doc.setFont("courier", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(90, 90, 90);
+  doc.text(`EFFECTIVE DATE: ${data.purchaseDate || new Date().toLocaleDateString()} | VERSION: ${legalData.contractVersion}`, margin, y);
+
+  y += 4;
+  doc.setDrawColor(30, 30, 30);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, margin + contentWidth, y);
+
+  y += 6;
+
+  // IMPORTANT NOTICE BOX
+  if (legalData.importantNotice && legalData.importantNotice.length > 0) {
+    const noticeText = legalData.importantNotice.join("\n\n");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    const splitNotice = doc.splitTextToSize(noticeText, contentWidth - 8);
+    const boxHeight = splitNotice.length * 3.5 + 8;
+
+    checkPageBreak(boxHeight);
+
+    doc.setFillColor(248, 248, 248);
+    doc.rect(margin, y, contentWidth, boxHeight, "F");
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.2);
+    doc.rect(margin, y, contentWidth, boxHeight, "S");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(20, 20, 20);
+    doc.text("CRITICAL NOTICE & SUMMARY OF RIGHTS:", margin + 4, y + 4.5);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.2);
+    doc.setTextColor(60, 60, 60);
+    doc.text(splitNotice, margin + 4, y + 9);
+
+    y += boxHeight + 6;
+  }
+
+  // Helper for Section Headers
+  const drawSectionHeader = (title: string) => {
+    checkPageBreak(12);
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, y, contentWidth, 6, "F");
+    doc.setDrawColor(210, 210, 210);
+    doc.setLineWidth(0.2);
+    doc.rect(margin, y, contentWidth, 6, "S");
+
+    doc.setTextColor(15, 15, 15);
+    doc.setFont("courier", "bold");
+    doc.setFontSize(8);
+    doc.text(title, margin + 3, y + 4.2);
+    y += 8;
+  };
+
+  const drawTableRow = (col1: string, col2: string, width1 = 55) => {
+    doc.setFont("courier", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(70, 70, 70);
+
+    const splitCol2 = doc.splitTextToSize(col2, contentWidth - width1 - 4);
+    const rowHeight = Math.max(splitCol2.length * 3.5, 4.5);
+
+    checkPageBreak(rowHeight + 2);
+
+    doc.text(col1, margin + 2, y + 3.2);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(20, 20, 20);
+    doc.text(splitCol2, margin + width1, y + 3.2);
+
+    y += rowHeight + 1.5;
+    doc.setDrawColor(240, 240, 240);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, margin + contentWidth, y);
+    y += 1;
+  };
+
+  // SCHEDULE A
+  drawSectionHeader("SCHEDULE A: KEY TRANSACTION TERMS & LICENSED SCOPE");
+  drawTableRow("LICENSOR:", scheduleA.licensor);
+  drawTableRow("LICENSEE LEGAL NAME:", scheduleA.licenseeLegalName);
+  drawTableRow("LICENSED FRAGMENT:", `${scheduleA.licensedFragmentTitle} (${scheduleA.archiveIdentifier})`);
+  drawTableRow("LICENSE TIER:", scheduleA.licenseTier);
+  drawTableRow("LICENSE FEE:", scheduleA.licenseFee);
+  drawTableRow("TRANSACTION REF:", scheduleA.transactionRef);
+  drawTableRow("LICENSE ID:", scheduleA.licenseId);
+  drawTableRow("DELIVERY ASSETS:", scheduleA.deliveryPackage);
+  if (scheduleA.permittedScope && scheduleA.permittedScope.length > 0) {
+    drawTableRow("PERMITTED USES:", scheduleA.permittedScope.join("; "));
+  }
+  if (data.customCredit) {
+    drawTableRow("MANDATORY CREDIT:", data.customCredit);
+  }
+  if (data.customRestrictions) {
+    drawTableRow("RESTRICTIONS:", data.customRestrictions);
+  }
+
+  y += 4;
+
+  // SCHEDULE B
+  drawSectionHeader("SCHEDULE B: COPYRIGHT OWNERSHIP & ROYALTY SPLIT SCHEDULE");
+  drawTableRow("MASTER OWNERSHIP:", scheduleB.masterOwnership);
+  drawTableRow("PUBLISHING SHARE:", scheduleB.publishingShare);
+  drawTableRow("WRITER SHARE:", scheduleB.writerShare);
+  drawTableRow("CONTENT ID / FINGERPRINTING:", scheduleB.contentIdRegistration);
+  drawTableRow("EXCLUSIVITY STATUS:", scheduleB.exclusivity);
+  drawTableRow("LICENSOR PRO:", `${scheduleB.licensorPro} (IPI: ${scheduleB.licensorWriterIpi})`);
+  drawTableRow("LICENSOR WRITER:", `${scheduleB.licensorWriterName} (${scheduleB.licensorPro})`);
+  drawTableRow("LICENSOR PUBLISHER:", `${scheduleB.licensorPublisherName} (IPI: ${scheduleB.licensorPublisherIpi})`);
+
+  y += 6;
+
+  // LEGAL ARTICLES
+  drawSectionHeader("TERMS & CONDITIONS: OFFICIAL LEGAL ARTICLES");
+
+  for (const article of legalData.articles) {
+    checkPageBreak(12);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(10, 10, 10);
+    doc.text(article.title, margin + 2, y + 4);
+    y += 7;
+
+    for (const sec of article.sections) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(30, 30, 30);
+      const splitHeading = doc.splitTextToSize(sec.heading, contentWidth - 4);
+      checkPageBreak(splitHeading.length * 3.5 + 4);
+      doc.text(splitHeading, margin + 4, y + 3);
+      y += splitHeading.length * 3.5 + 2;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.2);
+      doc.setTextColor(50, 50, 50);
+      const splitText = doc.splitTextToSize(sec.text, contentWidth - 6);
+      checkPageBreak(splitText.length * 3.2 + 4);
+      doc.text(splitText, margin + 6, y + 3);
+      y += splitText.length * 3.2 + 3.5;
+    }
+    y += 2;
+  }
+
+  // CUSTOM COVENANTS & SPECIAL PROVISIONS (CRUD Support)
+  if (data.customClauses && data.customClauses.trim()) {
+    checkPageBreak(18);
+    drawSectionHeader("SPECIAL COVENANTS & CUSTOM LEGAL PROVISIONS");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(30, 30, 30);
+    const splitCustom = doc.splitTextToSize(data.customClauses.trim(), contentWidth - 6);
+    checkPageBreak(splitCustom.length * 3.5 + 4);
+    doc.text(splitCustom, margin + 3, y + 3.5);
+    y += splitCustom.length * 3.5 + 6;
+  }
+
+  // SIGNATURE BLOCK
+  checkPageBreak(45);
+  y += 4;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, y, contentWidth, 6, "F");
+  doc.setDrawColor(210, 210, 210);
+  doc.rect(margin, y, contentWidth, 6, "S");
+  doc.setFont("courier", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(20, 20, 20);
+  doc.text("EXECUTION & SIGNATURE CONFIRMATION", margin + 3, y + 4.2);
+  y += 9;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(80, 80, 80);
+  doc.text("IN WITNESS WHEREOF, the Parties have agreed to and entered into this Agreement as of the Effective Date.", margin + 2, y);
+  y += 6;
+
+  const colW = (contentWidth - 6) / 2;
+
+  // Box 1: Licensor
+  doc.setDrawColor(200, 200, 200);
+  doc.rect(margin, y, colW, 28);
+  doc.setFont("courier", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(20, 20, 20);
+  doc.text("LICENSOR:", margin + 3, y + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(60, 60, 60);
+  doc.text("LOMON LLC (d/b/a The Owl Clock)", margin + 3, y + 9);
+  doc.text("By: Christopher Solomon Paul", margin + 3, y + 13);
+  doc.text("Title: Managing Member / Executive Producer", margin + 3, y + 17);
+  doc.setFont("courier", "normal");
+  doc.text("Digital Signature Verification: [EXECUTED - VERIFIED]", margin + 3, y + 23);
+
+  // Box 2: Licensee
+  const x2 = margin + colW + 6;
+  doc.rect(x2, y, colW, 28);
+  doc.setFont("courier", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(20, 20, 20);
+  doc.text("LICENSEE:", x2 + 3, y + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(60, 60, 60);
+  doc.text(`Legal Name: ${data.licenseeLegalName || "Purchaser Entity"}`, x2 + 3, y + 9);
+  doc.text(`Email: ${data.licenseeEmail || "Provided Upon Checkout"}`, x2 + 3, y + 13);
+  doc.text(`Status: License Granted & Bound`, x2 + 3, y + 17);
+  doc.setFont("courier", "normal");
+  doc.text(`Transaction ID: ${data.transactionRef || "LMN-TX-VERIFIED"}`, x2 + 3, y + 23);
+
+  y += 32;
+
+  // Draw footer on final page
+  drawPageFooter(pageNumber);
+
+  return doc;
+}
+
+/**
+ * Direct file download for the official license agreement (PDF by default, with HTML or TXT options).
+ * Generates high-fidelity PDF documents that can be downloaded and printed directly.
+ */
+export function downloadLicenseAgreement(data: LicenseAgreementData, format: 'pdf' | 'html' | 'txt' = 'pdf') {
+  const cleanId = (data.licenseId || data.archiveIdentifier || "TOC-LIC").replace(/[^a-zA-Z0-9_-]/g, "_");
+  const tierName = (data.licenseTierId || "agreement").toLowerCase();
+  const filename = `The_Owl_Clock_${cleanId}_${tierName}_License.${format}`;
+
+  if (format === 'pdf') {
+    try {
+      const doc = generateLicenseAgreementPDF(data);
+      doc.save(filename);
+      return;
+    } catch (err) {
+      console.warn("jsPDF license generation error, falling back to HTML", err);
+    }
+  }
+
+  let content: string;
+  let mimeType: string;
+
+  if (format === 'txt') {
+    content = getAutofilledAgreementText(data.licenseTierId || "access", data);
+    mimeType = "text/plain;charset=utf-8";
+  } else {
+    content = generateAgreementHTML(data);
+    mimeType = "text/html;charset=utf-8";
+  }
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Triggers direct browser download for the official license agreement in PDF format.
  */
 export function openOrDownloadLicenseAgreement(data: LicenseAgreementData) {
-  const html = generateAgreementHTML(data);
-  const win = window.open("", "_blank");
-  if (win) {
-    win.document.write(html);
-    win.document.close();
-  } else {
-    // Fallback download if popup blocked
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `License_Agreement_${data.licenseId || "OwlClock"}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+  downloadLicenseAgreement(data, 'pdf');
+}
+
+// ============================================================================
+// OFFICIAL RAW MARKDOWN TEMPLATES WITH PLACEHOLDERS (AS PROVIDED BY LOMON LLC)
+// ============================================================================
+
+export const OFFICIAL_LICENSE_CONTRACT_TEMPLATES: Record<string, string> = {
+  access: `# THE OWL CLOCK
+## ARCHIVE ACCESS LICENSE AGREEMENT
+**Issued by:**
+**LOMON LLC**
+A Georgia Limited Liability Company
+Operating through **THE OWL CLOCK**
+
+**License Tier:** Archive Access License
+**License Fee:** USD $150.00
+ * **ARCHIVE LICENSE NUMBER:** {{LICENSE_NUMBER}}
+ * **TRANSACTION REFERENCE:** {{TRANSACTION_ID}}
+ * **PURCHASE DATE:** {{PURCHASE_DATE}}
+ * **LICENSEE LEGAL NAME:** {{LICENSEE_LEGAL_NAME}}
+ * **LICENSED FRAGMENT TITLE:** {{FRAGMENT_TITLE}}
+ * **ARCHIVE IDENTIFIER:** {{ARCHIVE_IDENTIFIER}}
+
+### IMPORTANT LICENSE NOTICE
+This Agreement grants limited, non-exclusive commercial rights to incorporate the identified Archived Fragment into one original musical release.
+This Agreement does not sell or transfer ownership of the Archived Fragment, its underlying musical composition, its original master recording, The Owl Clock archive entry, or any related intellectual property.
+The Licensed Fragment may remain available for licensing to other parties unless it is subsequently removed from the Archive or acquired under a separate exclusive agreement.
+
+### ARTICLE 1: AGREEMENT, PARTIES AND ACCEPTANCE
+**1.1 Parties**
+This Archive Access License Agreement (“Agreement”) is entered into between **LOMON LLC**, a Georgia limited liability company operating through The Owl Clock (“Licensor”), and the individual or legal entity identified in the purchase record and Schedule A (“Licensee”).
+
+**1.2 Licensed Transaction**
+This Agreement governs the Licensee’s purchase of an Archive Access License for the Archived Fragment identified in Schedule A. The license fee for this tier is one hundred fifty United States dollars (USD $150.00), excluding applicable taxes or processing charges. The license becomes effective only upon:
+a. successful completion and confirmation of payment;
+b. provision of accurate Licensee legal information;
+c. formal identification of the Licensed Fragment; and
+d. acceptance of this Agreement by the Licensee.
+
+**1.3 Acceptance & Electronic Execution**
+The Licensee accepts and agrees to be bound by this Agreement by completing the purchase transaction, selecting an electronic acceptance checkbox, applying a digital signature, downloading the Licensed Materials, or commercially exploiting the Licensed Fragment.
+
+### ARTICLE 2: DEFINITIONS
+ * **2.1 “Archive”** means The Owl Clock system, timestamps, metadata, and files.
+ * **2.2 “Archived Fragment”** means the specific audio fragment identified in Schedule A.
+ * **2.3 “Composition”** means the underlying musical work embodied in the Archived Fragment.
+ * **2.4 “Original Master”** means the sound recording owned exclusively by Licensor.
+ * **2.5 “Licensed Materials”** means the high-resolution WAV file, Tagged Reference MP3, Clearance Certificate, and Executed Agreement delivered under this tier.
+ * **2.6 “Licensed Project”** means one new original song created by Licensee incorporating the Archived Fragment (“New Song”).
+
+### ARTICLE 3: GRANT OF LICENSE & LIMITS
+**3.1 Conditional Grant**
+Subject to full payment, Licensor grants Licensee a worldwide, non-exclusive, non-transferable license to incorporate the Archived Fragment into one Licensed Project.
+
+**3.2 Commercial Scope & Streaming Caps**
+Commercial distribution under this Archive Access License is capped strictly at:
+ * **Digital Audio Streams:** Up to 100,000 cumulative streams.
+ * **Physical & Digital Sales:** Up to 2,000 units sold.
+Exceeding these thresholds requires upgrading to a higher license tier (Commercial Release or Commercial Exploitation) prior to continued distribution.
+
+### ARTICLE 4: PUBLISHING SPLITS AND MASTER OWNERSHIP
+**4.1 Master Ownership**
+LOMON LLC retains **100% Master Ownership** of the sound recording embodied in the Archived Fragment. Licensee acquires no master ownership.
+
+**4.2 Publishing & Composition Splits**
+The underlying Composition of the Archived Fragment shall be allocated as follows for registration and royalty administration purposes:
+ * **Writer Share:** 50% LOMON LLC / 50% Licensee (or Licensee's writers).
+ * **Publisher Share:** 50% LOMON LLC / 50% Licensee's publisher.
+
+### ARTICLE 5: RESTRICTIONS
+**5.1 Content ID Prohibition**
+Licensee **shall not** register or upload the Licensed Project or Archived Fragment into YouTube Content ID, Meta Rights Manager, SoundExchange, or any automated copyright fingerprinting platform.
+**5.2 AI Dataset & Voice Cloning Prohibition**
+Licensee **shall not** upload or feed the Archived Fragment into any Artificial Intelligence System, generative model, voice-cloning tool, or training dataset.
+
+### ARTICLE 6: METADATA & CREDITS
+**6.1 Mandatory Credit**
+Credit must appear in all metadata, digital liner notes, and streaming descriptions as:
+> **"Contains elements of '{{FRAGMENT_TITLE}}' provided by The Owl Clock / LOMON LLC."** or **"Produced by CHRISTOPHER"**
+
+### ARTICLE 7: GOVERNING LAW
+This Agreement is governed by the laws of the State of Georgia, USA, without regard to conflict of law principles. Exclusive jurisdiction lies within state or federal courts in Georgia.
+
+### SCHEDULE A: ASSET DETAILS
+ * **Licensor:** LOMON LLC d/b/a The Owl Clock
+ * **Licensee Legal Name:** {{LICENSEE_LEGAL_NAME}}
+ * **Licensed Fragment Title:** {{FRAGMENT_TITLE}}
+ * **Archive Identifier:** {{ARCHIVE_IDENTIFIER}}
+ * **License Tier:** Archive Access License ($150.00 USD)
+ * **Permitted Scope:** 1 Licensed Project | 100,000 Streams | 2,000 Physical/Digital Units
+
+### SCHEDULE B: OWNERSHIP & SPLITS
+ * **Master Ownership:** 100% LOMON LLC
+ * **Publishing Split:** 50% LOMON LLC | 50% Licensee
+ * **Exclusivity:** Non-Exclusive
+ * **Contract Version:** v1.0-2026`,
+
+  release: `# THE OWL CLOCK
+## COMMERCIAL RELEASE LICENSE AGREEMENT
+**Issued by:**
+**LOMON LLC**
+A Georgia Limited Liability Company
+Operating through **THE OWL CLOCK**
+
+**License Tier:** Commercial Release License
+**License Fee:** USD $500.00
+ * **ARCHIVE LICENSE NUMBER:** {{LICENSE_NUMBER}}
+ * **TRANSACTION REFERENCE:** {{TRANSACTION_ID}}
+ * **PURCHASE DATE:** {{PURCHASE_DATE}}
+ * **LICENSEE LEGAL NAME:** {{LICENSEE_LEGAL_NAME}}
+ * **LICENSED FRAGMENT TITLE:** {{FRAGMENT_TITLE}}
+ * **ARCHIVE IDENTIFIER:** {{ARCHIVE_IDENTIFIER}}
+
+### IMPORTANT LICENSE NOTICE
+This Agreement grants non-exclusive commercial release rights to incorporate the identified Archived Fragment into one commercial musical release across digital music platforms.
+This Agreement does not sell or transfer ownership of the Archived Fragment, its underlying musical composition, or its original master recording. Master ownership remains 100% with LOMON LLC, and publishing is split 50% Writer / 50% Publisher.
+
+### ARTICLE 1: AGREEMENT, PARTIES AND ACCEPTANCE
+**1.1 Parties**
+This Commercial Release License Agreement (“Agreement”) is entered into between **LOMON LLC**, operating through The Owl Clock (“Licensor”), and the licensee identified in Schedule A (“Licensee”).
+
+**1.2 Licensed Transaction**
+Purchase of a Commercial Release License for five hundred United States dollars (USD $500.00). Effective upon confirmation of payment, provision of accurate legal info, and agreement acceptance.
+
+### ARTICLE 2: GRANT OF LICENSE & RIGHTS
+**2.1 Scope of Distribution**
+Licensor grants Licensee a worldwide, non-exclusive, non-transferable license to incorporate the Archived Fragment into one Licensed Project and commercially distribute it across Digital Music Services.
+
+**2.2 Streaming & Physical Limits**
+Commercial distribution under this Commercial Release License is capped at:
+ * **Digital Audio Streams:** Up to 1,000,000 cumulative streams.
+ * **Physical & Digital Sales:** Up to 10,000 units sold.
+Exceeding these thresholds requires upgrading to Tier 3 (Commercial Exploitation) prior to continued distribution.
+
+**2.3 Promotional Video Rights**
+Licensee may use the Licensed Project in connection with artist-controlled social media previews, official lyric videos, and up to one official promotional music video/visualizer. Third-party broadcast or commercial sync placements remain strictly prohibited.
+
+### ARTICLE 3: PUBLISHING SPLITS AND MASTER OWNERSHIP
+**3.1 Master Ownership**
+LOMON LLC retains **100% Master Ownership** of the sound recording embodied in the Archived Fragment. Licensee owns only the separable Licensee Contribution.
+
+**3.2 Publishing Allocation**
+ * **Writer Share:** 50% LOMON LLC / 50% Licensee
+ * **Publisher Share:** 50% LOMON LLC / 50% Licensee
+
+### ARTICLE 4: RESTRICTIONS
+**4.1 Content ID Prohibition**
+Licensee **shall not** register or upload the Licensed Project or Archived Fragment into YouTube Content ID, Meta Rights Manager, SoundExchange, or any automated copyright fingerprinting platform.
+**4.2 AI Dataset Restriction**
+Licensee **shall not** process the Archived Fragment through any Artificial Intelligence System, generative model, or voice-cloning tool.
+
+### ARTICLE 5: METADATA & CREDITS
+**5.1 Mandatory Credit**
+Credit must appear across all digital distribution platforms, physical packaging, and streaming metadata as:
+> **"Produced by CHRISTOPHER / The Owl Clock"** or **"Contains elements of '{{FRAGMENT_TITLE}}' provided by The Owl Clock / LOMON LLC."**
+
+### ARTICLE 6: GOVERNING LAW
+This Agreement is governed by the laws of the State of Georgia, USA. Exclusive jurisdiction lies within state or federal courts in Georgia.
+
+### SCHEDULE A: TRANSACTION DETAILS
+ * **Licensor:** LOMON LLC d/b/a The Owl Clock
+ * **Licensee Legal Name:** {{LICENSEE_LEGAL_NAME}}
+ * **Licensed Fragment Title:** {{FRAGMENT_TITLE}}
+ * **Archive Identifier:** {{ARCHIVE_IDENTIFIER}}
+ * **License Tier:** Commercial Release License ($500.00 USD)
+ * **Permitted Scope:** 1 Licensed Project | 1,000,000 Streams | 10,000 Physical/Digital Units
+
+### SCHEDULE B: OWNERSHIP & SPLITS
+ * **Master Ownership:** 100% LOMON LLC
+ * **Publishing Split:** 50% LOMON LLC | 50% Licensee
+ * **Exclusivity:** Non-Exclusive
+ * **Contract Version:** v1.2-2026`,
+
+  commercial: `# THE OWL CLOCK
+## COMMERCIAL EXPLOITATION LICENSE AGREEMENT
+**Issued by:**
+**LOMON LLC**
+A Georgia Limited Liability Company
+Operating through **THE OWL CLOCK**
+
+**License Tier:** Commercial Exploitation License
+**License Fee:** USD $1,000.00
+ * **ARCHIVE LICENSE NUMBER:** {{LICENSE_NUMBER}}
+ * **TRANSACTION REFERENCE:** {{TRANSACTION_ID}}
+ * **PURCHASE DATE:** {{PURCHASE_DATE}}
+ * **LICENSEE LEGAL NAME:** {{LICENSEE_LEGAL_NAME}}
+ * **LICENSED FRAGMENT TITLE:** {{FRAGMENT_TITLE}}
+ * **ARCHIVE IDENTIFIER:** {{ARCHIVE_IDENTIFIER}}
+
+### IMPORTANT LICENSE NOTICE
+This Agreement grants non-exclusive, unlimited commercial exploitation rights to incorporate the identified Archived Fragment into one professional musical release across all commercial channels.
+This tier includes full Production Stems and High-Resolution WAV files.
+Master ownership remains 100% with LOMON LLC, and publishing is split 50% Writer / 50% Publisher.
+
+### ARTICLE 1: AGREEMENT & GRANT OF EXPLOITATION RIGHTS
+**1.1 Grant of Rights**
+Licensor grants Licensee a worldwide, perpetual, non-exclusive, non-transferable license to incorporate the Archived Fragment into one Licensed Project and commercially exploit, distribute, perform, and monetize it without streaming limits.
+
+**1.2 Permitted Production & Stems Usage**
+Licensee may utilize the delivered Production Stems to alter, manipulate, chop, re-arrange, mix, master, adjust tempo/key, and incorporate original vocals or instrumentation.
+
+**1.3 Unlimited Streaming & Distribution**
+Licensee is granted **unlimited audio streams** and **unlimited physical/digital sales** across all Digital Music Services and commercial retail channels.
+
+**1.4 Monetized Video & Live Performance**
+Licensee is authorized to use the Licensed Project in monetized video content (YouTube, TikTok, Instagram) and public live concert venue tours and festivals.
+
+### ARTICLE 2: PUBLISHING SPLITS AND MASTER OWNERSHIP
+**2.1 Master Ownership**
+LOMON LLC retains **100% Master Ownership** of the sound recording embodied in the Archived Fragment and its underlying stems. Licensee owns only the separable Licensee Contribution.
+
+**2.2 Publishing Allocation**
+ * **Writer Share:** 50% LOMON LLC / 50% Licensee
+ * **Publisher Share:** 50% LOMON LLC / 50% Licensee
+
+### ARTICLE 3: RESTRICTIONS
+**3.1 Content ID Prohibition**
+Licensee **shall not** register or upload the Licensed Project or Archived Fragment into YouTube Content ID, Meta Rights Manager, SoundExchange, or any automated copyright fingerprinting platform.
+**3.2 AI Prohibition**
+Licensee **shall not** process the Archived Fragment through any Artificial Intelligence System, generative model, or voice-cloning tool.
+
+### ARTICLE 4: METADATA & CREDITS
+**4.1 Mandatory Credit**
+Credit must appear across all digital distribution platforms, physical packaging, and streaming metadata as:
+> **"Produced by CHRISTOPHER / The Owl Clock"** or **"Contains elements of '{{FRAGMENT_TITLE}}' provided by The Owl Clock / LOMON LLC."**
+
+### ARTICLE 5: GOVERNING LAW
+This Agreement is governed by the laws of the State of Georgia, USA. Exclusive jurisdiction lies within state or federal courts in Georgia.
+
+### SCHEDULE A: TRANSACTION DETAILS
+ * **Licensor:** LOMON LLC d/b/a The Owl Clock
+ * **Licensee Legal Name:** {{LICENSEE_LEGAL_NAME}}
+ * **Licensed Fragment Title:** {{FRAGMENT_TITLE}}
+ * **Archive Identifier:** {{ARCHIVE_IDENTIFIER}}
+ * **License Tier:** Commercial Exploitation License ($1,000.00 USD)
+ * **Delivery Package:** High-Resolution WAV, Production Stems, Metadata Package, Clearance Certificate
+ * **Permitted Scope:** 1 Licensed Project | Unlimited Streams | Unlimited Sales | Full Stems Exploitation
+
+### SCHEDULE B: OWNERSHIP & SPLITS
+ * **Master Ownership:** 100% LOMON LLC
+ * **Publishing Split:** 50% LOMON LLC | 50% Licensee
+ * **Exclusivity:** Non-Exclusive
+ * **Contract Version:** v1.5-2026`,
+
+  exclusive: `# THE OWL CLOCK
+## EXCLUSIVE ARCHIVE ACQUISITION LICENSE AGREEMENT
+**Issued by:**
+**LOMON LLC**
+A Georgia Limited Liability Company
+Operating through **THE OWL CLOCK**
+
+**License Tier:** Exclusive Archive Acquisition
+**License Fee:** USD \${{ACQUISITION_FEE_AMOUNT}} (Min. $5,000.00)
+ * **ARCHIVE LICENSE NUMBER:** {{LICENSE_NUMBER}}
+ * **TRANSACTION REFERENCE:** {{TRANSACTION_ID}}
+ * **PURCHASE DATE:** {{PURCHASE_DATE}}
+ * **LICENSEE LEGAL NAME:** {{LICENSEE_LEGAL_NAME}}
+ * **LICENSED FRAGMENT TITLE:** {{FRAGMENT_TITLE}}
+ * **ARCHIVE IDENTIFIER:** {{ARCHIVE_IDENTIFIER}}
+ * **ENTITY CLASSIFICATION:** {{ENTITY_TYPE_LABEL_OR_INDIE}}
+
+### IMPORTANT LICENSE NOTICE
+This Agreement grants 100% exclusive commercial rights and catalog removal for the identified Archived Fragment. Upon execution, the Licensed Fragment is permanently retired and removed from future public licensing by The Owl Clock.
+Prior lawfully issued non-exclusive licenses remain valid and in effect under their existing terms.
+
+### ARTICLE 1: GRANT OF EXCLUSIVE RIGHTS & CATALOG RETIREMENT
+**1.1 Exclusive Grant**
+Licensor grants Licensee a worldwide, perpetual, 100% exclusive right to incorporate, exploit, modify, perform, distribute, and monetize the Archived Fragment across all media platforms.
+
+**1.2 Catalog Retirement**
+Upon execution and full payment, Licensor permanently removes the Archived Fragment from public availability on The Owl Clock and ceases all future licensing to third parties.
+
+**1.3 Stems & Full Production Files**
+Licensee receives unrestricted access to all delivered Full Production Files and Production Stems.
+
+**1.4 Prior Non-Exclusive Licenses**
+Licensee acknowledges that any non-exclusive licenses lawfully issued prior to the execution date of this Agreement remain valid and active.
+
+### ARTICLE 2: MASTER ROYALTY POINTS & PUBLISHING ALLOCATION
+**2.1 Structure Selection**
+Per Schedule B, Master Ownership is transferred/assigned to Licensee subject to retained producer royalty points (default 4 points) or revenue splits, with Composition Publishing allocated 50% LOMON LLC / 50% Licensee.
+
+### ARTICLE 3: CONTENT ID & AI RESTRICTIONS
+**3.1 Content ID Registration**
+As exclusive owner/licensee, Licensee is permitted to register the Licensed Project into automated Content Identification Systems, provided pre-existing non-exclusive licenses are respected.
+**3.2 Public AI Restriction**
+Commercial open-source training of public generative AI voice clones remains strictly restricted.
+
+### ARTICLE 4: METADATA & CREDITS
+**4.1 Mandatory Credit**
+Credit shall be formatted as:
+> **"Produced by CHRISTOPHER"** or **"Contains elements created by CHRISTOPHER / The Owl Clock"**
+
+### ARTICLE 5: GOVERNING LAW
+This Agreement is governed by the laws of the State of Georgia, USA. Exclusive jurisdiction lies within state or federal courts in Georgia.
+
+### SCHEDULE A: TRANSACTION & ASSET DETAILS
+ * **Licensor:** LOMON LLC d/b/a The Owl Clock
+ * **Licensee Legal Name:** {{LICENSEE_LEGAL_NAME}}
+ * **Licensed Fragment Title:** {{FRAGMENT_TITLE}}
+ * **Archive Identifier:** {{ARCHIVE_IDENTIFIER}}
+ * **License Tier:** Exclusive Archive Acquisition ($5,000.00+ USD)
+ * **Catalog Status:** Retired & Permanently Removed from Archive
+
+### SCHEDULE B: EXECUTED DEAL TERMS
+ * **Deal Architecture:** {{DEAL_ARCHITECTURE_TYPE}}
+ * **Master Terms:** {{EXECUTED_MASTER_TERMS}}
+ * **Publishing Split:** {{LOMON_PUBLISHING_SHARE}}% LOMON LLC | {{LICENSEE_PUBLISHING_SHARE}}% Licensee
+ * **Exclusivity:** 100% Exclusive Acquisition & Catalog Retirement
+ * **Contract Version:** v3.0-2026`,
+
+  collaboration: `# THE OWL CLOCK
+## PRODUCER COLLABORATION AGREEMENT
+**Issued by:**
+**LOMON LLC**
+A Georgia Limited Liability Company
+Operating through **THE OWL CLOCK**
+
+**License Tier:** Producer Collaboration (Backend Split Model)
+**Upfront Fee:** USD $0.00
+ * **AGREEMENT NUMBER:** {{LICENSE_NUMBER}}
+ * **TRANSACTION REFERENCE:** {{TRANSACTION_ID}}
+ * **AGREEMENT DATE:** {{AGREEMENT_DATE}}
+ * **COLLABORATOR LEGAL NAME:** {{LICENSEE_LEGAL_NAME}}
+ * **COLLABORATION FRAGMENT TITLE:** {{FRAGMENT_TITLE}}
+ * **ARCHIVE IDENTIFIER:** {{ARCHIVE_IDENTIFIER}}
+
+### IMPORTANT AGREEMENT NOTICE
+This Agreement establishes a collaborative production partnership for the development and commercial release of one original musical work. In lieu of an upfront licensing fee, the Parties establish a backend revenue participation and master/publishing co-ownership structure.
+
+### ARTICLE 1: COLLABORATIVE RIGHTS & PRODUCTION
+**1.1 Collaborative Grant**
+Licensor delivers full stems and master audio to Collaborator for songwriting, vocal recording, mixing, and collaborative finalization.
+**1.2 Commercial Exploitation**
+Commercial release is permitted across all major digital music streaming platforms upon joint sign-off of the completed master.
+
+### ARTICLE 2: MASTER REVENUE & PUBLISHING SPLITS
+**2.1 Master Ownership & Revenue**
+Master ownership and net master distribution earnings are allocated:
+ * **LOMON LLC:** {{LOMON_MASTER_SPLIT}}%
+ * **Collaborator:** {{COLLABORATOR_MASTER_SPLIT}}%
+
+**2.2 Composition & Publishing Allocation**
+ * **Writer Share:** 50% LOMON LLC / 50% Collaborator
+ * **Publisher Share:** 50% LOMON LLC / 50% Collaborator
+
+### ARTICLE 3: RESTRICTIONS
+**3.1 Content ID**
+Content ID claiming must be jointly coordinated to avoid unauthorized copyright strikes.
+**3.2 AI Prohibition**
+No training of public generative AI voice models is permitted.
+
+### ARTICLE 4: METADATA & CREDITS
+**4.1 Mandatory Credit**
+Production credit must appear in all metadata and track listings as:
+> **"[Song Title] (prod. CHRISTOPHER)"** or **"Produced by CHRISTOPHER / The Owl Clock"**
+
+### ARTICLE 5: GOVERNING LAW
+This Agreement is governed by the laws of the State of Georgia, USA.
+
+### SCHEDULE A & B: COLLABORATION TERMS
+ * **Upfront License Fee:** $0.00 USD
+ * **Master Split:** {{LOMON_MASTER_SPLIT}}% LOMON LLC | {{COLLABORATOR_MASTER_SPLIT}}% Collaborator
+ * **Publishing Split:** 50% LOMON LLC | 50% Collaborator
+ * **Contract Version:** v1.0-2026`,
+
+  sync: `# THE OWL CLOCK
+## SYNCHRONIZATION & MASTER LICENSE AGREEMENT
+**Issued by:**
+**LOMON LLC**
+A Georgia Limited Liability Company
+Operating through **THE OWL CLOCK**
+
+**License Tier:** Synchronization & Master License
+**Sync License Fee:** USD \${{SYNC_FEE_AMOUNT}}
+ * **ARCHIVE LICENSE NUMBER:** {{LICENSE_NUMBER}}
+ * **TRANSACTION REFERENCE:** {{TRANSACTION_ID}}
+ * **EFFECTIVE DATE:** {{EFFECTIVE_DATE}}
+ * **LICENSEE LEGAL NAME:** {{LICENSEE_LEGAL_NAME}}
+ * **LICENSED FRAGMENT TITLE:** {{FRAGMENT_TITLE}}
+ * **ARCHIVE IDENTIFIER:** {{ARCHIVE_IDENTIFIER}}
+ * **DESIGNATED MEDIA PROJECT:** {{MEDIA_PROJECT_TITLE}}
+
+### IMPORTANT LICENSE NOTICE
+This Agreement grants one-stop synchronization and master synchronization rights to integrate the identified Archived Fragment into one designated visual media production across approved territories and terms.
+
+### ARTICLE 1: GRANT OF SYNCHRONIZATION RIGHTS
+**1.1 Master & Synchronization Grant**
+Licensor grants Licensee the non-exclusive right to synchronize and record the Archived Fragment in timed relation with the visual elements of the Designated Media Project.
+**1.2 Approved Media & Scope**
+Approved Media Types: {{APPROVED_MEDIA_TYPES}}
+Approved Territory: {{APPROVED_TERRITORY}}
+Approved Term: {{APPROVED_TERM}}
+
+### ARTICLE 2: RESERVATION OF RIGHTS & CUE SHEETS
+**2.1 Public Performance**
+Performance royalties are administered through PROs; Licensee shall timely file music cue sheets reflecting Licensor's 100% BMI writer and publisher credits.
+
+### ARTICLE 3: METADATA & CREDITS
+**3.1 Screen Credits**
+Credit shall appear in rolling end credits as:
+> **"Music by CHRISTOPHER / Courtesy of LOMON LLC / The Owl Clock"**
+
+### ARTICLE 4: GOVERNING LAW
+This Agreement is governed by the laws of the State of Georgia, USA.
+
+### SCHEDULE A: SYNCHRONIZATION SCHEDULE
+ * **Designated Project:** {{MEDIA_PROJECT_TITLE}}
+ * **Approved Media:** {{APPROVED_MEDIA_TYPES}}
+ * **Territory:** {{APPROVED_TERRITORY}}
+ * **Term:** {{APPROVED_TERM}}
+ * **One-Stop Fee:** USD \${{SYNC_FEE_AMOUNT}}
+ * **Contract Version:** v1.0-2026`
+};
+
+/**
+ * Replaces all {{PLACEHOLDER}} tags in templateText with data or sensible defaults.
+ */
+export function autofillAgreementTemplate(
+  templateText: string,
+  data: Partial<LicenseAgreementData> & Record<string, any>
+): string {
+  const purchaseDate = data.purchaseDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const fragmentTitle = data.fragmentTitle || "Archived Fragment";
+  let archiveId = data.archiveIdentifier || "TOC-001";
+  if (!archiveId.startsWith("TOC-")) {
+    archiveId = `TOC-${archiveId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-001`;
   }
+  const licenseNumber = data.licenseId || `TOC-LIC-${Date.now().toString().slice(-8)}`;
+  const transactionId = data.transactionRef || `LMN-TX-${Math.floor(100000 + Math.random() * 900000)}`;
+  const licenseeName = data.licenseeLegalName || "VALUED LICENSEE / PENDING ASSIGNMENT";
+
+  const replacements: Record<string, string> = {
+    "{{LICENSE_NUMBER}}": licenseNumber,
+    "{{TRANSACTION_ID}}": transactionId,
+    "{{PURCHASE_DATE}}": purchaseDate,
+    "{{AGREEMENT_DATE}}": purchaseDate,
+    "{{EFFECTIVE_DATE}}": purchaseDate,
+    "{{LICENSEE_LEGAL_NAME}}": licenseeName,
+    "{{FRAGMENT_TITLE}}": fragmentTitle,
+    "{{ARCHIVE_IDENTIFIER}}": archiveId,
+    "{{ENTITY_TYPE_LABEL_OR_INDIE}}": data.entityType || "Major Label / Independent Release Entity",
+    "{{ACQUISITION_FEE_AMOUNT}}": data.acquisitionFee || (typeof data.price === "number" ? data.price.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "5,000.00"),
+    "{{PRODUCER_ROYALTY_POINTS}}": data.producerRoyaltyPoints || "4.0",
+    "{{LOMON_PUBLISHING_SHARE}}": "50",
+    "{{LICENSEE_PUBLISHING_SHARE}}": "50",
+    "{{MASTER_REVENUE_SPLIT}}": data.masterRevenueSplit || "20",
+    "{{DEAL_ARCHITECTURE_TYPE}}": data.dealArchitectureType || "Catalog Retirement & Exclusive Acquisition",
+    "{{EXECUTED_MASTER_TERMS}}": data.executedMasterTerms || "100% Exclusive Master Ownership assigned to Licensee subject to retained 4% Producer Royalty Points and 50/50 Publishing Split",
+    "{{LOMON_MASTER_SPLIT}}": data.lomonMasterSplit || "50",
+    "{{COLLABORATOR_MASTER_SPLIT}}": data.collaboratorMasterSplit || "50",
+    "{{SYNC_FEE_AMOUNT}}": data.syncFeeAmount || (typeof data.price === "number" && data.price > 0 ? data.price.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "1,500.00"),
+    "{{MEDIA_PROJECT_TITLE}}": data.mediaProjectTitle || "Designated Media Production",
+    "{{APPROVED_TERRITORY}}": data.approvedTerritory || "Worldwide",
+    "{{APPROVED_TERM}}": data.approvedTerm || "Perpetuity",
+    "{{APPROVED_MEDIA_TYPES}}": data.approvedMediaTypes || "Film, Television, Streaming, Ad Campaigns, Video Games, Digital Web Media"
+  };
+
+  let result = templateText;
+  for (const [placeholder, val] of Object.entries(replacements)) {
+    result = result.split(placeholder).join(val);
+  }
+  return result;
+}
+
+/**
+ * Returns the filled contract text for a given tier and purchase data.
+ */
+export function getAutofilledAgreementText(
+  tierIdOrPrice: string | number,
+  data: Partial<LicenseAgreementData> & Record<string, any>
+): string {
+  const norm = normalizeTierId(tierIdOrPrice);
+  const raw = OFFICIAL_LICENSE_CONTRACT_TEMPLATES[norm] || OFFICIAL_LICENSE_CONTRACT_TEMPLATES.access;
+  let filled = autofillAgreementTemplate(raw, data);
+  if (data.customCredit && data.customCredit.trim()) {
+    filled += `\n\n### MANDATORY DIGITAL CREDIT\n${data.customCredit.trim()}\n`;
+  }
+  if (data.customRestrictions && data.customRestrictions.trim()) {
+    filled += `\n\n### SPECIAL RESTRICTIONS & TERMS\n${data.customRestrictions.trim()}\n`;
+  }
+  if (data.customClauses && data.customClauses.trim()) {
+    filled += `\n\n### SPECIAL COVENANTS & CUSTOM LEGAL PROVISIONS\n${data.customClauses.trim()}\n`;
+  }
+  return filled;
 }
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ArrowLeft, BookOpen, ShieldCheck, Sparkles, Music, Disc, Layers, Send } from "lucide-react";
+import { ArrowLeft, BookOpen, ShieldCheck, Music, Disc, Layers, Send } from "lucide-react";
 import DocumentScrollControls from "./DocumentScrollControls";
 
 interface AboutArchivePageProps {

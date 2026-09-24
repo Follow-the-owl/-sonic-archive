@@ -6,7 +6,7 @@ import {
   Search, RefreshCw, X, AlertCircle, Eye, ChevronRight, Check,
   Layers, Lock, Music, FileCheck, ArrowUpRight, Send, ArrowRightLeft,
   Trash2, ShieldAlert, User, Key, Server, Database, Clock, Copy, Plus,
-  Menu, Package, ArrowLeft, Loader2, Sparkles
+  Menu, Package, ArrowLeft, Loader2
 } from "lucide-react";
 import { Fragment, FRAGMENTS } from "../data";
 import { getAllActiveFragments } from "../lib/fragmentService";

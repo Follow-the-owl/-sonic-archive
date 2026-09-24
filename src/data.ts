@@ -52,8 +52,10 @@ export const FRAGMENT_CANONICAL_NAMES: Record<string, string> = {
   "0715": "07:15 AM",
   "7:15": "07:15 AM",
   "715": "07:15 AM",
-  "00:50": "00:50 AM",
-  "0050": "00:50 AM",
+  "12:50": "12:50 AM",
+  "1250": "12:50 AM",
+  "00:50": "12:50 AM",
+  "0050": "12:50 AM",
   "07:46": "07:46 AM",
   "0746": "07:46 AM",
   "7:46": "07:46 AM",
@@ -112,7 +114,7 @@ export function getFragmentTimeName(input: any): string {
   if (upper.includes("HARDSTONE")) return "11:28 PM";
   if (upper.includes("KRYPTONITE")) return "02:17 AM";
   if (upper.includes("SIREN") || upper.includes("TORE UP")) return "05:58 AM";
-  if (upper.includes("WATER") || upper.includes("SUBMERGED")) return "00:50 AM";
+  if (upper.includes("WATER") || upper.includes("SUBMERGED")) return "12:50 AM";
   if (upper.includes("BLACKOUT") || upper.includes("DEVIANT")) return "11:59 PM";
   if (upper.includes("RESTLESS")) return "10:14 PM";
 
@@ -333,7 +335,7 @@ export function getTimeCapsuleForFragment(fragment: Fragment): TimeCapsuleData {
   if (fragment.timeCapsule) return fragment.timeCapsule;
 
   const idClean = fragment.id.replace(/[^0-9]/g, "").padStart(4, "0");
-  const title = fragment.timestamp || fragment.name || "00:00 AM";
+  const title = fragment.timestamp || fragment.name || "12:00 AM";
   const catalogNo = `TOC-${idClean}-${fragment.isExclusive ? "EX" : "B"}`;
   const timeOfMark = `${title.split(" ")[0]}:00 ${title.split(" ")[1] || "PM"}`;
   const recoveryStamp = fragment.fullRecoveryDate || "MAY 19, 2026";

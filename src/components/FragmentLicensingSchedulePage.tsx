@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ArrowLeft, FileText, CheckCircle2, ShieldCheck, Send, Sparkles, HelpCircle, Layers, Lock, Zap } from "lucide-react";
+import { ArrowLeft, FileText, CheckCircle2, ShieldCheck, Send, HelpCircle, Layers, Lock, Zap } from "lucide-react";
 import DocumentScrollControls from "./DocumentScrollControls";
 import { DEFAULT_LICENSE_TEMPLATES } from "../licenses";
 

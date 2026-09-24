@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Mail, Send, CheckCircle2, Building2, MapPin, ShieldCheck, Clock, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, Mail, Send, CheckCircle2, Building2, MapPin, ShieldCheck, Clock, MessageSquare, FileText } from "lucide-react";
 
 interface ContactPageProps {
   onBack?: () => void;

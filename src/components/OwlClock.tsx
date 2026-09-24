@@ -218,14 +218,19 @@ export default function OwlClock({
 
     refreshFragments();
 
-    fetch("/api/fragments")
+    fetch("/api/fragments?status=published&limit=500")
       .then(res => {
         if (!res.ok) return null;
         return res.json();
       })
       .then(data => {
         if (data && data.success && Array.isArray(data.fragments) && data.fragments.length > 0) {
-          setFragments(data.fragments);
+          const published = data.fragments.filter((f: any) => 
+            (!f.status || f.status.toLowerCase() === "published") && !f.deletedAt
+          );
+          if (published.length > 0) {
+            setFragments(published);
+          }
         }
       })
       .catch(() => {
@@ -240,9 +245,16 @@ export default function OwlClock({
     };
   }, []);
 
-  // Dynamically derive directional chronological fragments from all published beats
+  // Dynamically derive directional chronological fragments strictly from active published database fragments
   const dynamicDirectionalChronoFragments = useMemo(() => {
-    const list = fragments.map(f => {
+    const publishedOnly = fragments.filter(f => {
+      const s = (f as any).status;
+      return (!s || s.toLowerCase() === "published") && !(f as any).deletedAt;
+    });
+
+    const sourceList = publishedOnly.length > 0 ? publishedOnly : fragments;
+
+    const list = sourceList.map(f => {
       const timeInfo = parseFragmentTimeDetails((f as any).fragmentTimestamp || f.timestamp || f.name || f.id);
       return {
         mappedId: f.id,
@@ -250,33 +262,51 @@ export default function OwlClock({
         minute: timeInfo.minute,
         ampm: timeInfo.ampm,
         totalMinutes: timeInfo.totalMinutes,
-        label: timeInfo.formatted
+        label: timeInfo.formatted,
+        rawFragment: f
       };
     });
+
+    // Deduplicate any items with exact same hour, minute, ampm to ensure clean wheel slots
+    const seen = new Set<string>();
+    const uniqueList: typeof list = [];
+    for (const item of list) {
+      const standardH = item.hour === 0 ? 12 : (item.hour > 12 ? (item.hour % 12 === 0 ? 12 : item.hour % 12) : item.hour);
+      const key = `${standardH}:${String(item.minute).padStart(2, "0")} ${item.ampm}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueList.push({
+          ...item,
+          hour: standardH
+        });
+      }
+    }
+
     // Sort ascending by totalMinutes in 24-hour day
-    list.sort((a, b) => a.totalMinutes - b.totalMinutes);
-    return list.length > 0 ? list : [
-      { mappedId: "07:15", hour: 7, minute: 15, ampm: "AM" as const, totalMinutes: 435, label: "07:15 AM" },
-      { mappedId: "09:41", hour: 9, minute: 41, ampm: "PM" as const, totalMinutes: 1301, label: "09:41 PM" },
-      { mappedId: "10:00", hour: 10, minute: 0, ampm: "PM" as const, totalMinutes: 1320, label: "10:00 PM" },
-      { mappedId: "11:11", hour: 11, minute: 11, ampm: "PM" as const, totalMinutes: 1391, label: "11:11 PM" }
+    uniqueList.sort((a, b) => a.totalMinutes - b.totalMinutes);
+
+    return uniqueList.length > 0 ? uniqueList : [
+      { mappedId: "07:15", hour: 7, minute: 15, ampm: "AM" as const, totalMinutes: 435, label: "07:15 AM", rawFragment: FRAGMENTS[0] },
+      { mappedId: "09:41", hour: 9, minute: 41, ampm: "PM" as const, totalMinutes: 1301, label: "09:41 PM", rawFragment: FRAGMENTS[1] },
+      { mappedId: "10:00", hour: 10, minute: 0, ampm: "PM" as const, totalMinutes: 1320, label: "10:00 PM", rawFragment: FRAGMENTS[2] },
+      { mappedId: "11:11", hour: 11, minute: 11, ampm: "PM" as const, totalMinutes: 1391, label: "11:11 PM", rawFragment: FRAGMENTS[3] }
     ];
   }, [fragments]);
 
-  // Dynamically derive clock fragments catalog
+  // Dynamically derive clock fragments catalog mapped 1:1 with dynamicDirectionalChronoFragments
   const dynamicClockFragments = useMemo<ClockFragment[]>(() => {
-    return fragments.map(f => {
-      const timeInfo = parseFragmentTimeDetails((f as any).fragmentTimestamp || f.timestamp || f.name || f.id);
+    return dynamicDirectionalChronoFragments.map(df => {
+      const f = df.rawFragment;
       return {
         id: `frag-${f.id.replace(/[^a-zA-Z0-9]/g, "")}`,
-        label: `FRAGMENT ${timeInfo.formatted}`,
+        label: `FRAGMENT ${df.label}`,
         mappedId: f.id,
         synthType: (f.synthType as any) || "keys",
         frequency: f.frequency || 440,
         description: f.description || `Time Capsule Entry ${f.timestamp || f.name}. High-fidelity recovered tape fragment carrying a ${f.tonalSignature || "harmonic"} axis at ${f.bpm || 110} BPM.`
       };
     });
-  }, [fragments]);
+  }, [dynamicDirectionalChronoFragments]);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHooting, setIsHooting] = useState<boolean>(false);
   const [isDrumMoving, setIsDrumMoving] = useState<boolean>(false);
@@ -404,7 +434,7 @@ export default function OwlClock({
   ] as const;
 
   // Scroll wheel states initialized with initialTime prop if provided (persisting chosen time across screen switches)
-  const [pickedHour, setPickedHour] = useState<number | null>(() => initialTime ? initialTime.hour : 10);
+  const [pickedHour, setPickedHour] = useState<number | null>(() => initialTime ? (initialTime.hour === 0 ? 12 : initialTime.hour) : 10);
   const [pickedMinute, setPickedMinute] = useState<number | null>(() => initialTime ? initialTime.minute : 0);
   const [pickedAMPM, setPickedAMPM] = useState<"AM" | "PM" | null>(() => initialTime ? initialTime.ampm : "PM");
   const [isManual, setIsManual] = useState<boolean>(() => !!initialTime);
@@ -463,7 +493,9 @@ export default function OwlClock({
         const cleaned = activeFrag.label.replace("FRAGMENT ", "").trim(); // "07:15 AM"
         const [timeStr, ampmStr] = cleaned.split(" ");
         const [hStr, mStr] = timeStr.split(":");
-        let h = parseInt(hStr, 10) % 12;
+        let h = parseInt(hStr, 10);
+        if (h === 0) h = 12;
+        if (h > 12) h = h % 12 === 0 ? 12 : h % 12;
         setPickedHour(h);
         setPickedMinute(parseInt(mStr, 10));
         setPickedAMPM((ampmStr || "AM") as "AM" | "PM");
@@ -545,18 +577,21 @@ export default function OwlClock({
     }
   }
 
-  // Dynamic variables for Clock Wheel Selector Card
-  const displayHour = pickedHour !== null ? pickedHour : (activeFragment ? activeFragH : currentTime.getHours() % 12);
-  const displayMinute = pickedMinute !== null ? pickedMinute : (activeFragment ? activeFragM : currentTime.getMinutes());
-  const displayAMPM = pickedAMPM !== null ? pickedAMPM : (activeFragment ? activeFragAMPM : (currentTime.getHours() >= 12 ? "PM" : "AM"));
+  // Dynamic variables for Clock Wheel Selector Card - defaults strictly to the first active published fragment
+  const defaultFrag = dynamicDirectionalChronoFragments[0];
+  const displayHour = pickedHour !== null 
+    ? (pickedHour === 0 ? 12 : pickedHour) 
+    : (activeFragment ? (activeFragH === 0 ? 12 : activeFragH) : (defaultFrag ? defaultFrag.hour : 10));
+  const displayMinute = pickedMinute !== null ? pickedMinute : (activeFragment ? activeFragM : (defaultFrag ? defaultFrag.minute : 0));
+  const displayAMPM = pickedAMPM !== null ? pickedAMPM : (activeFragment ? activeFragAMPM : (defaultFrag ? defaultFrag.ampm : "PM"));
 
-  const prevHour = displayHour === 0 ? 11 : displayHour - 1;
+  const prevHour = displayHour === 1 ? 12 : displayHour - 1;
   const prevMinute = displayMinute === 0 ? 59 : displayMinute - 1;
-  const nextHour = displayHour === 11 ? 0 : displayHour + 1;
+  const nextHour = displayHour === 12 ? 1 : displayHour + 1;
   const nextMinute = displayMinute === 59 ? 0 : displayMinute + 1;
   const fmt = (num: number) => String(num).padStart(2, "0");
 
-  // Directional timestamp adjustments (Backward / Forward) with classic slot machine spin animation & audio
+  // Directional timestamp adjustments (Backward / Forward) strictly clamping/cycling through only active published fragments in database
   const handleDirectionalShuffle = (direction: "backward" | "forward") => {
     // Dynamically flash the directional arrow indicator in fixed position
     triggerDynamicArrow(direction);
@@ -566,37 +601,35 @@ export default function OwlClock({
       shuffleTimeoutRef.current = null;
     }
 
+    const totalAvailable = dynamicDirectionalChronoFragments.length;
+    if (totalAvailable === 0) return;
+
     setIsHooting(true);
-    setIsManual(true);
     setCalibrationState("idle");
 
-    const curH = displayHour % 12;
-    const curTotalMin = (displayAMPM === "PM" ? curH + 12 : curH) * 60 + displayMinute;
+    const curH = displayHour === 0 ? 12 : displayHour;
+    const totalH24 = curH === 12 ? (displayAMPM === "PM" ? 12 : 0) : (displayAMPM === "PM" ? curH + 12 : curH);
+    const curTotalMin = totalH24 * 60 + displayMinute;
 
-    // Find index of current or closest fragment
+    // Find index of current fragment in published array
     const exactIndex = dynamicDirectionalChronoFragments.findIndex(
-      f => f.hour === (displayHour % 12) && f.minute === displayMinute && f.ampm === displayAMPM
+      f => (f.hour === 0 ? 12 : f.hour) === curH && f.minute === displayMinute && f.ampm === displayAMPM
     );
 
     let targetIndex = 0;
+    let fromIndex = 0;
+
     if (exactIndex !== -1) {
-      if (direction === "backward") {
-        targetIndex = (exactIndex - 1 + dynamicDirectionalChronoFragments.length) % dynamicDirectionalChronoFragments.length;
+      fromIndex = exactIndex;
+      if (direction === "forward") {
+        targetIndex = (exactIndex + 1) % totalAvailable;
       } else {
-        targetIndex = (exactIndex + 1) % dynamicDirectionalChronoFragments.length;
+        targetIndex = (exactIndex - 1 + totalAvailable) % totalAvailable;
       }
     } else {
-      if (direction === "backward") {
-        const earlierFrags = dynamicDirectionalChronoFragments
-          .map((f, idx) => ({ idx, diff: curTotalMin - f.totalMinutes }))
-          .filter(item => item.diff > 0);
-        if (earlierFrags.length > 0) {
-          earlierFrags.sort((a, b) => a.diff - b.diff);
-          targetIndex = earlierFrags[0].idx;
-        } else {
-          targetIndex = dynamicDirectionalChronoFragments.length - 1;
-        }
-      } else {
+      // If currently on an unassigned/manual timestamp (e.g. restricted),
+      // smoothly cycle from the closest boundary to the next valid published fragment
+      if (direction === "forward") {
         const laterFrags = dynamicDirectionalChronoFragments
           .map((f, idx) => ({ idx, diff: f.totalMinutes - curTotalMin }))
           .filter(item => item.diff > 0);
@@ -606,50 +639,50 @@ export default function OwlClock({
         } else {
           targetIndex = 0;
         }
+        fromIndex = (targetIndex - 1 + totalAvailable) % totalAvailable;
+      } else {
+        const earlierFrags = dynamicDirectionalChronoFragments
+          .map((f, idx) => ({ idx, diff: curTotalMin - f.totalMinutes }))
+          .filter(item => item.diff > 0);
+        if (earlierFrags.length > 0) {
+          earlierFrags.sort((a, b) => a.diff - b.diff);
+          targetIndex = earlierFrags[0].idx;
+        } else {
+          targetIndex = totalAvailable - 1;
+        }
+        fromIndex = (targetIndex + 1) % totalAvailable;
       }
     }
 
     const targetFrag = dynamicDirectionalChronoFragments[targetIndex] || dynamicDirectionalChronoFragments[0];
-    const dir = direction === "forward" ? 1 : -1;
-    const targetH24 = (targetFrag.ampm === "PM" ? (targetFrag.hour % 12) + 12 : (targetFrag.hour % 12));
-    const targetTotalMin = targetH24 * 60 + targetFrag.minute;
+    const stepDir = direction === "forward" ? 1 : -1;
 
-    // Full multi-spin wheel configuration (consistent multi-revolution spin regardless of distance)
-    const totalSteps = 22;
-    const landingOffsets = [180, 95, 48, 22, 9, 3, 1, 0];
-    const fastStepsCount = totalSteps - landingOffsets.length; // 14 high-velocity blur steps
-
-    // Build the reel trajectory frames
+    // Build reel trajectory frames STRICTLY through available published fragments.
+    // Dynamic Array Bounds: clamps and cycles only through active database fragments.
     const stepFrames: { hour: number; minute: number; ampm: "AM" | "PM" }[] = [];
-    for (let step = 0; step < totalSteps; step++) {
-      if (step < fastStepsCount) {
-        // Fast multi-revolution spin phase: rapidly cycle across all wheels
-        const spinAdvance = Math.round(step * 149 + Math.sin(step * 1.7) * 43 + 31);
-        const virtualMinutes = targetTotalMin - dir * (landingOffsets[0] + (fastStepsCount - step) * 163 + spinAdvance);
-        const normalizedMin = ((virtualMinutes % 1440) + 1440) % 1440;
-        const h24 = Math.floor(normalizedMin / 60);
-        const m = normalizedMin % 60;
-        const h12 = h24 % 12;
-        const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
-        stepFrames.push({ hour: h12, minute: m, ampm });
-      } else {
-        // Deceleration and precision landing phase
-        const landingIdx = step - fastStepsCount;
-        const offset = landingOffsets[landingIdx];
-        if (offset === 0) {
-          stepFrames.push({ hour: targetFrag.hour, minute: targetFrag.minute, ampm: targetFrag.ampm });
-        } else {
-          const virtualMinutes = targetTotalMin - dir * offset;
-          const normalizedMin = ((virtualMinutes % 1440) + 1440) % 1440;
-          const h24 = Math.floor(normalizedMin / 60);
-          const m = normalizedMin % 60;
-          const h12 = h24 % 12;
-          const ampm: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
-          stepFrames.push({ hour: h12, minute: m, ampm });
-        }
+
+    if (totalAvailable === 1) {
+      stepFrames.push({ hour: targetFrag.hour, minute: targetFrag.minute, ampm: targetFrag.ampm });
+    } else {
+      // Dynamic rotation count scaled automatically to published fragment count
+      const fullRevolutions = totalAvailable <= 3 ? 3 : totalAvailable <= 8 ? 2 : 1;
+      let hopsToTarget = direction === "forward"
+        ? ((targetIndex - fromIndex) % totalAvailable + totalAvailable) % totalAvailable
+        : ((fromIndex - targetIndex) % totalAvailable + totalAvailable) % totalAvailable;
+      if (hopsToTarget === 0) {
+        hopsToTarget = totalAvailable;
+      }
+      const totalHops = fullRevolutions * totalAvailable + hopsToTarget;
+
+      for (let h = 1; h <= totalHops; h++) {
+        const fragIdx = ((fromIndex + stepDir * h) % totalAvailable + totalAvailable) % totalAvailable;
+        const f = dynamicDirectionalChronoFragments[fragIdx];
+        stepFrames.push({ hour: f.hour, minute: f.minute, ampm: f.ampm });
       }
     }
 
+    const totalSteps = stepFrames.length;
+    const fastStepsCount = Math.max(1, Math.floor(totalSteps * 0.62));
     let currentStep = 0;
 
     const executeSlotStep = () => {
@@ -658,20 +691,19 @@ export default function OwlClock({
       setPickedMinute(frame.minute);
       setPickedAMPM(frame.ampm);
 
-      const progress = currentStep / (totalSteps - 1);
+      const progress = totalSteps > 1 ? currentStep / (totalSteps - 1) : 1;
 
       if (currentStep < totalSteps - 1) {
         // Play rapid to easing ratchet clicks
         playSlotSpinTick(progress);
         currentStep++;
 
-        // Delay curve: high-speed spin initially (~28-36ms), then smooth progressive deceleration to ~380ms
-        let nextDelay = 30;
+        let nextDelay = 32;
         if (currentStep >= fastStepsCount) {
           const decelProgress = (currentStep - fastStepsCount) / (totalSteps - 1 - fastStepsCount);
-          nextDelay = Math.round(35 + Math.pow(decelProgress, 2.6) * 360);
+          nextDelay = Math.round(38 + Math.pow(decelProgress, 2.5) * 280);
         } else {
-          nextDelay = 28 + Math.round((currentStep / fastStepsCount) * 8);
+          nextDelay = 28 + Math.round((currentStep / fastStepsCount) * 10);
         }
 
         shuffleTimeoutRef.current = setTimeout(executeSlotStep, nextDelay);
@@ -679,8 +711,12 @@ export default function OwlClock({
         // Final landing step: solid mechanical lock-in sound
         playSlotReelLock();
         setIsHooting(false);
+        setIsManual(false); // Reset manual flag on successful shuffle landing
         setCalibrationState("available");
         shuffleTimeoutRef.current = null;
+        if (onTimeChange) {
+          onTimeChange({ hour: targetFrag.hour, minute: targetFrag.minute, ampm: targetFrag.ampm });
+        }
       }
     };
 
@@ -740,7 +776,9 @@ export default function OwlClock({
   // Find the closest fragment circular in time (1440 minutes)
   const getFragmentCloseness = (item: ClockFragment, h: number, m: number, ampm: "AM" | "PM") => {
     const timeInfo = parseFragmentTimeDetails(item.label);
-    const targetMinutes = ((ampm === "PM" ? (h % 12) + 12 : (h % 12)) * 60) + m;
+    const standardH = h === 0 ? 12 : h;
+    const target24H = ampm === "PM" ? (standardH === 12 ? 12 : standardH + 12) : (standardH === 12 ? 0 : standardH);
+    const targetMinutes = target24H * 60 + m;
     const itemMinutes = timeInfo.totalMinutes;
 
     let diff = Math.abs(targetMinutes - itemMinutes);
@@ -751,13 +789,14 @@ export default function OwlClock({
   };
 
   const exactActualFrag = useMemo(() => {
-    return fragments.find(f => {
-      const timeInfo = parseFragmentTimeDetails((f as any).fragmentTimestamp || f.timestamp || f.name || f.id);
-      return (timeInfo.hour % 12) === (displayHour % 12) && 
-             timeInfo.minute === displayMinute && 
-             timeInfo.ampm === displayAMPM;
-    }) || null;
-  }, [fragments, displayHour, displayMinute, displayAMPM]);
+    const curH = displayHour === 0 ? 12 : displayHour;
+    const match = dynamicDirectionalChronoFragments.find(df => 
+      (df.hour === 0 ? 12 : df.hour) === curH && 
+      df.minute === displayMinute && 
+      df.ampm === displayAMPM
+    );
+    return match ? (match.rawFragment || fragments.find(f => f.id === match.mappedId) || null) : null;
+  }, [dynamicDirectionalChronoFragments, displayHour, displayMinute, displayAMPM, fragments]);
 
   const exactClockFragment = useMemo(() => {
     if (!exactActualFrag) return null;
@@ -772,11 +811,14 @@ export default function OwlClock({
     }
   };
 
-  // Automatically search and calibrate when user stops interacting (finishes interaction)
+  // Automatically validate and calibrate when user manually inputs or finishes interaction
   useEffect(() => {
     if (!isManual) return;
 
-    setCalibrationState("idle");
+    if (isDrumMoving) {
+      setCalibrationState("idle");
+      return;
+    }
 
     const timer = setTimeout(() => {
       if (exactActualFrag) {
@@ -784,17 +826,17 @@ export default function OwlClock({
       } else {
         setCalibrationState("restricted");
       }
-    }, 750); // 750ms of inactivity represents finishing interaction
+    }, 200);
 
     return () => clearTimeout(timer);
-  }, [displayHour, displayMinute, displayAMPM, isManual, exactActualFrag]);
+  }, [displayHour, displayMinute, displayAMPM, isManual, isDrumMoving, exactActualFrag]);
 
   const handleTransmit = () => {
     ensureToneStarted();
     if (exactActualFrag && onSelectFragment) {
       if (onTimeChange) {
         onTimeChange({
-          hour: displayHour,
+          hour: displayHour === 0 ? 12 : displayHour,
           minute: displayMinute,
           ampm: displayAMPM
         });
@@ -835,15 +877,26 @@ export default function OwlClock({
           
           <div 
             onClick={handleImmediateCheck}
+            onWheel={(e) => {
+              if ((e.target as HTMLElement)?.closest('[data-drum="true"]')) return;
+              e.preventDefault();
+              if (Math.abs(e.deltaY) < 15) return;
+              if (isHooting || shuffleTimeoutRef.current) return;
+              if (e.deltaY > 0) {
+                handleDirectionalShuffle("forward");
+              } else {
+                handleDirectionalShuffle("backward");
+              }
+            }}
             className="relative w-full max-w-[320px] sm:max-w-[380px] flex items-center justify-center gap-2 sm:gap-4 font-mono select-none overflow-hidden py-1 cursor-pointer"
           >
-            {/* Column 1: HOUR WHEEL DRUM */}
+            {/* Column 1: HOUR WHEEL DRUM (Strict 12-Hour Clock: 1 through 12) */}
             <WheelDrum 
               value={displayHour}
-              options={Array.from({ length: 12 }, (_, i) => i)}
+              options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
               onChange={(h) => handleHourClick(h)}
               onMovingChange={setIsDrumMoving}
-              format={(h) => fmt(h === 0 ? 12 : h)}
+              format={fmt}
               loop={true}
             />
 
@@ -897,9 +950,9 @@ export default function OwlClock({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="text-red-500/90 text-xs tracking-[0.2em] uppercase font-mono font-bold select-none"
+                  className="text-red-500/90 text-xs tracking-[0.2em] uppercase font-mono font-bold select-none flex items-center justify-center gap-1"
                 >
-                  restricted
+                  <span>( restricted )</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -916,6 +969,16 @@ export default function OwlClock({
             tabIndex={0}
             aria-label="Shuffle timestamp backward"
             onClick={() => handleDirectionalShuffle("backward")}
+            onWheel={(e) => {
+              if (Math.abs(e.deltaY) < 15) return;
+              if (isHooting || shuffleTimeoutRef.current) return;
+              e.preventDefault();
+              if (e.deltaY > 0) {
+                handleDirectionalShuffle("forward");
+              } else {
+                handleDirectionalShuffle("backward");
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -931,6 +994,16 @@ export default function OwlClock({
             tabIndex={0}
             aria-label="Shuffle timestamp forward"
             onClick={() => handleDirectionalShuffle("forward")}
+            onWheel={(e) => {
+              if (Math.abs(e.deltaY) < 15) return;
+              if (isHooting || shuffleTimeoutRef.current) return;
+              e.preventDefault();
+              if (e.deltaY > 0) {
+                handleDirectionalShuffle("forward");
+              } else {
+                handleDirectionalShuffle("backward");
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();

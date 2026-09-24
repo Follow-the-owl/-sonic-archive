@@ -3,7 +3,6 @@ import {
   ArrowLeft, 
   Send, 
   CheckCircle2, 
-  Sparkles, 
   FileText, 
   ShieldCheck, 
   Layers, 
