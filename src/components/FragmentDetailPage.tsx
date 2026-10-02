@@ -1,0 +1,1234 @@
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Play, Square, ShieldCheck, Mail, ArrowLeft, Download, Award, Volume1, Volume2, VolumeX, Radio, Pause, RotateCcw, RotateCw, SkipBack, SkipForward, Sliders, Music, Layers, X, ChevronDown, ChevronUp, Package, Lock, Loader2, CheckCircle2, FolderArchive } from "lucide-react";
+import { Fragment, getTimeCapsuleForFragment } from "../data";
+import { getAllActiveFragments, isFragmentExclusivelyAcquired } from "../lib/fragmentService";
+import TimeCapsuleOverlay from "./TimeCapsuleOverlay";
+import { playFragment, stopAudio, pauseAudio, resumeAudio, isAudioPaused, getCurrentTime, getDuration, seekAudio, setMasterVolume, getMasterVolume, getGlobalAnalyser, registerAudioCallback, getActiveId } from "../audio";
+import { RadioactiveIcon } from "./WelcomeScreen";
+import { getLicensesForFragment, LicenseTemplate } from "../licenses";
+
+const owlBackground = "https://res.cloudinary.com/dqg8pcmvz/image/upload/v1782454702/Owl_2_c5ebif.png";
+const fragmentPageBackground = "https://res.cloudinary.com/dwtqn39as/image/upload/v1781452328/5870632527817543574_omdcor.jpg";
+
+const waveHeights = [
+  8, 14, 18, 10, 6, 12, 24, 32, 16, 20, 
+  38, 28, 42, 18, 30, 24, 12, 16, 32, 45, 
+  38, 26, 14, 8, 22, 34, 18, 12, 10, 6
+];
+
+interface FragmentDetailPageProps {
+  fragment: Fragment;
+  onBack: (currentFrag?: Fragment) => void;
+  onAddToCart?: (fragment: Fragment, tierId: string, tierTitle: string, price: string) => void;
+  onRequestProposal?: (fragmentName?: string, tierTitle?: string) => void;
+}
+
+export default function FragmentDetailPage({ 
+  fragment, 
+  onBack, 
+  onAddToCart,
+  onRequestProposal 
+}: FragmentDetailPageProps) {
+  // Active fragment state allowing seamless music shifting right on the detail page
+  const [activeFrag, setActiveFrag] = useState<Fragment>(fragment);
+  const isAcquiredExclusively = isFragmentExclusivelyAcquired(activeFrag);
+  const CONTRACT_TIERS = getLicensesForFragment(activeFrag);
+  const [isPlayingBeat, setIsPlayingBeat] = useState(false);
+  const [isLoadingBeat, setIsLoadingBeat] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [showLicensePanel, setShowLicensePanel] = useState(false);
+  const [showTimeCapsuleOverlay, setShowTimeCapsuleOverlay] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({
+    "access": false,
+    "release": false,
+    "commercial": false,
+    "exclusive": false,
+    "sync": false,
+    "clearance": false
+  });
+  const [licenseSuccess, setLicenseSuccess] = useState(false);
+  const [clientEmail, setClientEmail] = useState("evianaconcepts1@gmail.com");
+  const [isProcessingLicense, setIsProcessingLicense] = useState(false);
+  const prevVolumeRef = useRef<number>(getMasterVolume() > 0 ? getMasterVolume() : 0.7);
+  const [volumeLevel, setVolumeLevel] = useState(() => (getMasterVolume() > 0 ? getMasterVolume() : 0.7));
+  const [isMuted, setIsMuted] = useState(() => getMasterVolume() === 0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  const parseDurationSec = (dur?: string) => {
+    if (!dur) return 103;
+    const parts = dur.split(":").map(p => parseInt(p, 10));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] * 60 + parts[1];
+    }
+    return 103;
+  };
+
+  const [totalDurationSec, setTotalDurationSec] = useState(() => parseDurationSec(activeFrag.duration));
+
+  // Sync activeFrag when parent prop changes
+  useEffect(() => {
+    setActiveFrag(fragment);
+    setTotalDurationSec(parseDurationSec(fragment.duration));
+  }, [fragment]);
+
+  // Track playback time elapsed
+  useEffect(() => {
+    let interval: any = null;
+    if (isPlayingBeat) {
+      interval = setInterval(() => {
+        setElapsedTime((prev) => {
+          if (prev >= totalDurationSec) {
+            pauseBeatPlay();
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } else {
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlayingBeat, totalDurationSec]);
+
+  // Interactive Synthesizer and Sequencer parameters
+  const [bpm, setBpm] = useState(activeFrag.bpm || 110);
+  const [filterCutoff, setFilterCutoff] = useState(1800);
+  const [filterResonance, setFilterResonance] = useState(3.0);
+  const [synthType, setSynthType] = useState<"sine" | "triangle" | "sawtooth" | "square">(
+    activeFrag.synthType === "keys" ? "triangle" : "sine"
+  );
+  const [activeTracks, setActiveTracks] = useState({
+    kick: true,
+    snare: true,
+    hihat: true,
+    synth: true
+  });
+  const [sequenceMatrix, setSequenceMatrix] = useState<{
+    kick: boolean[];
+    snare: boolean[];
+    hihat: boolean[];
+    synth: boolean[];
+  }>({
+    kick: [true, false, false, false, true, false, false, false],
+    snare: [false, false, true, false, false, false, true, false],
+    hihat: [true, true, true, true, true, true, true, true],
+    synth: [true, false, true, true, false, true, false, true]
+  });
+
+  // Web Audio Context & Analyzer Refs
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const beatIntervalRef = useRef<any>(null);
+  const stepTrackerRef = useRef(0);
+  const animationFrameIdRef = useRef<number | null>(null);
+
+  // Synchronized refs to safeguard against stale React state closures in the Web Audio interval loop
+  const bpmRef = useRef(bpm);
+  const filterCutoffRef = useRef(filterCutoff);
+  const filterResonanceRef = useRef(filterResonance);
+  const synthTypeRef = useRef(synthType);
+  const activeTracksRef = useRef(activeTracks);
+  const sequenceMatrixRef = useRef(sequenceMatrix);
+
+  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { filterCutoffRef.current = filterCutoff; }, [filterCutoff]);
+  useEffect(() => { filterResonanceRef.current = filterResonance; }, [filterResonance]);
+  useEffect(() => { synthTypeRef.current = synthType; }, [synthType]);
+  useEffect(() => { activeTracksRef.current = activeTracks; }, [activeTracks]);
+  useEffect(() => { sequenceMatrixRef.current = sequenceMatrix; }, [sequenceMatrix]);
+
+  // Synth hum reference nodes for background oscillation
+  const humOscRef = useRef<OscillatorNode | null>(null);
+  const humGainRef = useRef<GainNode | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+
+  // Canvas visualizer reference
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Register audio engine state listener & auto-play active fragment smoothly
+  useEffect(() => {
+    const unsubscribe = registerAudioCallback((playing, id, loading) => {
+      if (id === activeFrag.id) {
+        setIsPlayingBeat(playing);
+        setIsLoadingBeat(!!loading);
+      } else {
+        setIsPlayingBeat(false);
+        setIsLoadingBeat(false);
+      }
+    });
+
+    if (getActiveId() === activeFrag.id && !isAudioPaused()) {
+      setIsPlayingBeat(true);
+    }
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
+  }, [activeFrag.id]);
+
+  // Handle mount and cleanup
+  useEffect(() => {
+    const initTimer = setTimeout(() => {
+      startBeatPlay();
+    }, 100);
+
+    return () => {
+      clearTimeout(initTimer);
+      stopAudio();
+    };
+  }, [activeFrag.id]);
+
+  // Sync master volume
+  useEffect(() => {
+    setMasterVolume(isMuted ? 0 : volumeLevel);
+  }, [volumeLevel, isMuted]);
+
+  // Track progress and trigger canvas visualizer loop
+  useEffect(() => {
+    let progressInterval: any = null;
+    if (isPlayingBeat) {
+      progressInterval = setInterval(() => {
+        const curTime = getCurrentTime();
+        const dur = getDuration();
+        if (dur > 0) {
+          setTotalDurationSec(Math.floor(dur));
+        } else {
+          setTotalDurationSec(parseDurationSec(activeFrag.duration));
+        }
+        setElapsedTime(Math.floor(curTime));
+      }, 200);
+      startWaveformRender();
+    } else {
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
+    }
+
+    return () => {
+      if (progressInterval) clearInterval(progressInterval);
+    };
+  }, [isPlayingBeat, activeFrag.id]);
+
+  // Adjust canvas dimensions inside container dynamically
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.width = canvas.parentElement?.clientWidth || 550;
+        canvas.height = 110;
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isPlayingBeat]);
+
+  const startBeatPlay = (fragToPlay?: Fragment) => {
+    const targetFrag = fragToPlay || activeFrag;
+    playFragment(targetFrag.id, targetFrag.frequency || 110, targetFrag.synthType || "drone");
+    setIsPlayingBeat(true);
+    startWaveformRender();
+  };
+
+  const pauseBeatPlay = () => {
+    pauseAudio();
+    setIsPlayingBeat(false);
+  };
+
+  const stopBeatPlay = () => {
+    stopAudio();
+    setIsPlayingBeat(false);
+    setCurrentStep(0);
+    stepTrackerRef.current = 0;
+  };
+
+  const handleToggleBeat = () => {
+    if (isPlayingBeat) {
+      pauseBeatPlay();
+    } else {
+      startBeatPlay();
+    }
+  };
+
+  // Music Shifting & Audio Controls
+  const handleShiftMusic = (targetFrag: Fragment) => {
+    setActiveFrag(targetFrag);
+    setBpm(targetFrag.bpm || 110);
+    setTotalDurationSec(parseDurationSec(targetFrag.duration));
+    setElapsedTime(0);
+    playFragment(targetFrag.id, targetFrag.frequency || 110, targetFrag.synthType || "drone");
+  };
+
+  const handleNextTrack = () => {
+    const list = getAllActiveFragments();
+    const currentIndex = list.findIndex(f => f.id === activeFrag.id);
+    const nextIndex = (currentIndex + 1) % list.length;
+    handleShiftMusic(list[nextIndex]);
+  };
+
+  const handlePrevTrack = () => {
+    const list = getAllActiveFragments();
+    const currentIndex = list.findIndex(f => f.id === activeFrag.id);
+    const prevIndex = (currentIndex - 1 + list.length) % list.length;
+    handleShiftMusic(list[prevIndex]);
+  };
+
+  const handleSeekTo = (seconds: number) => {
+    setElapsedTime(seconds);
+    seekAudio(seconds);
+  };
+
+  const handleSeekRelative = (seconds: number) => {
+    const cur = getCurrentTime();
+    const target = Math.max(0, cur + seconds);
+    setElapsedTime(target);
+    seekAudio(target);
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    const clamped = Math.max(0, Math.min(1, newVol));
+    setVolumeLevel(clamped);
+    if (clamped > 0) {
+      prevVolumeRef.current = clamped;
+      setIsMuted(false);
+      setMasterVolume(clamped);
+    } else {
+      setIsMuted(true);
+      setMasterVolume(0);
+    }
+    if (masterGainRef.current && audioCtxRef.current) {
+      try {
+        masterGainRef.current.gain.setValueAtTime(clamped, audioCtxRef.current.currentTime);
+      } catch (_e) {}
+    }
+    if (audioElRef.current) {
+      try {
+        audioElRef.current.volume = clamped;
+      } catch (_e) {}
+    }
+  };
+
+  const handleToggleMute = () => {
+    if (isMuted || volumeLevel === 0) {
+      const restored = prevVolumeRef.current > 0 ? prevVolumeRef.current : 0.7;
+      setIsMuted(false);
+      setVolumeLevel(restored);
+      setMasterVolume(restored);
+      if (masterGainRef.current && audioCtxRef.current) {
+        try {
+          masterGainRef.current.gain.setValueAtTime(restored, audioCtxRef.current.currentTime);
+        } catch (_e) {}
+      }
+      if (audioElRef.current) {
+        try {
+          audioElRef.current.volume = restored;
+        } catch (_e) {}
+      }
+    } else {
+      prevVolumeRef.current = volumeLevel > 0 ? volumeLevel : 0.7;
+      setIsMuted(true);
+      setVolumeLevel(0);
+      setMasterVolume(0);
+      if (masterGainRef.current && audioCtxRef.current) {
+        try {
+          masterGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
+        } catch (_e) {}
+      }
+      if (audioElRef.current) {
+        try {
+          audioElRef.current.volume = 0;
+        } catch (_e) {}
+      }
+    }
+  };
+
+  const handleVolumeTrackInteraction = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const offsetX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, offsetX / rect.width));
+    handleVolumeChange(pct);
+  };
+
+  // Synthesizes a warm analog console mechanical noise and 55Hz sub oscillation
+  const startConsoleHum = (ctx: AudioContext, destination: AudioNode) => {
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(55, now); // Low deep sub baseline hum
+
+      // Delicate hum volume level to maintain mood without disturbing the user
+      gain.gain.setValueAtTime(0.015, now);
+
+      osc.connect(gain);
+      gain.connect(destination);
+
+      osc.start(now);
+      humOscRef.current = osc;
+      humGainRef.current = gain;
+    } catch (e) {
+      console.error("Hum oscillator crash:", e);
+    }
+  };
+
+  // Synthesizes high-fidelity lo-fi rhythmic drum elements on the fly
+  const triggerBeatStep = (ctx: AudioContext, analyser: AnalyserNode, step: number) => {
+    const now = ctx.currentTime;
+
+    // Resonant Lowpass filter giving it that signature low-altitude sub-bunker or bright cyber soundscape
+    const bandFilter = ctx.createBiquadFilter();
+    bandFilter.type = "lowpass";
+    bandFilter.frequency.setValueAtTime(filterCutoffRef.current, now);
+    bandFilter.Q.setValueAtTime(filterResonanceRef.current, now);
+    bandFilter.connect(analyser);
+
+    // 1. DYNAMIC MELODIC CHORD PHRASE (Custom-scaled with fragment's exact attributes!)
+    if (activeTracksRef.current.synth && sequenceMatrixRef.current.synth[step]) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      // Derive base frequency from original fragment metrics (e.g. B Major scale for 9:41 PM at 103 BPM)
+      let notes = [1.0, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875, 2.0];
+      if (activeFrag.tonalSignature?.toLowerCase().includes("minor")) {
+        notes = [1.0, 1.125, 1.2, 1.333, 1.5, 1.6, 1.78, 2.0];
+      }
+      const baseFreq = activeFrag.frequency || 246.94;
+      const stepFreq = baseFreq * notes[step % notes.length];
+      
+      osc.type = synthTypeRef.current;
+      osc.frequency.setValueAtTime(stepFreq, now);
+
+      // Pitch sweep to make the synth feel humanized and fluid
+      osc.frequency.exponentialRampToValueAtTime(stepFreq * 0.98, now + 0.35);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+      osc.connect(gain);
+      gain.connect(bandFilter);
+
+      osc.start(now);
+      osc.stop(now + 0.4);
+    }
+
+    // 2. HEAVY DEEP 808 SUB BASS SPLIT (Kicks)
+    if (activeTracksRef.current.kick && sequenceMatrixRef.current.kick[step]) {
+      const kick = ctx.createOscillator();
+      const kickGain = ctx.createGain();
+
+      kick.type = "sine";
+      kick.frequency.setValueAtTime(110, now); // high slap
+      kick.frequency.exponentialRampToValueAtTime(40, now + 0.18); // sub slide
+
+      kickGain.gain.setValueAtTime(0.75, now);
+      kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+      kick.connect(kickGain);
+      kickGain.connect(bandFilter);
+
+      kick.start(now);
+      kick.stop(now + 0.28);
+    }
+
+    // 3. RETRO CHOPPY CYBERMETIC TRAP SLAP (Claps / Snares on alternate beats)
+    if (activeTracksRef.current.snare && sequenceMatrixRef.current.snare[step]) {
+      // Synthesize noise buffer for pure sand texture
+      const bufferSize = ctx.sampleRate * 0.12; 
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noiseNode = ctx.createBufferSource();
+      noiseNode.buffer = buffer;
+
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = "bandpass";
+      noiseFilter.frequency.setValueAtTime(1400, now);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.14, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+      noiseNode.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(bandFilter);
+
+      noiseNode.start(now);
+      noiseNode.stop(now + 0.13);
+    }
+
+    // 4. METALLIC METRONOME SPEED HAT (Eighth note pulses)
+    if (activeTracksRef.current.hihat && sequenceMatrixRef.current.hihat[step]) {
+      const hat = ctx.createOscillator();
+      const hatGain = ctx.createGain();
+
+      hat.type = "triangle";
+      hat.frequency.setValueAtTime(12000, now); 
+
+      hatGain.gain.setValueAtTime(0.045, now);
+      hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+      hat.connect(hatGain);
+      hatGain.connect(bandFilter);
+
+      hat.start(now);
+      hat.stop(now + 0.05);
+    }
+  };
+
+  // Draws a beautiful premium vertical pill-shaped solid soundwave that oscillates to frequencies when playing, and shows slow sinusoidal movement when paused
+  const startWaveformRender = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const analyser = getGlobalAnalyser() || analyserRef.current;
+    const bufferLength = analyser ? analyser.frequencyBinCount : 128;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      if (!canvasRef.current) return;
+      animationFrameIdRef.current = requestAnimationFrame(draw);
+
+      const innerCanvas = canvasRef.current;
+      const innerCtx = innerCanvas.getContext("2d");
+      if (!innerCtx) return;
+
+      const activeAnalyser = getGlobalAnalyser() || analyserRef.current;
+      if (activeAnalyser) {
+        activeAnalyser.getByteFrequencyData(dataArray);
+      }
+
+      // 1. Draw solid dark background matching the surrounding card aesthetics
+      innerCtx.fillStyle = "rgba(4, 4, 3, 1)"; // Deep obsidian
+      innerCtx.fillRect(0, 0, innerCanvas.width, innerCanvas.height);
+
+      const width = innerCanvas.width;
+      const height = innerCanvas.height;
+      const centerY = height / 2;
+
+      // Vertical rounded pills configuration
+      const barWidth = 3.5;
+      const gap = 2;
+      const totalBarWidth = barWidth + gap;
+      const numBars = Math.min(110, Math.floor(width / totalBarWidth));
+      
+      const timeSecs = Date.now() * 0.0025; // Continuous timestamp for idle wave oscillation
+
+      const curTime = getCurrentTime();
+      const durTime = getDuration() || totalDurationSec;
+      const progressLimit = durTime > 0 ? (curTime / durTime) : 0.5;
+
+      for (let i = 0; i < numBars; i++) {
+        // Calculate centered x coordinate for this bar
+        const xOffset = (width - (numBars * totalBarWidth)) / 2;
+        const x = xOffset + i * totalBarWidth + barWidth / 2;
+
+        let amplitude = 0;
+        if (isPlayingBeat && activeAnalyser) {
+          // Map frequency spectrum indices from low to mid/high frequencies
+          const freqIndex = Math.floor((i / numBars) * (bufferLength * 0.7));
+          amplitude = (dataArray[freqIndex] / 255.0) * (height * 0.85);
+        } else {
+          // GENTLE IDLE OSCILLATION - Overlapping natural sine/cosine wave peaks for a continuous organic pulse
+          const sine1 = Math.sin(i * 0.12 - timeSecs) * 14;
+          const sine2 = Math.cos(i * 0.22 + timeSecs * 1.5) * 8;
+          const sine3 = Math.sin(i * 0.05 + timeSecs * 0.6) * 10;
+          amplitude = 5 + Math.abs(sine1 + sine2 + sine3);
+        }
+
+        const finalHeight = Math.max(4, Math.min(height - 10, amplitude));
+
+        // Draw vertical pill bar with round line ends
+        innerCtx.beginPath();
+        innerCtx.lineWidth = barWidth;
+        innerCtx.lineCap = "round";
+
+        // Progress coloring to mimic premium tracks (bone white on left, muted grey on right)
+        const barFraction = i / numBars;
+
+        if (barFraction <= progressLimit) {
+          innerCtx.strokeStyle = "rgba(217, 214, 202, 0.9)"; // Signature Premium Bone
+          innerCtx.shadowBlur = 4;
+          innerCtx.shadowColor = "rgba(217, 214, 202, 0.4)";
+        } else {
+          innerCtx.strokeStyle = "rgba(100, 95, 85, 0.35)"; // Muted gray-brown
+          innerCtx.shadowBlur = 0;
+        }
+
+        innerCtx.moveTo(x, centerY - finalHeight / 2);
+        innerCtx.lineTo(x, centerY + finalHeight / 2);
+        innerCtx.stroke();
+      }
+
+      // Reset shadow properties for other UI components
+      innerCtx.shadowBlur = 0;
+    };
+
+    draw();
+  };
+
+  const handleAcquireLicense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientEmail) return;
+
+    setIsProcessingLicense(true);
+
+    setTimeout(() => {
+      setIsProcessingLicense(false);
+      setLicenseSuccess(true);
+    }, 1400);
+  };
+
+  const getTierDetails = (tierId: string | null) => {
+    const tier = CONTRACT_TIERS.find(t => t.id === tierId);
+    if (tier) return tier;
+    return CONTRACT_TIERS[0];
+  };
+
+  const formattedTitle = fragment.timestamp.toUpperCase();
+
+  const formattedSegmentId = `0x${fragment.id.replace(":", "")}`;
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div 
+      id={`fragment-detail-${fragment.id}`} 
+      className="min-h-0 w-full bg-[#030303] text-[#D9D6CA] flex flex-col justify-start items-center p-3 sm:p-8 pb-3 sm:pb-8 relative select-none overflow-x-hidden bg-no-repeat"
+      style={{ 
+        backgroundImage: `linear-gradient(to bottom, rgba(3, 3, 3, 0) 0%, rgba(3, 3, 3, 0.5) 50%, rgba(3, 3, 3, 0.95) 90%, #030303 100%), url(${fragmentPageBackground})`,
+        backgroundPosition: "center 60px",
+        backgroundSize: "min(100%, 850px) auto"
+      }}
+    >
+      {/* 1. Global CRT horizontal scanline texture overlay */}
+      <div className="film-grain pointer-events-none opacity-20 z-[2]" />
+
+      {/* Absolute dark vignette overlay around the edges for atmospheric depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/90 pointer-events-none z-0" />
+
+      {/* Minimal back button positioned top-left over the illustration */}
+      <button 
+        onClick={() => onBack(activeFrag)}
+        className="absolute top-5 left-5 z-[10] flex items-center gap-1.5 text-zinc-500 hover:text-white font-mono text-[8.5px] tracking-[0.25em] transition-colors cursor-pointer uppercase py-1 px-2.5 border border-zinc-900 bg-black/70 rounded-sm"
+      >
+        ← EXIT
+      </button>
+
+      {/* Widened content container aligned directly under the background image */}
+      <div 
+        className="w-full max-w-[850px] px-2 sm:px-5 pb-0 z-[3] flex flex-col space-y-4 text-left relative"
+        style={{ marginTop: "calc(60px + min(56.25vw, 478px))" }}
+      >
+        
+        {/* Title block */}
+        <div className="space-y-1 text-left pl-0.5">
+          <span className="text-[10px] tracking-[0.4em] text-zinc-500 font-mono uppercase block font-medium leading-none">
+            FRAGMENT
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-normal tracking-[0.08em] text-[#D9D6CA] font-mono uppercase mt-1">
+            {activeFrag.timestamp}
+          </h2>
+        </div>
+
+        {/* PLAYBACK CONTROL BAR DIAL (Sleek original single-row widget with functional scrubber handle, styled in monochrome gray and white) */}
+        <div className="w-full border border-zinc-800 bg-zinc-950/90 py-3.5 px-4 rounded-sm flex items-center justify-between gap-3 shadow-[0_4px_12px_rgba(0,0,0,0.5)] font-mono">
+            
+            {/* Play/Pause Button */}
+            <button
+              onClick={handleToggleBeat}
+              className="p-1.5 text-white hover:text-zinc-300 transition-colors cursor-pointer shrink-0 flex items-center justify-center hover:scale-105 active:scale-95 duration-100"
+              title={isLoadingBeat ? "Loading..." : isPlayingBeat ? "Pause" : "Play"}
+            >
+              {isLoadingBeat ? (
+                <Loader2 size={13} className="animate-spin text-white" />
+              ) : isPlayingBeat ? (
+                <Pause size={13} className="fill-white text-white" />
+              ) : (
+                <Play size={13} className="fill-white text-white ml-0.5" />
+              )}
+            </button>
+
+            {/* Current Playback Marker Elapsed Time */}
+            <span className="text-[10px] font-mono text-zinc-300 tracking-wider w-9 select-none shrink-0">
+              {formatTime(elapsedTime)}
+            </span>
+
+            {/* Sleek Interactive Progress Bar with Scrubbing Handle */}
+            <div className="flex-grow mx-1 sm:mx-2 relative flex items-center h-5 group cursor-pointer">
+              <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white rounded-full transition-all duration-75"
+                  style={{ width: `${totalDurationSec > 0 ? (elapsedTime / totalDurationSec) * 100 : 0}%` }}
+                />
+              </div>
+              {/* White dot handle / knob */}
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)] pointer-events-none transition-transform group-hover:scale-125"
+                style={{ left: `calc(${totalDurationSec > 0 ? (elapsedTime / totalDurationSec) * 100 : 0}% - 6px)` }}
+              />
+              <input 
+                type="range"
+                min={0}
+                max={totalDurationSec || 103}
+                value={elapsedTime}
+                onChange={(e) => handleSeekTo(parseInt(e.target.value, 10))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </div>
+
+            {/* Total Duration Track length */}
+            <span className="text-[10px] font-mono text-zinc-400 tracking-wider select-none shrink-0">
+              {formatTime(totalDurationSec)}
+            </span>
+
+            {/* Volume feedback indicator and slider */}
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-2.5 border-l border-zinc-800 shrink-0">
+              <button
+                type="button"
+                onClick={handleToggleMute}
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-0.5"
+                title={isMuted || volumeLevel === 0 ? "Unmute" : "Mute"}
+                aria-label={isMuted || volumeLevel === 0 ? "Unmute sound" : "Mute sound"}
+              >
+                {isMuted || volumeLevel === 0 ? (
+                  <VolumeX size={13} className="text-zinc-500 hover:text-zinc-300" />
+                ) : volumeLevel < 0.5 ? (
+                  <Volume1 size={13} className="text-zinc-300" />
+                ) : (
+                  <Volume2 size={13} className="text-zinc-300" />
+                )}
+              </button>
+
+              {/* Interactive volume slider with custom track and tactile cursor knob */}
+              <div 
+                className="w-14 sm:w-16 relative flex items-center h-5 group cursor-pointer select-none touch-none"
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                  handleVolumeTrackInteraction(e);
+                }}
+                onPointerMove={(e) => {
+                  if (e.buttons === 1 || e.pressure > 0) {
+                    handleVolumeTrackInteraction(e);
+                  }
+                }}
+              >
+                {/* Background track rail */}
+                <div className="w-full h-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-white rounded-full transition-all duration-75"
+                    style={{ width: `${Math.round((isMuted ? 0 : volumeLevel) * 100)}%` }}
+                  />
+                </div>
+
+                {/* White circular cursor knob matching the screenshot */}
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)] pointer-events-none transition-transform group-hover:scale-125 active:scale-125"
+                  style={{ left: `calc(${Math.round((isMuted ? 0 : volumeLevel) * 100)}% - 6px)` }}
+                />
+
+                {/* Invisible HTML range input for full accessibility and mobile tap/slide handling */}
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volumeLevel}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer touch-none z-10"
+                  aria-label="Volume Level"
+                />
+              </div>
+            </div>
+        </div>
+
+        {/* HIGH-FIDELITY DETAILED TEMPORAL METADATA GRID */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px w-full border border-zinc-900 bg-zinc-900 rounded-sm overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.3)] font-mono text-[9px] sm:text-[10px] tracking-wider mt-4">
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">TONAL SIGNATURE</span>
+            <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+              {activeFrag.tonalSignature || "CHROMATIC MINOR"}
+            </span>
+          </div>
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">PULSE</span>
+            <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+              {activeFrag.bpm || 110} BPM
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowTimeCapsuleOverlay(true)}
+            className="bg-zinc-950/70 hover:bg-zinc-900/60 p-3 sm:p-4 flex flex-col justify-between text-left cursor-pointer transition-colors group"
+            title="Press to view Time Capsule metadata"
+          >
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">RECOVERY STATE</span>
+            <div className="flex items-center gap-1.5 min-h-[16px]">
+              <span className="relative inline-flex items-center justify-center w-2 h-2 shrink-0">
+                <motion.span
+                  animate={{
+                    scale: [1, 1.85, 1],
+                    opacity: [0.7, 0, 0.7],
+                  }}
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute inset-0 rounded-full bg-[#39CD74]"
+                />
+                <motion.span
+                  animate={{
+                    boxShadow: [
+                      "0 0 4px rgba(57, 205, 116, 0.5)",
+                      "0 0 12px rgba(57, 205, 116, 0.95)",
+                      "0 0 4px rgba(57, 205, 116, 0.5)"
+                    ]
+                  }}
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className={`relative w-1.5 h-1.5 rounded-full ${isAcquiredExclusively ? "bg-red-500" : "bg-[#39CD74]"}`}
+                />
+              </span>
+              <span className={`font-medium tracking-widest uppercase truncate leading-none pt-[0.5px] ${
+                isAcquiredExclusively ? "text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]" : "text-[#39CD74] drop-shadow-[0_0_8px_rgba(57,205,116,0.6)]"
+              }`}>
+                {isAcquiredExclusively ? "Exclusively Acquired" : (activeFrag.recoveryState || "Fully Recovered")}
+              </span>
+            </div>
+          </button>
+          <div className="bg-zinc-950/70 p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-zinc-500 uppercase block text-[8px] tracking-[0.2em] mb-1.5">ARCHIVIST</span>
+            <span className="text-[#D9D6CA] font-medium tracking-widest uppercase truncate">
+              {activeFrag.archivist || "LOMON SYSTEM"}
+            </span>
+          </div>
+        </div>
+
+        {/* CLEARANCE ACTION BUTTON */}
+        <div className="w-full pt-4 pb-2 font-mono">
+          {isAcquiredExclusively ? (
+            <button
+              id="fragment-request-clearance-btn"
+              type="button"
+              disabled
+              className="w-full bg-red-950/20 border border-red-900/40 text-red-400 font-mono text-[11px] sm:text-xs tracking-[0.25em] uppercase py-4 px-6 rounded-md flex items-center justify-center gap-2 cursor-not-allowed select-none shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+            >
+              <Lock size={13} className="text-red-400 shrink-0" />
+              <span>ACQUIRED EXCLUSIVELY — RETIRED</span>
+            </button>
+          ) : (
+            <button
+              id="fragment-request-clearance-btn"
+              type="button"
+              onClick={() => setShowLicensePanel(true)}
+              className="w-full bg-zinc-950/80 hover:bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-[#D9D6CA] hover:text-white font-mono text-[11px] sm:text-xs tracking-[0.25em] uppercase py-4 sm:py-4.5 px-6 rounded-md transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 shadow-[0_4px_12px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
+            >
+              <span>REQUEST CLEARANCE</span>
+              <span className="text-sm leading-none font-normal">→</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* TIME CAPSULE ARCHIVAL METADATA OVERLAY MODAL */}
+      {showTimeCapsuleOverlay && (
+        <TimeCapsuleOverlay
+          data={getTimeCapsuleForFragment(activeFrag)}
+          onClose={() => setShowTimeCapsuleOverlay(false)}
+        />
+      )}
+
+      {/* LICENSE MODAL OVERLAY IN HIGH FIDELITY */}
+      <AnimatePresence>
+        {showLicensePanel && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-black/85 backdrop-blur-md">
+            {/* Modal Container */}
+            <motion.div
+              id="licensing-modal-box"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="relative w-full max-w-4xl bg-[#0b0b0b] border border-zinc-900 rounded-lg text-white shadow-2xl flex flex-col overflow-hidden max-h-[92vh] my-auto"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-zinc-900 px-4 sm:px-6 py-3.5 sm:py-5 bg-[#050505] shrink-0">
+                <h3 className="text-xs sm:text-base font-mono font-bold tracking-[0.12em] sm:tracking-[0.15em] text-[#D9D6CA] uppercase">
+                  CHOOSE CLEARANCE TYPE
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowLicensePanel(false);
+                    setSelectedTier(null);
+                    setLicenseSuccess(false);
+                  }}
+                  className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-900/40 rounded-full transition-all cursor-pointer"
+                  title="Close panel"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Multi-Column Layout */}
+              <div className="flex flex-col md:flex-row p-4 sm:p-6 md:p-8 gap-5 md:gap-8 overflow-y-auto bg-gradient-to-b from-[#0b0b0b] to-[#040404]">
+                {/* Left Column: Track preview summary card */}
+                <div className="w-full md:w-1/4 flex flex-col items-center border-b md:border-b-0 md:border-r border-zinc-900/65 pb-4 md:pb-0 md:pr-8 shrink-0">
+                  <div className="relative group w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 bg-zinc-950 border border-[#D9D6CA]/30 overflow-hidden rounded-md shadow-[0_8px_30px_rgba(0,0,0,0.85)] flex items-center justify-center shrink-0">
+                    <img
+                      src={owlBackground}
+                      alt="The Sentinel Owl"
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700 pointer-events-none select-none"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
+
+                    {/* Circular Interactive Play Trigger Button Overlay */}
+                    <button
+                      onClick={() => {
+                        if (isPlayingBeat) {
+                          pauseBeatPlay();
+                        } else {
+                          startBeatPlay();
+                        }
+                      }}
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer z-20"
+                    >
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-[#D9D6CA] bg-[#0c0c0c]/90 flex items-center justify-center shadow-[0_0_15px_rgba(217,214,202,0.35)] transform hover:scale-105 transition-transform">
+                        {isLoadingBeat ? (
+                          <Loader2 size={14} className="animate-spin text-[#D9D6CA]" />
+                        ) : isPlayingBeat ? (
+                          <Pause size={14} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0" />
+                        ) : (
+                          <Play size={14} className="fill-[#D9D6CA] text-[#D9D6CA] ml-0.5" />
+                        )}
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Empty space after image */}
+                </div>
+
+                {/* Right Column: Tiers Selection or Checkout Forms */}
+                <div className="flex-grow space-y-3 sm:space-y-4 pr-0 sm:pr-1">
+                  {isAcquiredExclusively ? (
+                    <div className="w-full py-8 text-center flex flex-col items-center bg-red-950/20 border border-red-900/40 rounded-xl p-6 space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-red-950/60 border border-red-800/60 flex items-center justify-center text-red-400">
+                        <Lock size={20} />
+                      </div>
+                      <span className="text-xs font-bold text-red-400 tracking-[0.22em] uppercase font-mono">
+                        ARCHIVE EXCLUSIVE ACQUISITION COMPLETED
+                      </span>
+                      <p className="text-[11px] text-zinc-400 tracking-wider leading-relaxed font-mono font-light max-w-sm">
+                        This fragment has been exclusively acquired and permanently retired from the archive in accordance with Section 2 of the LOMON Covenant. All master rights and exploitation licenses are closed to public clearance.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowLicensePanel(false)}
+                        className="mt-4 text-[10px] tracking-[0.2em] font-bold text-white bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded-sm px-5 py-2.5 uppercase transition-all duration-300 cursor-pointer font-mono"
+                      >
+                        CLOSE ARCHIVE NOTICE
+                      </button>
+                    </div>
+                  ) : !selectedTier ? (
+                    /* Display Tiers list matching mockup */
+                    <div className="space-y-3 sm:space-y-4 text-left">
+                      {CONTRACT_TIERS.map((tier) => {
+                        const isExpanded = expandedTiers[tier.id] || false;
+
+                        return (
+                          <div
+                            key={tier.id}
+                            className="bg-zinc-950/80 hover:bg-zinc-950 border border-zinc-900 hover:border-zinc-800 p-3.5 sm:p-5 rounded-md flex flex-col transition-all duration-200"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                              <div className="space-y-1">
+                                <h4 className="font-bold text-[#D9D6CA] text-sm tracking-wide">
+                                  {tier.title}
+                                </h4>
+                                <span className="text-zinc-500 text-[10px] font-mono tracking-wider block uppercase">
+                                  {tier.subtitle}
+                                </span>
+                              </div>
+
+                              {/* Price check out buttons */}
+                              <button
+                                onClick={() => {
+                                  const isCollab = tier.id === "collaboration" || tier.title.toLowerCase().includes("collaboration");
+                                  const isCustomProposal = isCollab || tier.priceDisplay?.toUpperCase().includes("PROPOSAL") || tier.priceDisplay?.toUpperCase().includes("CUSTOM") || tier.id === "sync";
+                                  if (isCustomProposal && onRequestProposal) {
+                                    setShowLicensePanel(false);
+                                    onRequestProposal(activeFrag.timestamp, isCollab ? "Producer Collaboration" : tier.title);
+                                    return;
+                                  }
+                                  if (onAddToCart) {
+                                    const displayPrice = tier.priceDisplay || (tier.price ? `$${tier.price}` : "CUSTOM");
+                                    onAddToCart(fragment, tier.id, tier.title, displayPrice);
+                                  }
+                                  setShowLicensePanel(false);
+                                }}
+                                className="w-full sm:w-auto justify-center bg-[#D9D6CA] hover:bg-white text-black font-mono font-bold text-[9.5px] tracking-wider px-3.5 py-2.5 sm:py-2 flex items-center gap-1.5 transition-all shadow-[0_2px_8px_rgba(217,214,202,0.2)] rounded-sm cursor-pointer shrink-0 uppercase"
+                              >
+                                {tier.id === "collaboration" || tier.title.toLowerCase().includes("collaboration") ? (
+                                  <span>PROPOSE COLLABORATION</span>
+                                ) : tier.priceDisplay?.toUpperCase().includes("PROPOSAL") || tier.priceDisplay?.toUpperCase().includes("CUSTOM") || tier.id === "sync" ? (
+                                  <span>CUSTOM PROPOSAL</span>
+                                ) : (
+                                  <>
+                                    <Package size={10} className="fill-current text-current" />
+                                    <span>{tier.priceDisplay || `$${tier.price}`}</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Show/Hide usage terms accordion link */}
+                            <div className="mt-3 text-left">
+                              <button
+                                onClick={() =>
+                                  setExpandedTiers((prev) => ({
+                                    ...prev,
+                                    [tier.id]: !prev[tier.id],
+                                  }))
+                                }
+                                className="flex items-center gap-1 text-[8.5px] font-mono tracking-widest text-[#D9D6CA]/80 hover:text-[#D9D6CA] cursor-pointer"
+                              >
+                                {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                <span className="uppercase">{isExpanded ? "Hide usage terms" : "Show usage terms"}</span>
+                              </button>
+
+                              {/* Collapsible details container */}
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="mt-3 pl-3 border-l border-[#D9D6CA]/35 py-1 text-[10px] font-mono text-zinc-300 space-y-3">
+                                      {tier.usageTerms && tier.usageTerms.length > 0 && (
+                                        <div>
+                                          <span className="text-[#D9D6CA] text-[8.5px] uppercase tracking-wider block font-bold mb-1.5">
+                                            Usage Terms
+                                          </span>
+                                          <ul className="list-disc pl-4 space-y-1 text-zinc-300 text-[10px]">
+                                            {tier.usageTerms.map((term, idx) => (
+                                              <li key={idx}>{term}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2.5 pt-2 border-t border-zinc-900/60">
+                                        {tier.fileDelivery && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">File Delivery</span>
+                                            <span className="text-zinc-200">{tier.fileDelivery}</span>
+                                          </div>
+                                        )}
+                                        {tier.distributionLimit && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Distribution Limit</span>
+                                            <span className="text-zinc-200">{tier.distributionLimit}</span>
+                                          </div>
+                                        )}
+                                        {tier.streamingLimit && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Streaming Limit</span>
+                                            <span className="text-zinc-200">{tier.streamingLimit}</span>
+                                          </div>
+                                        )}
+                                        {tier.videoUse && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Video Use</span>
+                                            <span className="text-zinc-200">{tier.videoUse}</span>
+                                          </div>
+                                        )}
+                                        {tier.monetization && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Monetization</span>
+                                            <span className="text-zinc-200">{tier.monetization}</span>
+                                          </div>
+                                        )}
+                                        {tier.performanceRights && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Performance Rights</span>
+                                            <span className="text-zinc-200">{tier.performanceRights}</span>
+                                          </div>
+                                        )}
+                                        {tier.term && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Term</span>
+                                            <span className="text-zinc-200">{tier.term}</span>
+                                          </div>
+                                        )}
+                                        {tier.territory && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Territory</span>
+                                            <span className="text-zinc-200">{tier.territory}</span>
+                                          </div>
+                                        )}
+                                        {tier.publishingSplit && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Publishing Split</span>
+                                            <span className="text-zinc-200">{tier.publishingSplit}</span>
+                                          </div>
+                                        )}
+                                        {tier.masterOwnership && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Master Ownership</span>
+                                            <span className="text-zinc-200">{tier.masterOwnership}</span>
+                                          </div>
+                                        )}
+                                        {tier.exclusivity && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Exclusivity</span>
+                                            <span className="text-zinc-200">{tier.exclusivity}</span>
+                                          </div>
+                                        )}
+                                        {tier.contractVersion && (
+                                          <div>
+                                            <span className="text-zinc-500 text-[8px] uppercase tracking-wider block font-bold">Contract Version</span>
+                                            <span className="text-zinc-200">{tier.contractVersion}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Display secure checkout slide inside modal */
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="border border-zinc-900 bg-zinc-950 p-6 rounded-md space-y-5"
+                    >
+                      <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+                        <button
+                          onClick={() => {
+                            setSelectedTier(null);
+                            setLicenseSuccess(false);
+                          }}
+                          className="text-[9px] font-mono text-[#D9D6CA] hover:underline uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                        >
+                          ← Select another contract
+                        </button>
+                        <span className="text-[8.5px] font-mono text-zinc-500 tracking-wider">
+                          SECURE CHANCELLOR LINK
+                        </span>
+                      </div>
+
+                      {licenseSuccess ? (
+                        <div className="text-center py-6 space-y-3 font-mono">
+                          <span className="text-xs font-bold text-[#D9D6CA] tracking-widest block">
+                            ✓ TRANSACTION SECURED & DISPATCHED
+                          </span>
+                          <p className="text-[11px] text-zinc-400 font-sans font-light leading-relaxed">
+                            All calibrated mechanical outputs and premium stems for <strong className="text-white">{formattedTitle}</strong> have been compiled into your contract vault. A validation key and stem downloads catalog has been sent to <strong className="text-white">{clientEmail}</strong>.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setSelectedTier(null);
+                              setLicenseSuccess(false);
+                              setShowLicensePanel(false);
+                            }}
+                            className="text-[10px] font-mono text-black bg-[#D9D6CA] px-4 py-2 tracking-widest uppercase hover:bg-white transition-colors cursor-pointer mt-3"
+                          >
+                            Close Port
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleAcquireLicense} className="space-y-4 font-mono text-left">
+                          <div className="space-y-1">
+                            <span className="text-zinc-500 text-[8px] tracking-wider uppercase block font-bold">
+                              CONTRACT DEED // TIER SELECTED
+                            </span>
+                            <div className="text-white text-xs font-bold tracking-wide">
+                              {getTierDetails(selectedTier).title.toUpperCase()} — ${getTierDetails(selectedTier).price}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-zinc-500 uppercase tracking-widest text-[8px] font-bold block">
+                              Client Credentials Email Address *
+                            </label>
+                            <div className="relative flex items-center bg-zinc-950 border border-zinc-900 px-3 py-2.5 rounded-sm focus-within:border-[#D9D6CA]">
+                              <Mail size={12} className="text-zinc-600 mr-2 shrink-0" />
+                              <input
+                                type="email"
+                                required
+                                placeholder="YOUR DESIGNATED EMAIL VAULT..."
+                                value={clientEmail}
+                                onChange={(e) => setClientEmail(e.target.value)}
+                                className="w-full bg-transparent border-none text-[11px] text-zinc-300 outline-none placeholder:text-zinc-800"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 bg-black border border-zinc-900 text-[9.5px] text-zinc-500 rounded-sm leading-relaxed space-y-1">
+                            <span className="text-zinc-400 text-[7.5px] font-bold block tracking-wider">
+                              LICENSING MECHANICAL AGREEMENT:
+                            </span>
+                            <p className="font-sans font-light">
+                              By approving this secure checkout contract transfer, you acknowledge the terms of the mechanical and master raw audio stem usage guidelines. ZERO audio tag marks are embedded on final delivery tracks.
+                            </p>
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={isProcessingLicense}
+                            className="w-full py-3.5 bg-[#D9D6CA] hover:bg-white text-black font-semibold tracking-widest uppercase transition-colors rounded-none cursor-pointer flex items-center justify-center gap-2 text-[10px] font-mono shadow-[0_4px_12px_rgba(217,214,202,0.15)]"
+                          >
+                            <Download size={11} className="text-black" />
+                            <span>
+                              {isProcessingLicense ? "GENERATING SECURE CONTRACTS..." : "CONFIRM SECURE TRANSFER"}
+                            </span>
+                          </button>
+                        </form>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FOOTER BAR */}
+   
+    </div>
+  );
+}
