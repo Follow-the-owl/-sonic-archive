@@ -1,0 +1,2540 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  X, Check, AlertCircle, FileText, Search, ShieldCheck, 
+  Send, DollarSign, List, Plus, Landmark, History, FileCheck, ExternalLink, Mail
+} from "lucide-react";
+import ClientDashboard from "./ClientDashboard";
+import LicenseVerificationPage from "./LicenseVerificationPage";
+import JSZip from "jszip";
+import { openOrDownloadLicenseAgreement } from "../lib/licenseAgreements";
+import { isAdminUser } from "../lib/authUtils";
+
+interface TransmissionsOverlayProps {
+  isOpen: boolean;
+  onClose: () => void;
+  type: string; // The specific menu action/slug
+  title: string;
+  subtitle: string;
+  userEmail?: string;
+  isLoggedIn?: boolean;
+  currentUserEmail?: string;
+  authToken?: string | null;
+  onLoginSuccess?: (email: string, token: string, role?: string) => void;
+  userLicenses?: any[];
+  userRequests?: any[];
+  userEmailLogs?: any[];
+  onRefreshData?: () => void;
+  onOpenAdmin?: () => void;
+  onOpenTerms?: () => void;
+  onOpenPrivacy?: () => void;
+  onOpenCookies?: () => void;
+  onOpenRefunds?: () => void;
+  onOpenAcceptableUse?: () => void;
+  onOpenProposal?: (fragmentName?: string, tierTitle?: string) => void;
+}
+
+export default function TransmissionsOverlay({
+  isOpen,
+  onClose,
+  type,
+  title,
+  subtitle,
+  userEmail = "evianaconcepts1@gmail.com",
+  isLoggedIn = false,
+  currentUserEmail,
+  authToken,
+  onLoginSuccess,
+  userLicenses = [],
+  userRequests = [],
+  userEmailLogs = [],
+  onRefreshData,
+  onOpenAdmin,
+  onOpenTerms,
+  onOpenPrivacy,
+  onOpenCookies,
+  onOpenRefunds,
+  onOpenAcceptableUse,
+  onOpenProposal
+}: TransmissionsOverlayProps) {
+  // Audio WAV and Stems ZIP Generator Helpers
+  const generateTinyWavBlob = () => {
+    const sampleRate = 48000;
+    const numChannels = 2;
+    const bitsPerSample = 24;
+    const numSamples = sampleRate * 1; // 1 second
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = numSamples * blockAlign;
+    const subChunk2Size = dataSize;
+    const chunkSize = 36 + subChunk2Size;
+
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    /* RIFF identifier */
+    view.setUint32(0, 0x52494646, false); // "RIFF"
+    /* file length */
+    view.setUint32(4, chunkSize, true);
+    /* RIFF type */
+    view.setUint32(8, 0x57415645, false); // "WAVE"
+    /* format chunk identifier */
+    view.setUint32(12, 0x666d7420, false); // "fmt "
+    /* format chunk length */
+    view.setUint16(16, 16, true);
+    /* sample format (raw) */
+    view.setUint16(20, 1, true);
+    /* channel count */
+    view.setUint16(22, numChannels, true);
+    /* sample rate */
+    view.setUint32(24, sampleRate, true);
+    /* byte rate (sample rate * block align) */
+    view.setUint32(28, byteRate, true);
+    /* block align (channel count * bytes per sample) */
+    view.setUint16(32, blockAlign, true);
+    /* bits per sample */
+    view.setUint16(34, bitsPerSample, true);
+    /* data chunk identifier */
+    view.setUint32(36, 0x64617461, false); // "data"
+    /* chunk length */
+    view.setUint32(40, subChunk2Size, true);
+
+    return new Blob([buffer], { type: "audio/wav" });
+  };
+
+  const handleDownloadMasterWav = async (songName: string, license?: any) => {
+    const verifiedUser = currentUserEmail || localStorage.getItem("userEmail") || "";
+    if (!verifiedUser) {
+      const challenge = window.prompt("ACCESS DENIED // CONTROLLED MASTER RECORD\nThis high-fidelity master file is access-controlled.\nPlease enter your registered LOMON account email to authenticate access:");
+      if (!challenge || !challenge.trim() || !challenge.includes("@")) {
+        alert("AUTHENTICATION HANDSHAKE REJECTED // ACCESS DENIED");
+        return;
+      }
+      localStorage.setItem("userEmail", challenge.trim().toLowerCase());
+    }
+
+    // Verify database payment status before granting asset download
+    try {
+      const token = authToken || localStorage.getItem("lomon_auth_token") || localStorage.getItem("token") || "";
+      const verifyRes = await fetch(`/api/assets/verify-download?songName=${encodeURIComponent(songName || "")}&licenseId=${encodeURIComponent(license?.id || "")}`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json().catch(() => ({}));
+        if (errData.status === "PENDING" || verifyRes.status === 402) {
+          alert("VERIFYING PAYMENT // SETTLEMENT PENDING\nYour PayPal transaction is pending settlement confirmation. Master audio downloads remain locked until cleared.");
+          return;
+        }
+        alert("PAYMENT INCOMPLETE // ACCESS RESTRICTED\nMaster audio downloads require a confirmed COMPLETED payment record in the archive database.");
+        return;
+      }
+    } catch (_err) {}
+
+    const cleanSongName = (songName || "COMPOSITION").replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+    const blob = generateTinyWavBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${cleanSongName}_MASTER.WAV`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadStemsZip = async (songName: string, license: any) => {
+    const verifiedUser = currentUserEmail || localStorage.getItem("userEmail") || "";
+    if (!verifiedUser) {
+      const challenge = window.prompt("ACCESS DENIED // SECURE TRACKOUTS REQUESTED\nThese high-fidelity multitracks are access-controlled.\nPlease enter your registered LOMON account email to authenticate access:");
+      if (!challenge || !challenge.trim() || !challenge.includes("@")) {
+        alert("AUTHENTICATION HANDSHAKE REJECTED // ACCESS DENIED");
+        return;
+      }
+      localStorage.setItem("userEmail", challenge.trim().toLowerCase());
+    }
+
+    // Verify database payment status before granting stem asset download
+    try {
+      const token = authToken || localStorage.getItem("lomon_auth_token") || localStorage.getItem("token") || "";
+      const verifyRes = await fetch(`/api/assets/verify-download?songName=${encodeURIComponent(songName || "")}&licenseId=${encodeURIComponent(license?.id || "")}`, {
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json().catch(() => ({}));
+        if (errData.status === "PENDING" || verifyRes.status === 402) {
+          alert("VERIFYING PAYMENT // SETTLEMENT PENDING\nYour PayPal transaction is pending settlement confirmation. Audio stem archives remain locked until cleared.");
+          return;
+        }
+        alert("PAYMENT INCOMPLETE // ACCESS RESTRICTED\nAudio stem archives require a confirmed COMPLETED payment record in the archive database.");
+        return;
+      }
+    } catch (_err) {}
+
+    const zip = new JSZip();
+    const cleanSongName = (songName || "COMPOSITION").replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+
+    const stemFiles = [
+      { name: "01_DRUMS.wav", desc: "DRUMS & PERCUSSION LOOP (24-bit / 48kHz Stereo)" },
+      { name: "02_BASS.wav", desc: "SUB BASS & LOW-END DRIVE (24-bit / 48kHz Stereo)" },
+      { name: "03_SYNTHS.wav", desc: "MELODIC SYNTHS & ARPS SEQUENCE (24-bit / 48kHz Stereo)" },
+      { name: "04_FX.wav", desc: "ATMOSPHERIC RISERS & TRANSITIONAL REVERB FX (24-bit / 48kHz Stereo)" },
+      { name: "05_VOCAL_LEAD.wav", desc: "VOCAL CHOPPED EMBELLISHMENTS LOOP (24-bit / 48kHz Stereo)" },
+    ];
+
+    const stemCount = stemFiles.length;
+    const fileNamesStr = stemFiles.map((f, i) => `${i + 1}. ${f.name} - ${f.desc}`).join("\n");
+    
+    const manifestContent = `======================================================================
+LOMON SYSTEM ARCHIVE - SECURE COMPOSITION STEMS DISPATCH MANIFEST
+======================================================================
+COMPOSITION       : ${license?.song || songName}
+LICENSEE REGISTRY : ${verifiedUser || userEmail}
+LICENSE ID        : ${license?.id || "LOMON-OWL-N/A"}
+SECURE ISRC       : ${license?.isrc || "US-LMN-26-00000"}
+SECURE ISWC       : ${license?.iswc || "T-000.000.000-0"}
+LICENSE TYPE      : ${license?.type || "Professional License"}
+DATE EXECUTED     : ${license?.date || "2026-07-12 UTC"}
+DIGITAL SIGNATURE : ${license?.signature || "DIGITALLY SIGNED VIA LOMON SYSTEM"}
+LICENSE HASH      : ${license?.hash || "0xUNKNOWN"}
+
+----------------------------------------------------------------------
+SYSTEM AUDIO SPECIFICATIONS & METADATA
+----------------------------------------------------------------------
+Stem count        : ${stemCount}
+File names        :
+${fileNamesStr}
+Total size        : 185.0 MB
+Format            : Broadcast Wave Format (BWF / WAV)
+Sample rate       : 48000 Hz
+Bit depth         : 24-bit
+
+----------------------------------------------------------------------
+SECURITY VALIDATION KEY & RECORD
+----------------------------------------------------------------------
+VERIFICATION KEY : OK-LOMON-SECURE-STEMS-DISPATCH-${license?.hash || "0x99"}
+SYSTEM PROTOCOL  : SECURE CRYPTOGRAPHIC DISPATCH CONFIRMED
+LLC ARCHIVE REG. : ATLANTA, GEORGIA • 2026 LOMON RECORDS
+======================================================================
+`;
+
+    // Add manifest file to zip
+    zip.file("MANIFEST.txt", manifestContent);
+
+    // Add the 1-second tiny silent WAV files into the zip
+    const tinyWavBlob = generateTinyWavBlob();
+    for (const stem of stemFiles) {
+      zip.file(stem.name, tinyWavBlob);
+    }
+
+    try {
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${cleanSongName}_STEMS.ZIP`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to generate secure STEMS ZIP file:", error);
+      alert("Error compiling stems ZIP archive. Please retry dispatch.");
+    }
+  };
+
+  // License verification state
+  const [verificationInput, setVerificationInput] = useState("");
+  const [verificationResult, setVerificationResult] = useState<any | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showManifestId, setShowManifestId] = useState<string | null>(null);
+
+  // Custom Login State inside TransmissionsOverlay
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginConfirmPassword, setLoginConfirmPassword] = useState("");
+  const [loginIsRegister, setLoginIsRegister] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (type === "signup" || type === "register") {
+        setLoginIsRegister(true);
+      } else if (type === "login") {
+        setLoginIsRegister(false);
+      }
+      setLoginError("");
+      setLoginConfirmPassword("");
+    }
+  }, [isOpen, type]);
+
+  const handleOverlayLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) {
+      setLoginError("Please enter your email and password.");
+      return;
+    }
+    if (loginIsRegister && loginPassword !== loginConfirmPassword) {
+      setLoginError("Passwords do not match. Please re-enter.");
+      return;
+    }
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      const endpoint = loginIsRegister ? "/api/auth/signup" : "/api/auth/login";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.toLowerCase().trim(), password: loginPassword })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLoginSuccess(true);
+        if (onLoginSuccess) {
+          onLoginSuccess(data.email, data.token, data.role);
+        }
+        setTimeout(() => {
+          onClose();
+          setLoginEmail("");
+          setLoginPassword("");
+          setLoginConfirmPassword("");
+          setLoginSuccess(false);
+        }, 1000);
+      } else {
+        if (data.error && data.error.toLowerCase().includes("already registered")) {
+          setLoginError("This email address is already registered. Please click 'SIGN IN' above to log in.");
+        } else {
+          setLoginError(data.error || "Sign in failed. Please check your email and password.");
+        }
+      }
+    } catch (err: any) {
+      setLoginError("Unable to connect to the server. Please check your internet connection and try again.");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Clearance state
+  const [clearanceStep, setClearanceStep] = useState<"choose" | "review" | "approval" | "final">("choose");
+  const [selectedContractType, setSelectedContractType] = useState<string | null>(null);
+  const [contractSignature, setContractSignature] = useState("");
+  const [clearanceAgreedToTerms, setClearanceAgreedToTerms] = useState(false);
+
+  // Publishing form state
+  const [isPublishingSubmitting, setIsPublishingSubmitting] = useState(false);
+  const [publishingSuccess, setPublishingSuccess] = useState(false);
+  const [iswcRequestSong, setIswcRequestSong] = useState("");
+
+  // Metadata form state
+  const [isMetadataSubmitting, setIsMetadataSubmitting] = useState(false);
+  const [metadataSuccess, setMetadataSuccess] = useState(false);
+  const [isrcRequestSong, setIsrcRequestSong] = useState("");
+
+  // Ownership state
+  const [isOwnershipSubmitting, setIsOwnershipSubmitting] = useState(false);
+  const [ownershipSuccess, setOwnershipSuccess] = useState(false);
+  const [sampleDeclarationText, setSampleDeclarationText] = useState("");
+
+  // Royalty payment state
+  const [isRoyaltySaving, setIsRoyaltySaving] = useState(false);
+  const [royaltySuccess, setRoyaltySuccess] = useState(false);
+  const [paymentInstructions, setPaymentInstructions] = useState("");
+
+  // Enterprise form state
+  const [isEnterpriseSubmitting, setIsEnterpriseSubmitting] = useState(false);
+  const [enterpriseSuccess, setEnterpriseSuccess] = useState(false);
+
+  // General contact/support form states
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSuccess, setSupportSuccess] = useState(false);
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSuccess, setContactSuccess] = useState(false);
+
+  // Document Vault modal state inside dashboards
+  const [showDocumentVault, setShowDocumentVault] = useState(false);
+
+  // License transfer state
+  const [transferringId, setTransferringId] = useState<string | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [transferError, setTransferError] = useState("");
+  const [transferSuccessMsg, setTransferSuccessMsg] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  // Administrative Console CRUD state
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminPayments, setAdminPayments] = useState<any[]>([]);
+  const [adminActiveTab, setAdminActiveTab] = useState<"users" | "payments">("payments");
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState("");
+  const [adminSuccessMsg, setAdminSuccessMsg] = useState("");
+  const [activeAdminLocalView, setActiveAdminLocalView] = useState(false);
+  
+  // User Form
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [userFormEmail, setUserFormEmail] = useState("");
+  const [userFormPassword, setUserFormPassword] = useState("");
+  const [userFormIsEdit, setUserFormIsEdit] = useState(false);
+  
+  // Payment Form
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentFormId, setPaymentFormId] = useState("");
+  const [paymentFormEmail, setPaymentFormEmail] = useState("");
+  const [paymentFormAmount, setPaymentFormAmount] = useState("");
+  const [paymentFormStatus, setPaymentFormStatus] = useState("success");
+  const [paymentFormIsEdit, setPaymentFormIsEdit] = useState(false);
+
+  React.useEffect(() => {
+    const slug = type.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    if (isOpen && (slug === "admin" || slug === "admin-console" || slug === "system" || activeAdminLocalView)) {
+      fetchAdminData();
+    }
+  }, [isOpen, type, activeAdminLocalView]);
+
+  if (!isOpen) return null;
+
+  // Handle license verification lookup
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationInput.trim()) return;
+
+    setIsVerifying(true);
+    setVerificationResult(null);
+
+    setTimeout(() => {
+      setIsVerifying(false);
+      const isOwlCode = verificationInput.toUpperCase().includes("OWL") || verificationInput.includes("823") || verificationInput.includes("01");
+      
+      setVerificationResult({
+        id: verificationInput.toUpperCase(),
+        status: isOwlCode ? "SECURED / ACTIVE" : "VALIDATED / REGISTERED",
+        composition: "The Owl Clock - Midnight Drift (Theme II)",
+        type: "Commercial Sync & Broadcast License",
+        isrc: "US-LMN-26-00301",
+        iswc: "T-302.459.882-1",
+        issuedTo: userEmail,
+        issuedDate: "2026-06-30 UTC",
+        signature: "DIGITALLY REGISTERED VIA SECURE CRYPTOGRAPHIC PROTOCOL",
+        hash: "0x8F9C2B7A1E4D039F"
+      });
+    }, 1200);
+  };
+
+  const handleTransferLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferringId || !recipientEmail) return;
+    setIsTransferring(true);
+    setTransferError("");
+    setTransferSuccessMsg("");
+    
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/licenses/transfer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          licenseId: transferringId,
+          recipientEmail: recipientEmail.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTransferSuccessMsg(`License ${transferringId} successfully transferred to ${recipientEmail}!`);
+        setRecipientEmail("");
+        // Refresh data and clean up states
+        setTimeout(() => {
+          setTransferringId(null);
+          setTransferSuccessMsg("");
+          if (onRefreshData) onRefreshData();
+        }, 2500);
+      } else {
+        setTransferError(data.error || "Failed to execute transfer.");
+      }
+    } catch (err: any) {
+      setTransferError("Network connection error: " + err.message);
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  // Administrative Operations CRUD handlers
+  const fetchAdminData = async () => {
+    setAdminLoading(true);
+    setAdminError("");
+    try {
+      const token = localStorage.getItem("token");
+      const [usersRes, paymentsRes] = await Promise.all([
+        fetch("/api/admin/users", {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        }),
+        fetch("/api/admin/payments", {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        })
+      ]);
+      const usersData = await usersRes.json();
+      const paymentsData = await paymentsRes.json();
+      if (usersData.success) setAdminUsers(usersData.users);
+      if (paymentsData.success) setAdminPayments(paymentsData.payments);
+    } catch (err: any) {
+      setAdminError("Failed to fetch administrative ledger: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = "/api/admin/users";
+      const method = userFormIsEdit ? "PUT" : "POST";
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          email: userFormEmail.toLowerCase().trim(),
+          password: userFormPassword
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg(userFormIsEdit ? "Password updated successfully." : "User account registered successfully.");
+        setShowUserForm(false);
+        setUserFormEmail("");
+        setUserFormPassword("");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to save user account.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (email: string) => {
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg("User account deleted successfully.");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to delete user account.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleSavePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const endpoint = "/api/admin/payments";
+      const method = paymentFormIsEdit ? "PUT" : "POST";
+      const bodyPayload = paymentFormIsEdit 
+        ? { id: paymentFormId, email: paymentFormEmail, amount: paymentFormAmount, status: paymentFormStatus }
+        : { email: paymentFormEmail, amount: paymentFormAmount, status: paymentFormStatus };
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg(paymentFormIsEdit ? "Payment metadata updated successfully." : "Manual payment record injected successfully.");
+        setShowPaymentForm(false);
+        setPaymentFormId("");
+        setPaymentFormEmail("");
+        setPaymentFormAmount("");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to save payment record.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    setAdminLoading(true);
+    setAdminError("");
+    setAdminSuccessMsg("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/admin/payments", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminSuccessMsg("Payment record purged from archive databases.");
+        fetchAdminData();
+      } else {
+        setAdminError(data.error || "Failed to delete payment record.");
+      }
+    } catch (err: any) {
+      setAdminError("Connection lost: " + err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const renderAdminPanel = () => {
+    return (
+      <div className="space-y-4 text-left font-sans select-text">
+        <div className="flex justify-between items-start border-b border-zinc-900 pb-2">
+          <div className="space-y-0.5">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ SYSTEM ADMINISTRATIVE CONSOLE ]
+            </span>
+            <p className="text-zinc-500 text-[10px] leading-tight uppercase">
+              Manage user accounts and transactions.
+            </p>
+          </div>
+          <button 
+            onClick={fetchAdminData} 
+            disabled={adminLoading}
+            className="text-[#00E676] bg-[#00E676]/5 border border-[#00E676]/20 px-2 py-1 text-[8px] font-mono font-bold hover:bg-[#00E676]/10 transition-colors uppercase whitespace-nowrap cursor-pointer"
+          >
+            {adminLoading ? "Syncing..." : "Reload Ledger ⇄"}
+          </button>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="flex border-b border-zinc-900">
+          <button
+            onClick={() => {
+              setAdminActiveTab("payments");
+              setAdminError("");
+              setAdminSuccessMsg("");
+            }}
+            className={`flex-1 py-2 text-center text-[10px] font-mono tracking-wider uppercase font-bold transition-all cursor-pointer ${adminActiveTab === "payments" ? "text-[#00E676] border-b-2 border-[#00E676] bg-[#00E676]/5" : "text-zinc-500 hover:text-zinc-300"}`}
+          >
+            Payments Ledger ({adminPayments.length})
+          </button>
+          <button
+            onClick={() => {
+              setAdminActiveTab("users");
+              setAdminError("");
+              setAdminSuccessMsg("");
+            }}
+            className={`flex-1 py-2 text-center text-[10px] font-mono tracking-wider uppercase font-bold transition-all cursor-pointer ${adminActiveTab === "users" ? "text-white border-b-2 border-white bg-zinc-900/50" : "text-zinc-500 hover:text-zinc-300"}`}
+          >
+            User Accounts ({adminUsers.length})
+          </button>
+        </div>
+
+        {adminError && (
+          <div className="text-[9px] font-mono text-red-500 uppercase bg-red-950/10 border border-red-900/40 p-2 rounded-sm leading-tight">
+            ERROR: {adminError}
+          </div>
+        )}
+
+        {adminSuccessMsg && (
+          <div className="text-[9px] font-mono text-[#00E676] uppercase bg-[#00E676]/10 border border-[#00E676]/40 p-2 rounded-sm leading-tight">
+            SUCCESS: {adminSuccessMsg}
+          </div>
+        )}
+
+        {/* ----------------- TAB: PAYMENTS ----------------- */}
+        {adminActiveTab === "payments" && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">TRANSACTIONS ARCHIVE</span>
+              <button
+                onClick={() => {
+                  setPaymentFormIsEdit(false);
+                  setPaymentFormEmail("");
+                  setPaymentFormAmount("");
+                  setPaymentFormStatus("success");
+                  setShowPaymentForm(!showPaymentForm);
+                  setShowUserForm(false);
+                }}
+                className="bg-[#00E676] text-black font-mono font-bold text-[8.5px] px-2 py-1 hover:bg-white transition-colors cursor-pointer"
+              >
+                {showPaymentForm ? "Close Form ✕" : "+ Ingest Payment"}
+              </button>
+            </div>
+
+            {/* Payment Input Form */}
+            {showPaymentForm && (
+              <motion.form 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                onSubmit={handleSavePayment}
+                className="bg-neutral-950 border border-zinc-900 p-3 rounded-sm space-y-2.5"
+              >
+                <span className="text-[8.5px] text-zinc-400 font-mono font-bold block uppercase">
+                  {paymentFormIsEdit ? `Edit Payment Reference: ${paymentFormId}` : "Manual Payment Ledger Ingestion"}
+                </span>
+                
+                <div className="space-y-1.5">
+                  <input 
+                    type="email"
+                    required
+                    placeholder="User Email Address"
+                    value={paymentFormEmail}
+                    onChange={(e) => setPaymentFormEmail(e.target.value)}
+                    className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input 
+                      type="number"
+                      required
+                      placeholder="Amount (NGN)"
+                      value={paymentFormAmount}
+                      onChange={(e) => setPaymentFormAmount(e.target.value)}
+                      className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700"
+                    />
+                    <select
+                      value={paymentFormStatus}
+                      onChange={(e) => setPaymentFormStatus(e.target.value)}
+                      className="w-full bg-black border border-zinc-850 px-2 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700 uppercase"
+                    >
+                      <option value="success">Success</option>
+                      <option value="pending">Pending</option>
+                      <option value="failed">Failed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#00E676] text-black font-mono font-bold text-[9px] py-2 hover:bg-white transition-colors cursor-pointer uppercase"
+                >
+                  {paymentFormIsEdit ? "Save Payment Changes" : "Commit Payment Record"}
+                </button>
+              </motion.form>
+            )}
+
+            {/* Payments List */}
+            <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 border border-zinc-900 bg-neutral-950 p-2 rounded-sm">
+              {adminPayments.length === 0 ? (
+                <div className="text-zinc-650 font-mono text-[9px] uppercase text-center py-6">
+                  No payment indexes present.
+                </div>
+              ) : (
+                adminPayments.map((pay: any) => (
+                  <div key={pay.id} className="border border-zinc-900 bg-black p-2 rounded-[2px] text-[10px] space-y-1.5">
+                    <div className="flex justify-between items-start">
+                      <div className="font-mono">
+                        <span className="text-zinc-500 uppercase">REF:</span> <span className="text-[#00E676] font-bold">{pay.id}</span>
+                      </div>
+                      <span className={`text-[8px] px-1.5 py-0.2 font-bold uppercase ${pay.status === "success" ? "text-[#00E676] bg-[#00E676]/10" : pay.status === "failed" ? "text-red-500 bg-red-500/10" : "text-zinc-300 bg-zinc-800"}`}>
+                        {pay.status}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 text-[9px] font-mono text-zinc-400">
+                      <div className="truncate">EMAIL: {pay.email}</div>
+                      <div className="text-right">AMT: {pay.amount?.toLocaleString()} {pay.currency || "NGN"}</div>
+                      <div>GATEWAY: {pay.gateway || "manual"}</div>
+                      <div className="text-right text-[8px] text-zinc-600 truncate">{pay.date}</div>
+                    </div>
+
+                    <div className="flex justify-end gap-2.5 pt-1 border-t border-zinc-950">
+                      <button
+                        onClick={() => {
+                          setPaymentFormIsEdit(true);
+                          setPaymentFormId(pay.id);
+                          setPaymentFormEmail(pay.email);
+                          setPaymentFormAmount(pay.amount?.toString() || "");
+                          setPaymentFormStatus(pay.status || "success");
+                          setShowPaymentForm(true);
+                          setShowUserForm(false);
+                        }}
+                        className="text-zinc-400 hover:text-white font-mono text-[8.5px] uppercase cursor-pointer"
+                      >
+                        Edit status
+                      </button>
+                      <button
+                        onClick={() => handleDeletePayment(pay.id)}
+                        className="text-red-500 hover:text-red-400 font-mono text-[8.5px] uppercase cursor-pointer"
+                      >
+                        Purge
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: USERS ----------------- */}
+        {adminActiveTab === "users" && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">USER ACCOUNTS</span>
+              <button
+                onClick={() => {
+                  setUserFormIsEdit(false);
+                  setUserFormEmail("");
+                  setUserFormPassword("");
+                  setShowUserForm(!showUserForm);
+                  setShowPaymentForm(false);
+                }}
+                className="bg-white hover:bg-zinc-200 text-black font-mono font-bold text-[8.5px] px-2 py-1 transition-colors cursor-pointer"
+              >
+                {showUserForm ? "Close Form ✕" : "+ Add User"}
+              </button>
+            </div>
+
+            {/* User Input Form */}
+            {showUserForm && (
+              <motion.form 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                onSubmit={handleSaveUser}
+                className="bg-neutral-950 border border-zinc-900 p-3 rounded-sm space-y-2.5"
+              >
+                <span className="text-[8.5px] text-zinc-400 font-mono font-bold block uppercase">
+                  {userFormIsEdit ? `Reset Password for ${userFormEmail}` : "Register New User Account"}
+                </span>
+                
+                <div className="space-y-2">
+                  <input 
+                    type="email"
+                    required
+                    disabled={userFormIsEdit}
+                    placeholder="User email address"
+                    value={userFormEmail}
+                    onChange={(e) => setUserFormEmail(e.target.value)}
+                    className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] disabled:text-zinc-650 outline-none focus:border-zinc-700"
+                  />
+                  <input 
+                    type="password"
+                    required
+                    placeholder={userFormIsEdit ? "New Password" : "Password"}
+                    value={userFormPassword}
+                    onChange={(e) => setUserFormPassword(e.target.value)}
+                    className="w-full bg-black border border-zinc-850 px-2.5 py-1.5 text-[10px] font-mono text-[#D9D6CA] outline-none focus:border-zinc-700"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-white hover:bg-zinc-200 text-black font-mono font-bold text-[9px] py-2 transition-colors cursor-pointer uppercase"
+                >
+                  {userFormIsEdit ? "Save Password" : "Create User Account"}
+                </button>
+              </motion.form>
+            )}
+
+            {/* Users List */}
+            <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 border border-zinc-900 bg-neutral-950 p-2 rounded-sm">
+              {adminUsers.length === 0 ? (
+                <div className="text-zinc-650 font-mono text-[9px] uppercase text-center py-6">
+                  No user accounts found.
+                </div>
+              ) : (
+                adminUsers.map((usr: any) => (
+                  <div key={usr.email} className="border border-zinc-900 bg-black p-2.5 rounded-[2px] text-[10px] space-y-1.5 flex flex-col">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono text-zinc-200 uppercase font-semibold">{usr.email}</span>
+                      <span className="text-[8px] px-1.5 py-0.2 text-zinc-300 bg-zinc-800 font-mono font-bold uppercase truncate">
+                        {usr.status || "VERIFIED"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[8.5px] font-mono text-zinc-500 pt-1 border-t border-zinc-950">
+                      <span>ESTD: {usr.createdAt?.toString().substring(0, 10)}</span>
+                      <div className="flex gap-2.5">
+                        <button
+                          onClick={() => {
+                            setUserFormIsEdit(true);
+                            setUserFormEmail(usr.email);
+                            setUserFormPassword("");
+                            setShowUserForm(true);
+                            setShowPaymentForm(false);
+                          }}
+                          className="text-zinc-400 hover:text-white uppercase cursor-pointer text-[8px]"
+                        >
+                          Reset Password
+                        </button>
+                        {usr.email !== "evianaconcepts1@gmail.com" && (
+                          <button
+                            onClick={() => handleDeleteUser(usr.email)}
+                            className="text-red-500 hover:text-red-400 uppercase cursor-pointer text-[8px]"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+
+  // Render content based on mapped slug or title
+  const renderContent = () => {
+    const slug = type.toLowerCase().replace(/[^a-z0-9]/g, "-");
+
+    // ----------------------------------------------------
+    // 1. LICENSE VERIFICATION & CERTIFICATE RECORD
+    // ----------------------------------------------------
+    if (slug === "license-verification" || slug === "license-certificate" || slug === "verification") {
+      return (
+        <div className="space-y-4">
+          <LicenseVerificationPage initialLicenseNumber={verificationInput || "TOC-CR-2026-30192"} />
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 2. REQUEST CLEARANCE (CONTRACTS SEQUENCE)
+    // ----------------------------------------------------
+    if (slug === "request-clearance") {
+      const contractTypes = [
+        { id: "Access", name: "Archive Access License", price: "$150", desc: "For songwriting, demos, rehearsals, and private creative development." },
+        { id: "Release", name: "Commercial Release License", price: "$500", desc: "For approved commercial releases on digital music platforms." },
+        { id: "Commercial", name: "Commercial Exploitation License", price: "$1,000", desc: "For professional releases, monetized content, live performance, and promotional use." },
+        { id: "Sync", name: "Synchronization & Master License", price: "CUSTOM PROPOSAL", desc: "For film, television, advertising, brand campaigns, games, and broadcast media." },
+        { id: "Exclusive", name: "Exclusive Archive Acquisition", price: "$5,000", desc: "For exclusive control and permanent removal from future public licensing." },
+        { id: "Collaboration", name: "Producer Collaboration", price: "REVIEW", desc: "Selected projects may qualify for collaboration without an upfront licensing fee." }
+      ];
+
+      return (
+        <div className="space-y-5 text-left">
+          {clearanceStep === "choose" && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+                  [ STEP 1: CHOOSE CLEARANCE TYPE ]
+                </span>
+                <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+                  Select the required license archetype to initiate the clearance procedure.
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                {contractTypes.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedContractType(c.name);
+                      setClearanceStep("review");
+                    }}
+                    className="w-full text-left border border-zinc-850 hover:border-[#D9D6CA]/40 bg-black hover:bg-zinc-950 p-3 sm:p-3.5 transition-all flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 group cursor-pointer"
+                  >
+                    <div className="space-y-1 min-w-0 sm:pr-4">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <div className="text-[11px] font-bold text-white group-hover:text-[#D9D6CA] uppercase tracking-wider">
+                          {c.name}
+                        </div>
+                        <span className="text-[9px] font-mono text-[#D6C291] font-bold px-1.5 py-0.5 bg-zinc-900 border border-[#D6C291]/30 rounded">
+                          {c.price}
+                        </span>
+                      </div>
+                      <div className="text-[9px] text-zinc-500 uppercase leading-snug">
+                        {c.desc}
+                      </div>
+                    </div>
+                    <span className="text-[#D9D6CA] text-[10px] tracking-widest shrink-0 uppercase group-hover:translate-x-1 transition-transform sm:ml-2 font-mono">
+                      SELECT &gt;
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {clearanceStep === "review" && selectedContractType && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+                  [ STEP 2: REVIEW LICENSE ]
+                </span>
+                <h4 className="text-white font-bold text-xs uppercase tracking-widest">
+                  {selectedContractType}
+                </h4>
+              </div>
+
+              <div className="border border-zinc-850 bg-neutral-950 p-4 h-[200px] overflow-y-auto text-[9.5px] font-mono text-zinc-400 space-y-4 scrollbar-thin select-text">
+                <p className="font-bold text-white">SECURE MASTER &amp; INTELLECTUAL LICENSE</p>
+                <p>This document constitutes a binding agreement between the Sonic Archive catalog and the licensee ({userEmail}).</p>
+                <p>1. LICENSED MATERIAL: The corresponding sonic master recordings, stems, and metadata generated under THE OWL CLOCK umbrella.</p>
+                <p>2. SCOPE OF RIGHTS: Licensee is granted non-exclusive rights to exploit the works strictly in accordance with the parameters defined under the {selectedContractType} archetype.</p>
+                <p>3. RESTRICTIONS: Re-selling, sub-licensing, or deploying the assets to external generative machine learning models is strictly prohibited without the express physical co-signature of administration.</p>
+                <p>4. JURISDICTION: This license is governed by federal copyright law and administered under the statutory guidelines of the state of Atlanta, Georgia and Lagos, Nigeria.</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setClearanceStep("choose")}
+                  className="flex-grow border border-zinc-850 hover:border-white text-zinc-400 hover:text-white font-mono text-[9px] tracking-widest uppercase py-3 transition-all cursor-pointer text-center"
+                >
+                  &lt; BACK
+                </button>
+                <button
+                  onClick={() => setClearanceStep("approval")}
+                  className="flex-grow bg-[#D9D6CA] text-black font-mono font-bold text-[9px] tracking-widest uppercase py-3 hover:bg-white transition-all cursor-pointer text-center"
+                >
+                  CLEARANCE REVIEW &gt;
+                </button>
+              </div>
+            </div>
+          )}
+
+          {clearanceStep === "approval" && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <span className="text-[8px] tracking-[0.25em] text-red-500 font-bold uppercase block">
+                  [ STEP 3: CLEARANCE REVIEW &amp; SIGNATURE ]
+                </span>
+                <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+                  Sign below with your full name to submit this Master Clearance Agreement for Final Approval.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <input 
+                  type="text"
+                  placeholder="TYPE FULL NAME TO SIGN"
+                  value={contractSignature}
+                  onChange={(e) => setContractSignature(e.target.value)}
+                  className="w-full bg-black border border-zinc-850 px-3.5 py-3 text-[11px] font-mono text-[#D9D6CA] focus:outline-none focus:border-red-500/40 uppercase placeholder-zinc-700"
+                />
+
+                {/* Mandatory Terms Agreement Checkbox (Not preselected) */}
+                <label className="flex items-start gap-2.5 cursor-pointer group select-none py-1.5 text-left border-t border-zinc-900 pt-3">
+                  <input 
+                    type="checkbox"
+                    checked={clearanceAgreedToTerms}
+                    onChange={(e) => setClearanceAgreedToTerms(e.target.checked)}
+                    className="w-4 h-4 rounded-[3px] border border-zinc-800 bg-black accent-red-500 cursor-pointer mt-0.5 shrink-0"
+                  />
+                  <span className="text-[10.5px] text-zinc-400 group-hover:text-white transition-colors leading-snug font-mono">
+                    By submitting this request, I agree to the{" "}
+                    <button 
+                      type="button" 
+                      onClick={() => { onOpenTerms?.(); }} 
+                      className="underline text-[#D6C291] hover:text-white font-bold cursor-pointer bg-transparent border-0 p-0 inline font-mono"
+                    >
+                      Terms of Use
+                    </button>{" "}
+                    and confirm that the information provided is accurate.
+                  </span>
+                </label>
+
+                <button
+                  onClick={() => {
+                    if (!contractSignature.trim() || !clearanceAgreedToTerms) return;
+                    setClearanceStep("final");
+                  }}
+                  disabled={!contractSignature.trim() || !clearanceAgreedToTerms}
+                  className={`w-full font-mono font-bold text-[10px] tracking-widest py-3.5 transition-all text-center uppercase ${
+                    contractSignature.trim() && clearanceAgreedToTerms
+                      ? "bg-red-500 text-white cursor-pointer hover:bg-red-600" 
+                      : "bg-zinc-900 text-zinc-650 cursor-not-allowed opacity-60"
+                  }`}
+                >
+                  APPROVE MASTER CLEARANCE AGREEMENT
+                </button>
+              </div>
+            </div>
+          )}
+
+          {clearanceStep === "final" && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="border border-zinc-850 bg-neutral-950 p-5 space-y-4 rounded-sm text-center"
+            >
+              <div className="w-10 h-10 bg-[#00E676]/10 border border-[#00E676]/40 text-[#00E676] rounded-full flex items-center justify-center mx-auto mb-2 animate-pulse">
+                <Check size={20} />
+              </div>
+
+              <h4 className="text-white font-bold text-xs uppercase tracking-widest">
+                CLEARANCE APPROVED
+              </h4>
+
+              <p className="text-zinc-450 text-[10px] leading-relaxed uppercase">
+                The Master Clearance Agreement has been digitally executed, archived, and transmitted to your verified account ({userEmail}).
+              </p>
+
+              <div className="border border-zinc-900 bg-black p-3 text-[9px] text-zinc-500 font-mono uppercase text-left space-y-1">
+                <div>CONTRACT HASH: 0xBB823D3F1E8</div>
+                <div>SIGNATURE: {(contractSignature || "").toUpperCase()}</div>
+                <div>STATUS: REGISTERED IN SECURE VAULT</div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setClearanceStep("choose");
+                  setSelectedContractType(null);
+                  setContractSignature("");
+                }}
+                className="w-full bg-zinc-900 text-zinc-300 font-mono text-[9px] tracking-widest py-3 hover:text-white transition-all cursor-pointer uppercase"
+              >
+                REQUEST ANOTHER CLEARANCE
+              </button>
+            </motion.div>
+          )}
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 3. PUBLISHING REQUEST DASHBOARD (SPLIT SHEET / PRO / ISWC)
+    // ----------------------------------------------------
+    if (slug === "publishing" || slug === "publishing-request-dashboard") {
+      return (
+        <div className="space-y-5 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ PUBLISHING REQUEST DASHBOARD ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Manage composition PRO declarations, request ISWC registration, and review split sheet allocations.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="border border-zinc-900 bg-neutral-950 p-3 space-y-2">
+              <span className="text-[8.5px] text-zinc-500 block uppercase tracking-wider font-extrabold">Split Sheet Record</span>
+              <div className="text-[11px] font-bold text-white uppercase">OWL-01 Splits</div>
+              <div className="text-[9.5px] text-zinc-400 font-mono space-y-1">
+                <div>• PUBLISHER — 50% (Pub)</div>
+                <div>• COMPOSER — 50% (Writer)</div>
+              </div>
+            </div>
+
+            <div className="border border-zinc-900 bg-neutral-950 p-3 space-y-2">
+              <span className="text-[8.5px] text-zinc-500 block uppercase tracking-wider font-extrabold">PRO Affiliations</span>
+              <div className="text-[11px] font-bold text-[#D9D6CA] uppercase">ASCAP / BMI / PRS</div>
+              <div className="text-[9px] text-zinc-500 leading-normal uppercase">
+                Global performance rights administered securely via performance rights organizations.
+              </div>
+            </div>
+          </div>
+
+          {publishingSuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-4 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center space-y-2"
+            >
+              <div className="text-[10px] font-bold text-[#00E676] uppercase tracking-widest">
+                ISWC REQUEST SUBMITTED
+              </div>
+              <p className="text-[9.5px] text-zinc-400 uppercase leading-normal">
+                Composition "{iswcRequestSong}" has been queued for ASCAP/BMI registration index. An agent will confirm within 48 hours.
+              </p>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!iswcRequestSong.trim()) return;
+                setIsPublishingSubmitting(true);
+                setTimeout(() => {
+                  setIsPublishingSubmitting(false);
+                  setPublishingSuccess(true);
+                }, 1200);
+              }}
+              className="space-y-3 border-t border-zinc-900 pt-4"
+            >
+              <span className="text-[8.5px] text-zinc-400 block uppercase tracking-wider font-bold">
+                INITIATE NEW ISWC REQUEST
+              </span>
+              <input 
+                type="text"
+                placeholder="ENTER COMPOSITION TITLE"
+                value={iswcRequestSong}
+                onChange={(e) => setIswcRequestSong(e.target.value)}
+                className="w-full bg-black border border-zinc-850 px-3 py-2.5 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-3 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isPublishingSubmitting ? "PROCESSING REQUEST..." : "SUBMIT PUBLISHING REQUEST"}
+              </button>
+            </form>
+          )}
+
+          <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
+            <span>ADMINISTRATOR: SYSTEM GLOBAL</span>
+            <button 
+              onClick={() => setShowDocumentVault(true)}
+              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
+            >
+              Open Split Sheets Vault ↗
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 4. METADATA REQUEST DASHBOARD (METADATA SHEET / ISRC / UPC)
+    // ----------------------------------------------------
+    if (slug === "metadata" || slug === "metadata-request-dashboard") {
+      return (
+        <div className="space-y-5 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ METADATA REQUEST DASHBOARD ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Configure track-level metadata sheets, register ISRC audio codes, and manage master credits.
+            </p>
+          </div>
+
+          <div className="border border-zinc-900 bg-neutral-950 p-3.5 space-y-3">
+            <span className="text-[8.5px] text-zinc-500 block uppercase tracking-wider font-extrabold">Active Metadata Sheets</span>
+            <div className="grid grid-cols-2 gap-y-2 text-[10px] font-mono text-zinc-400 uppercase">
+              <div>• Format: WAV 24-bit</div>
+              <div>• Tunings: 432 Hz</div>
+              <div>• Genres: Ambient Drone</div>
+              <div>• Authors: THE SENTINELS</div>
+            </div>
+          </div>
+
+          {metadataSuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-4 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center space-y-2"
+            >
+              <div className="text-[10px] font-bold text-[#00E676] uppercase tracking-widest">
+                ISRC ASSIGNED SUCCESSFULLY
+              </div>
+              <p className="text-[9.5px] text-zinc-400 uppercase leading-normal">
+                Audio ID "{isrcRequestSong}" has been assigned ISRC code: <span className="text-white font-mono font-bold">US-LMN-26-00824</span>.
+              </p>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!isrcRequestSong.trim()) return;
+                setIsMetadataSubmitting(true);
+                setTimeout(() => {
+                  setIsMetadataSubmitting(false);
+                  setMetadataSuccess(true);
+                }, 1200);
+              }}
+              className="space-y-3 border-t border-zinc-900 pt-4"
+            >
+              <span className="text-[8.5px] text-zinc-400 block uppercase tracking-wider font-bold">
+                GENERATE NEW ISRC / UPC FOR RELEASE
+              </span>
+              <input 
+                type="text"
+                placeholder="ENTER UNREGISTERED SONG NAME"
+                value={isrcRequestSong}
+                onChange={(e) => setIsrcRequestSong(e.target.value)}
+                className="w-full bg-black border border-zinc-850 px-3 py-2.5 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-3 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isMetadataSubmitting ? "ALLOCATING CODES..." : "GENERATE SECURED ISRC CODE"}
+              </button>
+            </form>
+          )}
+
+          <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
+            <span>CATALOG ARCHIVE V3</span>
+            <button 
+              onClick={() => setShowDocumentVault(true)}
+              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
+            >
+              Inspect Metadata Sheets ↗
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 5. OWNERSHIP VERIFICATION (SAMPLE DECLARATION / WARRANTY)
+    // ----------------------------------------------------
+    if (slug === "ownership-verification" || slug === "ownership") {
+      return (
+        <div className="space-y-5 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ OWNERSHIP VERIFICATION DASHBOARD ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Submit clearance requests, assert sample-free warranties, and review intellectual property statements.
+            </p>
+          </div>
+
+          <div className="border border-zinc-900 bg-neutral-950 p-3.5 space-y-2">
+            <span className="text-[8.5px] text-zinc-500 block uppercase tracking-wider font-extrabold">No-Sample Warranty Status</span>
+            <div className="flex items-center gap-2 text-[#00E676] text-[10.5px] font-bold uppercase">
+              <ShieldCheck size={14} />
+              <span>ACTIVE GUARANTEE — 100% ORIGINAL COMPOSITIONS</span>
+            </div>
+            <p className="text-[8.5px] text-zinc-500 uppercase leading-relaxed">
+              Our administration guarantees all masters in the Owl Clock are cleared, containing zero unauthorized samples.
+            </p>
+          </div>
+
+          {ownershipSuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-4 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center space-y-2"
+            >
+              <div className="text-[10px] font-bold text-[#00E676] uppercase tracking-widest">
+                SAMPLE DECLARATION LOGGED
+              </div>
+              <p className="text-[9.5px] text-zinc-400 uppercase leading-normal">
+                Your legal assertion has been securely registered to the System Ledger under the warranty block.
+              </p>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!sampleDeclarationText.trim()) return;
+                setIsOwnershipSubmitting(true);
+                setTimeout(() => {
+                  setIsOwnershipSubmitting(false);
+                  setOwnershipSuccess(true);
+                }, 1200);
+              }}
+              className="space-y-3 border-t border-zinc-900 pt-4"
+            >
+              <span className="text-[8.5px] text-zinc-400 block uppercase tracking-wider font-bold">
+                SUBMIT NEW WARRANTY &amp; SAMPLE DECLARATION
+              </span>
+              <textarea 
+                placeholder="ENTER ORIGINAL WORK DETAILS & WARRANTY ASSERTION"
+                value={sampleDeclarationText}
+                onChange={(e) => setSampleDeclarationText(e.target.value)}
+                rows={3}
+                className="w-full bg-black border border-zinc-850 px-3 py-2.5 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700 resize-none"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-3 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isOwnershipSubmitting ? "NOTARIZING DECREE..." : "RECORD COMPOSITION WARRANTY"}
+              </button>
+            </form>
+          )}
+
+          <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
+            <span>LEGAL JURISDICTION: DEED LOCK</span>
+            <button 
+              onClick={() => setShowDocumentVault(true)}
+              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
+            >
+              Inspect Ownership Deeds ↗
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 6. ROYALTY ADMINISTRATION (SPLITS / STATEMENTS)
+    // ----------------------------------------------------
+    if (slug === "royalty-administration" || slug === "royalty" || slug === "royalty-dashboard") {
+      return (
+        <div className="space-y-5 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ROYALTY LEDGER DASHBOARD ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Track synchronization licensing payouts, examine ledger balances, and configure payment instructions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 font-mono">
+            <div className="border border-zinc-900 bg-neutral-950 p-3 space-y-1">
+              <span className="text-[7.5px] text-zinc-500 uppercase block tracking-wider">Unpaid Balance</span>
+              <div className="text-lg font-extrabold text-[#D9D6CA]">$1,842.50</div>
+              <span className="text-[8px] text-[#00E676] uppercase block">AVAILABLE FOR PAYOUT</span>
+            </div>
+            <div className="border border-zinc-900 bg-neutral-950 p-3 space-y-1">
+              <span className="text-[7.5px] text-zinc-500 uppercase block tracking-wider">Total Distributed</span>
+              <div className="text-lg font-extrabold text-zinc-500">$14,500.00</div>
+              <span className="text-[8px] text-zinc-600 uppercase block">SINCE ARCHIVE BIRTH</span>
+            </div>
+          </div>
+
+          {royaltySuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-3 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center"
+            >
+              <div className="text-[9.5px] font-bold text-[#00E676] uppercase tracking-widest">
+                PAYMENT INSTRUCTIONS UPDATED
+              </div>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!paymentInstructions.trim()) return;
+                setIsRoyaltySaving(true);
+                setTimeout(() => {
+                  setIsRoyaltySaving(false);
+                  setRoyaltySuccess(true);
+                }, 1000);
+              }}
+              className="space-y-2 border-t border-zinc-900 pt-3"
+            >
+              <span className="text-[8.5px] text-zinc-400 block uppercase tracking-wider font-bold">
+                CONFIGURE PAYOUT INSTRUCTIONS
+              </span>
+              <input 
+                type="text"
+                placeholder="e.g. WIRE TRANS, PAYONEER EMAIL, BANK DETAILS"
+                value={paymentInstructions}
+                onChange={(e) => setPaymentInstructions(e.target.value)}
+                className="w-full bg-black border border-zinc-850 px-3 py-2 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9px] tracking-widest py-2.5 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isRoyaltySaving ? "STORING PAYOUT METHOD..." : "SAVE DISBURSEMENT PATHWAY"}
+              </button>
+            </form>
+          )}
+
+          <div className="border-t border-zinc-900 pt-3.5 flex justify-between items-center text-[9px] font-mono text-zinc-500">
+            <span>LEDGER: STANDALONE CRYPTO</span>
+            <button 
+              onClick={() => setShowDocumentVault(true)}
+              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
+            >
+              Inspect Royalty Statements ↗
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7. RIGHTS ADMINISTRATION CENTER
+    // ----------------------------------------------------
+    if (slug === "rights-administration" || slug === "rights" || slug === "rights-dashboard") {
+      return (
+        <div className="space-y-5 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ RIGHTS ADMINISTRATION CENTER ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Secure copyright records, monitor third-party licensing usage, and view active global declarations.
+            </p>
+          </div>
+
+          <div className="border border-zinc-850 bg-neutral-950 p-4 space-y-3.5">
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-2.5 text-[9.5px] font-mono font-bold">
+              <span className="text-white">ENFORCEMENT VECTOR</span>
+              <span className="text-zinc-500">STATUS</span>
+            </div>
+            <div className="space-y-2.5 text-[10px] font-mono text-zinc-400">
+              <div className="flex justify-between">
+                <span>• YouTube ContentID Sync</span>
+                <span className="text-[#00E676] font-bold">[ ARMORED ]</span>
+              </div>
+              <div className="flex justify-between">
+                <span>• Broadcast Airplay Monitored</span>
+                <span className="text-[#00E676] font-bold">[ ONLINE ]</span>
+              </div>
+              <div className="flex justify-between">
+                <span>• Metadata Fingerprint Registry</span>
+                <span className="text-zinc-500">[ INDEXED ]</span>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[9px] text-zinc-500 leading-normal uppercase">
+            All rights asserted globally on behalf of the registered owners under standard legal proxy structures.
+          </p>
+
+          <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
+            <span>COMPLIANCE INDEX 88</span>
+            <button 
+              onClick={() => setShowDocumentVault(true)}
+              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
+            >
+              Open Rights Dashboard ↗
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7A. MY FRAGMENTS / CLIENT DASHBOARD (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-licenses" || slug === "client-dashboard" || slug === "dashboard") {
+      return (
+        <div className="space-y-4 text-left">
+          <ClientDashboard
+            currentUserEmail={currentUserEmail || userEmail || ""}
+            userLicenses={userLicenses}
+            onClose={onClose}
+            onOpenAdmin={isLoggedIn && isAdminUser(currentUserEmail || userEmail) ? onOpenAdmin : undefined}
+            onRefreshData={onRefreshData}
+            initialSection="01_MY_FRAGMENTS"
+          />
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7B. MY CERTIFICATES (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    // ----------------------------------------------------
+    // 7B. MY CERTIFICATES (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-certificates") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / DIGITAL SIGNATURE CERTIFICATES ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Your cryptographic signature records and identity certificates stored on the secure registry.
+            </p>
+          </div>
+
+          <div className="space-y-2.5 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Please sign in to access your active certificates.
+              </div>
+            ) : (userLicenses && userLicenses.length > 0) ? (
+              userLicenses.map((license, idx) => (
+                <div key={`cert-${license.id}`} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm font-mono space-y-2">
+                  <div className="flex justify-between items-center border-b border-zinc-900 pb-1.5">
+                    <span className="text-[#D9D6CA] text-[9.5px] font-bold uppercase">Digital Signature Certificate (DSC)</span>
+                    <span className="text-[8px] text-zinc-500 font-bold">DSC-{license.id.split("-").pop()}-{10 + idx}</span>
+                  </div>
+                  <div className="text-[9px] text-zinc-400 space-y-1">
+                    <div>COMPOSITION: {license.song}</div>
+                    <div>ACCOUNT: {currentUserEmail || userEmail}</div>
+                    <div className="truncate">SECURE HASH: {license.hash}</div>
+                  </div>
+                  <div className="text-[8px] text-zinc-500 text-right pt-1 uppercase">
+                    REGISTERED & VERIFIED BY SECURITY PROTOCOLS
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active certificate records found for account {currentUserEmail}.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7C. MY DOWNLOADS (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-downloads") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / MASTER SECURE DOWNLOADS ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Download your purchased master audio loops, high-quality stems, and metadata sheets.
+            </p>
+          </div>
+
+          <div className="space-y-2 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Please sign in to access your authorized master file downloads.
+              </div>
+            ) : (userLicenses && userLicenses.length > 0) ? (
+              userLicenses.flatMap((license) => {
+                const songTitle = license.song || license.fragment || "COMPOSITION";
+                const cleanSongName = songTitle.replace(/[\s\-\(\)]+/g, "_").toUpperCase();
+                return [
+                  { filename: `${cleanSongName}_MASTER.WAV`, size: "48.2 MB", desc: `Master Stereo Wave File (24-bit / 48kHz) - ${license.song}`, license, type: "WAV" },
+                  { filename: `${cleanSongName}_STEMS.ZIP`, size: "185.0 MB", desc: `Separate Audio Stems (Drums, Bass, Synths, FX) - ${license.song}`, license, type: "ZIP" }
+                ];
+              }).map((file) => {
+                const isZip = file.type === "ZIP";
+                const isManifestExpanded = showManifestId === file.filename;
+                return (
+                  <div key={file.filename} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-1 pr-2 max-w-[70%]">
+                        <span className="text-white text-[9.5px] font-mono font-bold block truncate">{file.filename}</span>
+                        <span className="text-[8.5px] text-zinc-500 font-mono block uppercase">{file.desc}</span>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                        <span className="text-[8.5px] text-zinc-500 font-mono uppercase">{file.size}</span>
+                        <div className="flex items-center gap-2">
+                          {isZip && (
+                            <button
+                              onClick={() => setShowManifestId(isManifestExpanded ? null : file.filename)}
+                              className="bg-zinc-900 text-zinc-400 border border-zinc-850 font-mono text-[8px] font-bold px-2 py-1 tracking-wider uppercase hover:text-white transition-colors cursor-pointer"
+                            >
+                              {isManifestExpanded ? "HIDE MANIFEST" : "SHOW MANIFEST"}
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => {
+                              if (file.type === "ZIP") {
+                                handleDownloadStemsZip(file.license.song, file.license);
+                              } else {
+                                handleDownloadMasterWav(file.license.song, file.license);
+                              }
+                            }}
+                            className="text-black bg-[#D9D6CA] font-mono text-[8px] font-bold px-2 py-1 tracking-wider uppercase hover:bg-white transition-colors cursor-pointer rounded-none"
+                          >
+                            DOWNLOAD
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {isZip && isManifestExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="bg-black/80 border border-zinc-900 p-3 font-mono text-[9px] text-zinc-400 space-y-2 rounded-sm"
+                      >
+                        <div className="border-b border-zinc-900 pb-1.5 flex justify-between items-center text-[8px] tracking-wider text-[#D9D6CA] font-bold uppercase">
+                          <span>ZIP DISPATCH SPECIFICATION INDEX</span>
+                          <span className="text-zinc-300">MANIFEST APPROVED</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 uppercase">
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">STEM COUNT:</span>
+                            <span className="text-white font-bold">5 MULTI-TRACKS</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">TOTAL ZIP SIZE:</span>
+                            <span className="text-white font-bold">185.0 MB</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">FORMAT TYPE:</span>
+                            <span className="text-zinc-300 font-bold">WAV / BWF (STEREO)</span>
+                          </div>
+                          <div>
+                            <span className="text-zinc-650 block text-[7.5px] font-bold">DIGITAL RESOLUTION:</span>
+                            <span className="text-zinc-300 font-bold">48.0 KHZ / 24-BIT</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 border-t border-zinc-900 pt-2 text-[8px]">
+                          <span className="text-zinc-650 block font-bold">ARCHIVED AUDIO STEMS INCLUDED:</span>
+                          <div className="space-y-0.5 text-zinc-400 font-bold">
+                            <div>• 01_DRUMS.WAV (DRUMS & PERCUSSION LOOP)</div>
+                            <div>• 02_BASS.WAV (SUB BASS & LOW-END DRIVE)</div>
+                            <div>• 03_SYNTHS.WAV (MELODIC SYNTHS & ARPS SEQUENCE)</div>
+                            <div>• 04_FX.WAV (ATMOSPHERIC RISERS & TRANSITIONAL REVERB)</div>
+                            <div>• 05_VOCAL_LEAD.WAV (VOCAL CHOPPED EMBELLISHMENTS)</div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active license records found. Acquire digital licenses at checkout to populate high-speed stems dispatch queue.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 7D. MY REQUESTS (ACCOUNT SECTION)
+    // ----------------------------------------------------
+    if (slug === "my-requests") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ACCOUNT / CLEARANCE & RIGHTS REQUESTS ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Track active clearance requests, publishing registration status, and ownership verification briefs.
+            </p>
+          </div>
+
+          <div className="space-y-2.5 border-t border-zinc-900 pt-3">
+            {!isLoggedIn ? (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                Please sign in to track active clearance requests.
+              </div>
+            ) : (userRequests && userRequests.length > 0) ? (
+              userRequests.map((req) => (
+                <div key={req.ref} className="border border-zinc-900 bg-neutral-950 p-3 rounded-sm font-mono space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-white text-[10px] font-bold uppercase">{req.type}</span>
+                    <span className="text-[8px] text-zinc-300 bg-zinc-800 px-1.5 py-0.5 font-bold uppercase">{req.status}</span>
+                  </div>
+                  <div className="grid grid-cols-2 text-[8.5px] text-zinc-500 font-bold">
+                    <div>TARGET: {req.target}</div>
+                    <div>DATE: {req.date}</div>
+                  </div>
+                  <div className="text-[8px] text-zinc-650 border-t border-zinc-900 pt-1">
+                    REFERENCE NUMBER: {req.ref}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-zinc-500 font-mono text-[9px] uppercase text-center py-8 border border-dashed border-zinc-900 rounded-[2px] px-4 leading-relaxed">
+                No active clearance or publishing requests found for account {currentUserEmail}.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 8. BRAND STORY / MISSION / ABOUT
+    // ----------------------------------------------------
+    if (slug === "about-the-archive" || slug === "about") {
+      return (
+        <div className="space-y-4 text-left select-text">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ STORY &amp; MISSION ]
+            </span>
+            <h4 className="text-white font-bold text-xs uppercase tracking-widest">
+              The Owl Clock: A Temporal Sonic Vault
+            </h4>
+          </div>
+
+          <div className="text-[10px] font-mono text-zinc-400 space-y-3.5 leading-relaxed uppercase">
+            <p>
+              Born from a pursuit to capture fleeting frequencies, THE OWL CLOCK serves as a public-facing sonic archive.
+            </p>
+            <p>
+              Every audio fragment recorded inside this threshold represents a specific temporal marker—measured, verified, and sealed with a custom frequency and signature.
+            </p>
+            <p>
+              We provide modern creators, media directors, and labels with a verified catalog of cleared compositions, stems, and atmospheric loops designed for deep cinematic immersion.
+            </p>
+          </div>
+
+          <div className="border-t border-zinc-900 pt-4 text-[9px] text-zinc-500 font-mono flex justify-between">
+            <span>OPERATOR: THE SONIC ARCHIVE CATALOG</span>
+            <span>ESTABLISHED 2026</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 9. ENTERPRISE INTAKE PORTAL
+    // ----------------------------------------------------
+    if (slug === "enterprise") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ ENTERPRISE INTAKE PORTAL ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Bespoke sync licensing clearance, publishing administration, and catalog integration services for high-volume buyers, streaming platforms, and media agencies.
+            </p>
+          </div>
+
+          {enterpriseSuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-4 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center"
+            >
+              <div className="text-[10px] font-bold text-[#00E676] uppercase tracking-widest mb-1">
+                SECURE BRIEF RECEIVED
+              </div>
+              <p className="text-[9.5px] text-zinc-400 uppercase leading-relaxed">
+                An Enterprise Curator will reach out to your email within 12 business hours.
+              </p>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                setIsEnterpriseSubmitting(true);
+                setTimeout(() => {
+                  setIsEnterpriseSubmitting(false);
+                  setEnterpriseSuccess(true);
+                }, 1500);
+              }}
+              className="space-y-3 border-t border-zinc-900 pt-3"
+            >
+              <input 
+                type="text"
+                placeholder="AGENCY, LABEL, OR COMPANY NAME"
+                required
+                className="w-full bg-black border border-zinc-850 px-3 py-2.5 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
+              />
+              <textarea 
+                placeholder="BRIEF DESCRIPTION OF SYNC / BRAND NEEDS"
+                rows={3}
+                required
+                className="w-full bg-black border border-zinc-850 px-3 py-2.5 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700 resize-none"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-3 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isEnterpriseSubmitting ? "TRANSMITTING SPECIFICATION..." : "SUBMIT ENTERPRISE BRIEF"}
+              </button>
+            </form>
+          )}
+
+          <div className="border-t border-zinc-900 pt-4 flex justify-between items-center text-[9px] font-mono text-zinc-500">
+            <span>GLOBAL PORTAL</span>
+            <button 
+              onClick={() => setShowDocumentVault(true)}
+              className="text-[#D9D6CA] hover:underline cursor-pointer uppercase"
+            >
+              Open Enterprise Dashboard ↗
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 10. HELP CENTER & SUPPORT
+    // ----------------------------------------------------
+    if (slug === "support") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ SUPPORT / VAULT HELP DESK ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              Having issues downloading WAV stems or verifying digital license records? Submit a priority ticket directly to our support team.
+            </p>
+          </div>
+
+          {supportSuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-4 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center"
+            >
+              <div className="text-[10px] font-bold text-[#00E676] uppercase tracking-widest mb-1">
+                TICKET DISPATCHED SECURELY
+              </div>
+              <p className="text-[9.5px] text-zinc-400 uppercase leading-relaxed">
+                Registered to code: <span className="text-white font-bold">LMN-SUPPORT-2921</span>. Support agents will contact you shortly.
+              </p>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!supportMessage.trim()) return;
+                setIsEnterpriseSubmitting(true);
+                setTimeout(() => {
+                  setIsEnterpriseSubmitting(false);
+                  setSupportSuccess(true);
+                }, 1200);
+              }}
+              className="space-y-3"
+            >
+              <textarea 
+                placeholder="HOW CAN WE ASSIST YOU?"
+                value={supportMessage}
+                onChange={(e) => setSupportMessage(e.target.value)}
+                rows={3}
+                required
+                className="w-full bg-black border border-zinc-850 px-3 py-2.5 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700 resize-none"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-3 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isEnterpriseSubmitting ? "TRANSMITTING INQUIRY..." : "SEND SUPPORT REQUEST"}
+              </button>
+            </form>
+          )}
+
+          <div className="border-t border-zinc-900 pt-4 text-[9px] text-zinc-650 font-mono uppercase text-center">
+            24/7 ENCRYPTED VAULT ESCALATION ACTIVE
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 11. GENERAL CONTACT PAGE
+    // ----------------------------------------------------
+    if (slug === "contact") {
+      return (
+        <div className="space-y-4 text-left">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ TRANSMISSIONS OFFICE ]
+            </span>
+            <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase">
+              General inquiries, sync representations, or feedback for the curators. Reach us at our operations hubs.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 border border-zinc-900 bg-neutral-950 p-3.5 text-[9.5px] font-mono text-zinc-400">
+            <div>
+              <span className="text-white font-bold block uppercase tracking-wider mb-1">ATLANTA HUB</span>
+              <div>HQ. Atlanta</div>
+              <div>Georgia, USA</div>
+              <div className="text-zinc-650 mt-1">atl@credentials.local</div>
+            </div>
+            <div>
+              <span className="text-white font-bold block uppercase tracking-wider mb-1">LAGOS HUB</span>
+              <div>HQ. Lagos</div>
+              <div>Lagos, Nigeria</div>
+              <div className="text-zinc-650 mt-1">los@credentials.local</div>
+            </div>
+          </div>
+
+          {contactSuccess ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-3.5 bg-[#00E676]/5 border border-[#00E676]/20 rounded-sm text-center"
+            >
+              <div className="text-[10px] font-bold text-[#00E676] uppercase tracking-widest">
+                MESSAGE DELIVERED
+              </div>
+            </motion.div>
+          ) : (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!contactMessage.trim()) return;
+                setIsEnterpriseSubmitting(true);
+                setTimeout(() => {
+                  setIsEnterpriseSubmitting(false);
+                  setContactSuccess(true);
+                }, 1000);
+              }}
+              className="space-y-3"
+            >
+              <input 
+                type="text"
+                placeholder="YOUR NAME"
+                required
+                className="w-full bg-black border border-zinc-850 px-3 py-2 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700"
+              />
+              <textarea 
+                placeholder="WRITE MESSAGE"
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                rows={2}
+                required
+                className="w-full bg-black border border-zinc-850 px-3 py-2 text-[10.5px] font-mono text-[#D9D6CA] focus:outline-none focus:border-[#D9D6CA]/40 uppercase placeholder-zinc-700 resize-none"
+              />
+              <button 
+                type="submit"
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[9.5px] tracking-widest py-2.5 hover:bg-white transition-colors cursor-pointer uppercase"
+              >
+                {isEnterpriseSubmitting ? "SENDING BRIEF..." : "DISPATCH SIGNAL"}
+              </button>
+            </form>
+          )}
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 12. LEGAL POLICIES (TERMS, PRIVACY, COOKIES, ETC.)
+    // ----------------------------------------------------
+    if (["terms", "privacy", "cookies", "refunds", "acceptable-use", "protocols-dep"].includes(slug)) {
+      const legalTitles: Record<string, string> = {
+        "terms": "TERMS OF USE",
+        "privacy": "PRIVACY CONVENTIONS",
+        "cookies": "COOKIE DISCLOSURE",
+        "refunds": "REFUND POLICY",
+        "acceptable-use": "ACCEPTABLE USE DIRECTIVE"
+      };
+
+      const legalText: Record<string, string[]> = {
+        "terms": [
+          "1. ACCEPTANCE: By accessing this portal, the user agrees to be bound by the digital governance protocols.",
+          "2. INTELLECTUAL STATUS: All audio, waveform metadata, clock algorithms, and cryptographic files are sole property of the administration.",
+          "3. USAGE: Redistribution or algorithmic mining of archive materials without validated licenses is heavily prosecuted under international copyright agreements."
+        ],
+        "privacy": [
+          "1. REGISTRATION DATA: We collect account identifiers, purchase histories, and emails strictly for order and license fulfillment.",
+          "2. ENCRYPTION: Communication signals are routed through secure, server-side proxies. We never retain payment codes.",
+          "3. COMPLIANCE: Data operations satisfy all privacy requirements in Lagos, Nigeria and Atlanta, USA."
+        ],
+        "cookies": [
+          "1. SESSIONS: The portal utilizes secure local tokens to cache cart items and maintain active audio loops.",
+          "2. OPT-OUT: By maintaining connection, you assent to temporary cookie states required for clock calibration."
+        ],
+        "refunds": [
+          "1. DIGITAL WAIVER: Due to the instant delivery of master WAV stems and clearance certificates, all completed acquisitions are final.",
+          "2. DISCREPANCIES: If file corruption occurs, we will re-generate and sign a fresh stem package."
+        ],
+        "acceptable-use": [
+          "1. FORBIDDEN VECTORS: You may not use Owl Clock fragments to feed deep artificial networks or audio mimicry frameworks.",
+          "2. ACCEPTABLE USE: Any unauthorized attempts to breach security will result in account suspension."
+        ]
+      };
+
+      const targetTitle = legalTitles[slug] || "PROTOCOLS MANUAL";
+      const targetParas = legalText[slug] || ["1. STANDARD PROTOCOL IS ACTIVE. REFER ALL INQUIRIES TO OUR CORE STAFF."];
+
+      return (
+        <div className="space-y-4 text-left select-text">
+          <div className="space-y-1">
+            <span className="text-[8px] tracking-[0.25em] text-[#D9D6CA] font-bold uppercase block">
+              [ LEGAL AGREEMENT ]
+            </span>
+            <h4 className="text-white font-bold text-xs uppercase tracking-widest">
+              {targetTitle}
+            </h4>
+          </div>
+
+          <div className="text-[10px] font-mono text-zinc-400 space-y-4 leading-relaxed uppercase">
+            {targetParas.map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
+
+          <div className="pt-3 border-t border-zinc-900 space-y-3">
+            {slug === "privacy" ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenPrivacy?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL ARCHIVE PRIVACY POLICY →
+              </button>
+            ) : slug === "cookies" ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenCookies?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                MANAGE COOKIE PREFERENCES & DISCLOSURE →
+              </button>
+            ) : slug === "refunds" ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenRefunds?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL ARCHIVE REFUND POLICY →
+              </button>
+            ) : (slug === "acceptable-use" || slug === "acceptable-use-policy") ? (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenAcceptableUse?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL ACCEPTABLE USE POLICY →
+              </button>
+            ) : (
+              <button 
+                type="button" 
+                onClick={() => { onClose(); onOpenTerms?.(); }} 
+                className="w-full bg-[#D9D6CA] text-black font-mono font-bold text-[10px] tracking-widest py-3 hover:bg-white transition-all uppercase cursor-pointer text-center rounded-[2px]"
+              >
+                READ FULL STANDALONE TERMS OF USE →
+              </button>
+            )}
+            <p className="text-[9px] text-zinc-500 font-mono text-center">
+              All policies are governed by LOMON LLC (Effective July 29, 2026).
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------
+    // 13. ADMINISTRATIVE CRUD CORE (USERS & PAYMENTS)
+    // ----------------------------------------------------
+    if (slug === "admin" || slug === "admin-console" || slug === "system") {
+      if (!isLoggedIn || !isAdminUser(currentUserEmail || userEmail)) {
+        return (
+          <div className="space-y-4 py-8 text-center font-mono">
+            <span className="text-3xl block">⛔</span>
+            <p className="text-red-400 font-bold uppercase text-xs tracking-wider">
+              ACCESS DENIED // 403 FORBIDDEN
+            </p>
+            <p className="text-zinc-400 text-xs leading-relaxed max-w-sm mx-auto font-sans">
+              Administrative authorization required. Client accounts do not have permission to access the Administrative Console.
+            </p>
+          </div>
+        );
+      }
+      return renderAdminPanel();
+    }
+
+    // Default Fallback
+    return (
+      <div className="space-y-3.5 py-2">
+        <p className="text-zinc-400 text-[10.5px] leading-relaxed uppercase tracking-wider">
+          {body || `Access to "${title}" is currently unavailable. Please contact support.`}
+        </p>
+        
+        <div className="border border-zinc-900 bg-neutral-950 p-2.5 flex items-center gap-2.5">
+          <span className="text-red-500 animate-pulse text-sm shrink-0">⚠️</span>
+          <span className="text-[8.5px] text-zinc-500 uppercase tracking-widest leading-normal">
+            SECURITY PROTOCOL SYS-44 IS ACTIVE. ATTEMPTS HAVE BEEN LOGGED.
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const body = `ACCESS TO "${title}" IS CURRENTLY UNREACHABLE OR DEMANDS HIGHER CRYPTOGRAPHIC CLEARANCE. CONTACT TRANSMISSIONS ADMIN.`;
+
+  const isAuthView = type === "login" || type === "signup" || type === "register" || type === "auth";
+  const isDashboardView = type === "dashboard" || type === "client-dashboard" || type === "my-licenses";
+
+  if (isDashboardView) {
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="transmissions-overlay dashboard-page fixed inset-0 bg-black/98 backdrop-blur-md z-[100] flex items-center justify-center p-3 sm:p-6 select-text font-sans"
+          >
+            <motion.div 
+              initial={{ scale: 0.98, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.98, opacity: 0 }}
+              className="border border-zinc-900 bg-[#050505] w-full max-w-7xl h-[95vh] sm:h-[90vh] max-h-[95vh] sm:max-h-[90vh] shadow-[0_25px_60px_rgba(0,0,0,0.95)] relative rounded-sm flex flex-col overflow-hidden"
+            >
+              {/* Dashboard Header Bar */}
+              <div className="flex justify-between items-center border-b border-zinc-900 bg-zinc-950 px-5 py-3 shrink-0 select-none">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-zinc-650 font-bold tracking-widest uppercase">
+                    SECURE STORAGE PROTOCOL // 
+                  </span>
+                  <span className="text-[10px] text-[#00E676] font-extrabold tracking-widest uppercase animate-pulse">
+                    ACTIVE CLIENT SESSION
+                  </span>
+                </div>
+                <button 
+                  onClick={onClose} 
+                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-[10px] p-1 flex items-center gap-1.5 font-bold tracking-wider"
+                  title="Disconnect Gateway"
+                >
+                  <span>CLOSE WORKSPACE</span>
+                  <span>✕</span>
+                </button>
+              </div>
+
+              {/* Scrollable Workspace */}
+              <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+                <ClientDashboard
+                  currentUserEmail={currentUserEmail || userEmail}
+                  onClose={onClose}
+                  onOpenAdmin={isLoggedIn && isAdminUser(currentUserEmail || userEmail) ? onOpenAdmin : undefined}
+                  onRefreshData={onRefreshData}
+                />
+              </div>
+
+              <div className="border-t border-zinc-900 bg-zinc-950 px-5 py-2 shrink-0 flex items-center justify-between select-none">
+                <span className="text-[8px] text-zinc-600 tracking-wider uppercase font-bold">
+                  SECURE DEP NODE: ATL-GA-NGR-2026
+                </span>
+                <span className="text-[8px] text-[#00E676]/60 tracking-widest font-bold">
+                  ALL SESSIONS ARE ENCRYPTED AND LOGGED. SECURITY PROTOCOL SYS-44 ACTIVE.
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  if (isAuthView) {
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="transmissions-overlay auth-page fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-none font-serif"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="border border-zinc-800 bg-[#080808] p-6 max-w-md w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.95)] relative rounded-none font-serif"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
+                <div className="space-y-1">
+                  <span className="text-[9px] tracking-wider uppercase text-zinc-500 font-semibold block">
+                    Account Access
+                  </span>
+                  <h4 className="text-white font-bold text-sm tracking-wider leading-tight uppercase font-serif">
+                    {loginIsRegister ? "Create an Account" : "Sign In to Your Account"}
+                  </h4>
+                </div>
+                <button 
+                  onClick={onClose} 
+                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs p-1"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Top Tabs: SIGN UP & SIGN IN */}
+              <div className="grid grid-cols-2 gap-1 bg-black border border-zinc-850 p-1 text-xs font-serif">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginIsRegister(true);
+                    setLoginError("");
+                  }}
+                  className={`py-2 px-3 font-semibold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                    loginIsRegister
+                      ? "bg-white text-black"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900"
+                  }`}
+                >
+                  Sign Up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginIsRegister(false);
+                    setLoginError("");
+                  }}
+                  className={`py-2 px-3 font-semibold uppercase tracking-wider text-center transition-all cursor-pointer ${
+                    !loginIsRegister
+                      ? "bg-white text-black"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900"
+                  }`}
+                >
+                  Sign In
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <div className="py-1">
+                {loginSuccess ? (
+                  <div className="space-y-4 text-center py-6 font-serif">
+                    <div className="w-10 h-10 border border-[#00E676]/40 bg-[#00E676]/10 text-[#00E676] rounded-full flex items-center justify-center mx-auto text-base">
+                      ✓
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-[#00E676] text-sm font-bold uppercase tracking-wider">
+                        Successfully Signed In
+                      </h5>
+                      <p className="text-zinc-400 text-xs">
+                        Welcome back, {loginEmail}...
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleOverlayLoginSubmit} className="space-y-4 font-serif">
+                    <p className="text-zinc-400 text-xs leading-relaxed">
+                      {loginIsRegister 
+                        ? "Create an account to access your music licenses, master audio stems, and agreements."
+                        : "Welcome back. Sign in to access your account, purchases, and downloads."
+                      }
+                    </p>
+
+                    {loginError && (
+                      <div className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 p-3 leading-normal">
+                        {loginError}
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-zinc-400 text-xs block font-medium">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          disabled={loginLoading}
+                          value={loginEmail}
+                          onChange={(e) => setLoginEmail(e.target.value)}
+                          placeholder="name@example.com"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          className="w-full bg-black border border-zinc-800 focus:border-white text-white placeholder-zinc-600 text-xs px-3.5 py-2.5 rounded-none transition-colors focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-zinc-400 text-xs block font-medium">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          disabled={loginLoading}
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          className="w-full bg-black border border-zinc-800 focus:border-white text-white placeholder-zinc-600 text-xs px-3.5 py-2.5 rounded-none transition-colors focus:outline-none"
+                        />
+                      </div>
+
+                      {loginIsRegister && (
+                        <div className="space-y-1.5">
+                          <label className="text-zinc-400 text-xs block font-medium">
+                            Confirm Password
+                          </label>
+                          <input
+                            type="password"
+                            required
+                            disabled={loginLoading}
+                            value={loginConfirmPassword}
+                            onChange={(e) => setLoginConfirmPassword(e.target.value)}
+                            placeholder="Re-enter your password"
+                            className="w-full bg-black border border-zinc-800 focus:border-white text-white placeholder-zinc-600 text-xs px-3.5 py-2.5 rounded-none transition-colors focus:outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <button 
+                      type="submit"
+                      disabled={loginLoading}
+                      className="w-full bg-white text-black font-semibold text-xs tracking-wider uppercase py-3 transition-all cursor-pointer rounded-none hover:bg-[#D9D6CA]"
+                    >
+                      {loginLoading 
+                        ? "Please wait..." 
+                        : loginIsRegister 
+                          ? "Create Account" 
+                          : "Sign In"
+                      }
+                    </button>
+
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        disabled={loginLoading}
+                        onClick={() => {
+                          setLoginIsRegister(!loginIsRegister);
+                          setLoginError("");
+                        }}
+                        className="text-zinc-400 hover:text-white text-xs underline cursor-pointer"
+                      >
+                        {loginIsRegister 
+                          ? "Already have an account? Sign In" 
+                          : "Don't have an account? Sign Up"
+                        }
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              <button 
+                onClick={onClose} 
+                disabled={loginLoading}
+                className="w-full bg-zinc-950 border border-zinc-850 hover:border-zinc-700 hover:text-white text-zinc-400 text-xs uppercase tracking-wider py-2.5 transition-all cursor-pointer rounded-none"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  return (
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="transmissions-overlay fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 select-text font-sans"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="border border-zinc-850 bg-[#050505] p-6 max-w-2xl w-full text-left space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative rounded-sm font-sans max-h-[90vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
+                <div className="space-y-1">
+                  <span className="text-[8px] tracking-[0.3em] uppercase text-[#D9D6CA]/50 font-bold block">
+                    [ {subtitle || "TRANSMISSION"} ]
+                  </span>
+                  <h4 className="text-[#D9D6CA] font-bold text-xs uppercase tracking-widest leading-tight">
+                    {title}
+                  </h4>
+                </div>
+                <button 
+                  onClick={onClose} 
+                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs p-1"
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="py-2">
+                {renderContent()}
+              </div>
+
+              <button 
+                onClick={onClose} 
+                className="w-full bg-zinc-900 border border-zinc-800 hover:border-[#D9D6CA]/40 hover:text-white text-zinc-300 font-mono text-[9px] tracking-[0.25em] uppercase py-3 transition-all cursor-pointer rounded-none"
+              >
+                CLOSE WINDOW
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 8. HIDDEN DOCUMENT VAULT SUB-MODAL */}
+      <AnimatePresence>
+        {showDocumentVault && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/98 backdrop-blur-lg z-[200] flex items-center justify-center p-4 select-none font-mono"
+          >
+            <motion.div 
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="border border-zinc-850 bg-[#020202] p-6 max-w-lg w-full text-left space-y-4 shadow-[0_25px_60px_rgba(0,0,0,0.95)]"
+            >
+              <div className="flex justify-between items-start border-b border-zinc-900 pb-3">
+                <div className="space-y-1">
+                  <span className="text-[8px] tracking-[0.3em] uppercase text-red-500 font-bold block">
+                    [ CRYPTOGRAPHIC SECURE LEVEL ]
+                  </span>
+                  <h4 className="text-white font-bold text-xs uppercase tracking-widest leading-tight">
+                    DOCUMENT VAULT
+                  </h4>
+                </div>
+                <button 
+                  onClick={() => setShowDocumentVault(false)} 
+                  className="text-zinc-500 hover:text-white transition-colors cursor-pointer text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-zinc-500 text-[10px] leading-relaxed uppercase">
+                Displays legally executed digital signature certificates, download logs, expired agreements, and revoked credentials.
+              </p>
+
+              <div className="space-y-2 border border-zinc-900 p-3 bg-zinc-950/40 rounded-sm">
+                <span className="text-[8px] text-zinc-650 tracking-wider font-bold uppercase block">ARCHIVED VAULT FILES</span>
+                
+                <div className="space-y-2 text-[10px] font-mono text-zinc-400">
+                  <div className="flex justify-between items-center py-1 border-b border-zinc-950">
+                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> OWL_LICENSE_CERT_0333.PDF</span>
+                    <span className="text-[#00E676] bg-[#00E676]/10 px-1.5 py-0.5 text-[8.5px] font-bold">[ SIGNED ]</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-zinc-950">
+                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> SPLIT_SHEET_M01.XLS</span>
+                    <span className="text-[#00E676] bg-[#00E676]/10 px-1.5 py-0.5 text-[8.5px] font-bold">[ EXECUTED ]</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-zinc-950">
+                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> MASTER_CLEARANCE_AGREEMENT.WAV</span>
+                    <span className="text-zinc-500 bg-zinc-900 px-1.5 py-0.5 text-[8.5px]">[ DOWNLOAD RECORD ]</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-zinc-950">
+                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> TEMP_EVALUATION_ACCESS_38.PDF</span>
+                    <span className="text-zinc-500 bg-zinc-900 px-1.5 py-0.5 text-[8.5px]">[ EXPIRED ]</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="flex items-center gap-1.5"><FileText size={11} className="text-zinc-600" /> REVOKED_LICENSE_SAMPLE_92.PDF</span>
+                    <span className="text-red-500 bg-red-500/10 px-1.5 py-0.5 text-[8.5px] font-bold">[ REVOKED ]</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowDocumentVault(false)}
+                  className="w-full bg-zinc-900 border border-zinc-800 hover:border-white text-zinc-300 font-mono text-[9px] tracking-widest uppercase py-3 transition-all cursor-pointer text-center"
+                >
+                  CLOSE VAULT ACCESS
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
