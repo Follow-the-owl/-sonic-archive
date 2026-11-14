@@ -1,0 +1,189 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Special+Elite&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Special Elite", system-ui, serif;
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-display: "Special Elite", system-ui, serif;
+  --font-mono: "Poppins", system-ui, sans-serif;
+  
+  --color-dark-black: #000000;
+  --color-dark-charcoal: #050505;
+  --color-dark-smoke: #090909;
+  --color-gold-muted: #D9D6CA; /* Sand/bone-beige from dontoliver.com */
+}
+
+/* Global Vintage Special Elite Enforcer */
+html, body, #root, * {
+  font-family: "Special Elite", system-ui, serif !important;
+}
+
+/* Dashboard, Workspace, Policy & Protocol pages - strictly use Poppins font for clear readability */
+.dashboard-page,
+.dashboard-page *,
+.admin-dashboard,
+.admin-dashboard *,
+.document-dashboard,
+.document-dashboard *,
+.client-dashboard,
+.client-dashboard *,
+.customer-dashboard,
+.customer-dashboard *,
+.transmissions-overlay,
+.transmissions-overlay *,
+.checkout-page,
+.checkout-page *,
+.verification-page,
+.verification-page *,
+.licensing-schedule-page,
+.licensing-schedule-page *,
+.clearance-guide-page,
+.clearance-guide-page *,
+.about-archive-page,
+.about-archive-page *,
+.contact-page,
+.contact-page *,
+.terms-page,
+.terms-page *,
+.privacy-page,
+.privacy-page *,
+.cookie-page,
+.cookie-page *,
+.refund-page,
+.refund-page *,
+.acceptable-use-page,
+.acceptable-use-page *,
+#site-footer,
+#site-footer *,
+.site-footer,
+.site-footer *,
+.font-poppins,
+.font-poppins *,
+[data-font="poppins"],
+[data-font="poppins"] * {
+  font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* Ensure the signup and authentication forms strictly match the site's primary font (Special Elite) */
+.auth-page,
+.auth-page *,
+.auth-modal,
+.auth-modal *,
+.auth-form,
+.auth-form *,
+[data-auth-step],
+[data-auth-step] * {
+  font-family: "Special Elite", system-ui, serif !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #111111;
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #222222;
+}
+
+/* Gritty Film Grain Overlay */
+.film-grain {
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  right: -50%;
+  bottom: -50%;
+  width: 200%;
+  height: 200%;
+  background: transparent url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.025"/%3E%3C/svg%3E') repeat;
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 9999;
+  animation: grain-shift 4s steps(8) infinite;
+}
+
+@keyframes grain-shift {
+  0%, 100% { transform:translate(0, 0); }
+  10% { transform:translate(-1%, -1%); }
+  20% { transform:translate(-2%, 1%); }
+  30% { transform:translate(1%, -2%); }
+  40% { transform:translate(-1%, 2%); }
+  50% { transform:translate(-2%, -1%); }
+  60% { transform:translate(2%, 1%); }
+  70% { transform:translate(1%, -2%); }
+  80% { transform:translate(-1%, 1%); }
+  90% { transform:translate(1%, -1%); }
+}
+
+/* LOMON Fragment display typography with horizontal / diagonal smudged smoke flare */
+.fragment-title,
+.octane-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #ffffff;
+  letter-spacing: -0.06em;
+  transform: scaleY(1.05);
+  position: relative;
+  text-shadow: 
+    0px 0px 8px rgba(255, 255, 255, 0.4),
+    -1px -1px 0px rgba(0, 0, 0, 1),
+    1px 1px 0px rgba(0, 0, 0, 1);
+  filter: drop-shadow(0 0 15px rgba(217, 214, 202, 0.15));
+}
+
+.fragment-flare,
+.octane-flare {
+  position: absolute;
+  inset: 0;
+  color: rgba(255, 255, 255, 0.2);
+  filter: blur(8px) contrast(150%);
+  transform: scale(1.05) skewX(-15deg);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  user-select: none;
+  animation: fragment-flare-drift 8s ease-in-out infinite;
+}
+
+@keyframes fragment-flare-drift {
+  0%, 100% { transform: scale(1.05) skewX(-15deg) translateX(-2px); opacity: 0.2; }
+  50% { transform: scale(1.08) skewX(-12deg) translateX(3px); opacity: 0.35; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 15s linear infinite;
+}
+
+/* Gold glow adaptation to bone/sand theme */
+.gold-glow {
+  box-shadow: 0 0 40px 5px rgba(217, 214, 202, 0.04);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px rgba(217, 214, 202, 0.2);
+}
+
+.owl-gaze {
+  filter: drop-shadow(0 0 12px rgba(217, 214, 202, 0.12));
+}
+
+/* Custom Vinyl spin effect */
+@keyframes spin-music {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-vinyl {
+  animation: spin-music 4s linear infinite;
+}
+

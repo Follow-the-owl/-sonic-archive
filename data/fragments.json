@@ -1,0 +1,348 @@
+[
+  {
+    "id": "10:00",
+    "name": "10:00 PM",
+    "timestamp": "10:00 PM",
+    "classification": "RECOVERY STATE",
+    "observation": "TIME OF MARK: 10:00 PM. KEY SIGNATURE: Eb Major. TEMPO: 100 BPM. RECOVERY STAMP: MAY 14, 2025. COMPLETION STAMP: JUL 14, 2025.",
+    "duration": "06:15",
+    "description": "A majestic, fully recovered 10:00 PM transmission carrying a pure Eb Major chord sequence vibrating at 100 BPM. Archivist entry compiled and co-signed under Lomon's protocols.",
+    "isExclusive": false,
+    "frequency": 311.13,
+    "synthType": "keys",
+    "bpm": 100,
+    "status": "Published",
+    "plays": 1200,
+    "revenue": 200,
+    "tonalSignature": "Eb Major",
+    "key": "Eb Major",
+    "recoveryState": "Fully Recovered",
+    "fullRecoveryDate": "MAY 14, 2025",
+    "archivist": "LOMON",
+    "mp3Preview": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/10%3B00%20PM%20%20(1).mp3",
+    "audioUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/10%3B00%20PM%20%20(1).mp3",
+    "wavMaster": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/10%3B00%20PM%20%20(1).wav",
+    "wavUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/10%3B00%20PM%20%20(1).wav",
+    "stemsZip": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/01_Archive%20(2).zip",
+    "zipUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/01_Archive%20(2).zip",
+    "audioFiles": [
+      {
+        "fileType": "publicPreviewMp3",
+        "fileName": "10_00_PM_Preview.mp3",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/10%3B00%20PM%20%20(1).mp3"
+      },
+      {
+        "fileType": "masterWav",
+        "fileName": "10_00_PM_Master_24bit.wav",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/10%3B00%20PM%20%20(1).wav"
+      },
+      {
+        "fileType": "stemZip",
+        "fileName": "10_00_PM_Stems.zip",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/10pm/01_Archive%20(2).zip"
+      }
+    ],
+    "timeCapsule": {
+      "entryNo": "1000",
+      "catalogNo": "TOC-1000-B",
+      "title": "10:00 PM",
+      "timeOfMark": "10:00 PM",
+      "recoveryStamp": "MAY 14, 2025",
+      "completionStamp": "JUL 14, 2025",
+      "tonalAxis": "EB MAJOR",
+      "tempoPulse": "100 BPM",
+      "runtime": "06:15",
+      "masterControl": "100% LOMON / THE OWL CLOCK",
+      "publishingControl": "100% LOMON / THE OWL CLOCK",
+      "origin": "100% ORIGINAL",
+      "thirdPartyAssets": "NONE",
+      "clearanceStatus": "FULLY CLEARED",
+      "deliverableAssets": [
+        "HIGH-RES WAV MASTER | 24-BIT / 48KHZ",
+        "REFERENCE MP3 | 320 KBPS",
+        "UNCOMPRESSED INSTRUMENTAL MASTER",
+        "COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      "recoveryStatus": "FULLY RECOVERED",
+      "archivist": "LOMON"
+    },
+    "fragmentTimestamp": "10:00 PM"
+  },
+  {
+    "id": "11:11",
+    "name": "11:11 PM",
+    "timestamp": "11:11 PM",
+    "classification": "RECOVERY STATE",
+    "observation": "TIME OF MARK: 11:11 PM. KEY SIGNATURE: B minor. TEMPO: 125 BPM. RECOVERY STAMP: AUG 01, 2026. COMPLETION STAMP: OCT 07, 2026.",
+    "duration": "05:44",
+    "description": "Time Capsule Entry 1111. High-fidelity recovered tape fragment carrying a B minor tonal axis at 125 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
+    "isExclusive": false,
+    "frequency": 493.88,
+    "synthType": "keys",
+    "bpm": 125,
+    "status": "Published",
+    "plays": 2450,
+    "revenue": 850,
+    "tonalSignature": "B minor",
+    "key": "B minor",
+    "recoveryState": "Fully Recovered",
+    "fullRecoveryDate": "AUG 01, 2026",
+    "archivist": "LOMON",
+    "mp3Preview": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.mp3",
+    "audioUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.mp3",
+    "previewAudioUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.mp3",
+    "wavMaster": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.wav",
+    "wavUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.wav",
+    "stemsZip": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/01_Archive%20(2).zip",
+    "zipUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/01_Archive%20(2).zip",
+    "audioFiles": [
+      {
+        "fileType": "publicPreviewMp3",
+        "fileName": "11_11_PM_Preview.mp3",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.mp3"
+      },
+      {
+        "fileType": "masterWav",
+        "fileName": "11_11_PM_Master_24bit.wav",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/11%3B11%20PM_F%201.wav"
+      },
+      {
+        "fileType": "stemZip",
+        "fileName": "11_11_PM_Stems.zip",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/11pm/01_Archive%20(2).zip"
+      }
+    ],
+    "timeCapsule": {
+      "entryNo": "1111",
+      "catalogNo": "TOC-1111-B",
+      "title": "11:11 PM",
+      "timeOfMark": "11:11 PM",
+      "recoveryStamp": "AUG 01, 2026",
+      "completionStamp": "OCT 07, 2026",
+      "tonalAxis": "B MINOR",
+      "tempoPulse": "125 BPM",
+      "runtime": "05:44",
+      "masterControl": "100% LOMON / THE OWL CLOCK",
+      "publishingControl": "100% LOMON / THE OWL CLOCK",
+      "origin": "100% ORIGINAL",
+      "thirdPartyAssets": "NONE",
+      "clearanceStatus": "FULLY CLEARED",
+      "deliverableAssets": [
+        "HIGH-RES WAV MASTER | 24-BIT / 48KHZ",
+        "REFERENCE MP3 | 320 KBPS",
+        "UNCOMPRESSED INSTRUMENTAL MASTER",
+        "COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      "recoveryStatus": "FULLY RECOVERED",
+      "archivist": "LOMON"
+    },
+    "fragmentTimestamp": "11:11 PM"
+  },
+  {
+    "id": "01:16",
+    "name": "01:16 AM",
+    "timestamp": "01:16 AM",
+    "classification": "RECOVERY STATE",
+    "observation": "TIME OF MARK: 01:16 AM. KEY SIGNATURE: G Major. TEMPO: 104 BPM. RECOVERY STAMP: NOV 04, 2025. COMPLETION STAMP: SEP 05, 2026.",
+    "duration": "05:44",
+    "description": "Rare celestial nocturnal tape reel fragment captured at 01:16 AM carrying a G Major harmonic decay vibrating at 104 BPM. Co-signed under Lomon's protocols.",
+    "isExclusive": false,
+    "frequency": 196,
+    "synthType": "keys",
+    "bpm": 104,
+    "status": "Published",
+    "plays": 2450,
+    "revenue": 850,
+    "tonalSignature": "G Major",
+    "key": "G Major",
+    "recoveryState": "Fully Recovered",
+    "fullRecoveryDate": "NOV 04, 2025",
+    "archivist": "LOMON",
+    "mp3Preview": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/1%3B16%20AM_A2%20(1).mp3",
+    "audioUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/1%3B16%20AM_A2%20(1).mp3",
+    "wavMaster": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/1%3B16%20AM_A2%20(1).wav",
+    "wavUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/1%3B16%20AM_A2%20(1).wav",
+    "stemsZip": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/Archive%20(8).zip",
+    "zipUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/Archive%20(8).zip",
+    "audioFiles": [
+      {
+        "fileType": "publicPreviewMp3",
+        "fileName": "1_16_AM_Preview.mp3",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/1%3B16%20AM_A2%20(1).mp3"
+      },
+      {
+        "fileType": "masterWav",
+        "fileName": "1_16_AM_Master_24bit.wav",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/1%3B16%20AM_A2%20(1).wav"
+      },
+      {
+        "fileType": "stemZip",
+        "fileName": "1_16_AM_Stems.zip",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/1/Archive%20(8).zip"
+      }
+    ],
+    "timeCapsule": {
+      "entryNo": "0116",
+      "catalogNo": "TOC-0116-G",
+      "title": "01:16 AM",
+      "timeOfMark": "01:16 AM",
+      "recoveryStamp": "NOV 04, 2025",
+      "completionStamp": "SEP 05, 2026",
+      "tonalAxis": "G MAJOR",
+      "tempoPulse": "104 BPM",
+      "runtime": "05:44",
+      "masterControl": "100% LOMON / THE OWL CLOCK",
+      "publishingControl": "100% LOMON / THE OWL CLOCK",
+      "origin": "100% ORIGINAL",
+      "thirdPartyAssets": "NONE",
+      "clearanceStatus": "FULLY CLEARED",
+      "deliverableAssets": [
+        "HIGH-RES WAV MASTER | 24-BIT / 48KHZ",
+        "REFERENCE MP3 | 320 KBPS",
+        "UNCOMPRESSED INSTRUMENTAL MASTER",
+        "COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      "recoveryStatus": "FULLY RECOVERED",
+      "archivist": "LOMON"
+    },
+    "fragmentTimestamp": "01:16 AM"
+  },
+  {
+    "id": "03:21",
+    "name": "03:21 PM",
+    "timestamp": "03:21 PM",
+    "classification": "RECOVERY STATE",
+    "observation": "TIME OF MARK: 03:21 PM. KEY SIGNATURE: F# Major. TEMPO: 100 BPM. RECOVERY STAMP: NOV 06, 2025. COMPLETION STAMP: JAN 13, 2026.",
+    "duration": "03:21",
+    "description": "Time Capsule Entry 0321. High-fidelity recovered tape fragment carrying an F# Major tonal axis at 100 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
+    "isExclusive": false,
+    "frequency": 369.99,
+    "synthType": "keys",
+    "bpm": 100,
+    "status": "Published",
+    "plays": 1450,
+    "revenue": 400,
+    "tonalSignature": "F# major",
+    "key": "F# major",
+    "recoveryState": "Fully Recovered",
+    "fullRecoveryDate": "NOV 06, 2025",
+    "archivist": "LOMON",
+    "mp3Preview": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/3%3B21%20PM%20E%205%20(1).mp3",
+    "audioUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/3%3B21%20PM%20E%205%20(1).mp3",
+    "wavMaster": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/3%3B21%20PM%20E%205%20(1).wav",
+    "wavUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/3%3B21%20PM%20E%205%20(1).wav",
+    "stemsZip": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/Archive%20(7).zip",
+    "zipUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/Archive%20(7).zip",
+    "audioFiles": [
+      {
+        "fileType": "publicPreviewMp3",
+        "fileName": "3_21_PM_Preview.mp3",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/3%3B21%20PM%20E%205%20(1).mp3"
+      },
+      {
+        "fileType": "masterWav",
+        "fileName": "3_21_PM_Master_24bit.wav",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/3%3B21%20PM%20E%205%20(1).wav"
+      },
+      {
+        "fileType": "stemZip",
+        "fileName": "3_21_PM_Stems.zip",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/3/Archive%20(7).zip"
+      }
+    ],
+    "timeCapsule": {
+      "entryNo": "0321",
+      "catalogNo": "TOC-0321-FS",
+      "title": "03:21 PM",
+      "timeOfMark": "03:21 PM",
+      "recoveryStamp": "NOV 06, 2025",
+      "completionStamp": "JAN 13, 2026",
+      "tonalAxis": "F# MAJOR",
+      "tempoPulse": "100 BPM",
+      "runtime": "03:21",
+      "masterControl": "100% LOMON / THE OWL CLOCK",
+      "publishingControl": "100% LOMON / THE OWL CLOCK",
+      "origin": "100% ORIGINAL",
+      "thirdPartyAssets": "NONE",
+      "clearanceStatus": "FULLY CLEARED",
+      "deliverableAssets": [
+        "HIGH-RES WAV MASTER | 24-BIT / 48KHZ",
+        "REFERENCE MP3 | 320 KBPS",
+        "UNCOMPRESSED INSTRUMENTAL MASTER",
+        "COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      "recoveryStatus": "FULLY RECOVERED",
+      "archivist": "LOMON"
+    },
+    "fragmentTimestamp": "03:21 PM"
+  },
+  {
+    "id": "09:41",
+    "name": "09:41 PM",
+    "timestamp": "09:41 PM",
+    "classification": "RECOVERY STATE",
+    "observation": "TIME OF MARK: 09:41 PM. KEY SIGNATURE: B Major. TEMPO: 103 BPM. RECOVERY STAMP: MAY 19, 2026. COMPLETION STAMP: AUG 08, 2026.",
+    "duration": "03:06",
+    "description": "Time Capsule Entry 0941. High-fidelity recovered tape fragment carrying a B Major tonal axis at 103 BPM. Fully cleared deliverable suite co-signed under Lomon's protocols.",
+    "isExclusive": false,
+    "frequency": 246.94,
+    "synthType": "keys",
+    "bpm": 103,
+    "status": "Published",
+    "plays": 1890,
+    "revenue": 350,
+    "tonalSignature": "B Major",
+    "key": "B Major",
+    "recoveryState": "Fully Recovered",
+    "fullRecoveryDate": "MAY 19, 2026",
+    "archivist": "LOMON",
+    "mp3Preview": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/9%3B41%20PM%20(1).mp3",
+    "audioUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/9%3B41%20PM%20(1).mp3",
+    "wavMaster": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/9%3B41%20PM.wav",
+    "wavUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/9%3B41%20PM.wav",
+    "stemsZip": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/Archive%20(9).zip",
+    "zipUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/Archive%20(9).zip",
+    "audioFiles": [
+      {
+        "fileType": "publicPreviewMp3",
+        "fileName": "9_41_PM_Preview.mp3",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/9%3B41%20PM%20(1).mp3"
+      },
+      {
+        "fileType": "masterWav",
+        "fileName": "9_41_PM_Master_24bit.wav",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/9%3B41%20PM.wav"
+      },
+      {
+        "fileType": "stemZip",
+        "fileName": "9_41_PM_Stems.zip",
+        "fileUrl": "https://pub-330327ad4a1d48cc845ec672277e634d.r2.dev/9%3A41pm/Archive%20(9).zip"
+      }
+    ],
+    "timeCapsule": {
+      "entryNo": "0941",
+      "catalogNo": "TOC-0941-B",
+      "title": "09:41 PM",
+      "timeOfMark": "09:41 PM",
+      "recoveryStamp": "MAY 19, 2026",
+      "completionStamp": "AUG 08, 2026",
+      "tonalAxis": "B MAJOR",
+      "tempoPulse": "103 BPM",
+      "runtime": "03:06",
+      "masterControl": "100% LOMON / THE OWL CLOCK",
+      "publishingControl": "100% LOMON / THE OWL CLOCK",
+      "origin": "100% ORIGINAL",
+      "thirdPartyAssets": "NONE",
+      "clearanceStatus": "FULLY CLEARED",
+      "deliverableAssets": [
+        "HIGH-RES WAV MASTER | 24-BIT / 48KHZ",
+        "REFERENCE MP3 | 320 KBPS",
+        "UNCOMPRESSED INSTRUMENTAL MASTER",
+        "COMPLETE STEM / TRACKOUT SUITE"
+      ],
+      "recoveryStatus": "FULLY RECOVERED",
+      "archivist": "LOMON"
+    },
+    "fragmentTimestamp": "09:41 PM"
+  }
+]
